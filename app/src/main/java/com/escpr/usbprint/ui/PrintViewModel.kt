@@ -19,6 +19,14 @@ import androidx.lifecycle.viewModelScope
 import com.escpr.usbprint.escpr.EscpRJob
 import com.escpr.usbprint.escpr.PrintSettings
 import com.escpr.usbprint.layout.ContentPlacement
+import com.escpr.usbprint.layout.RectMm
+import com.escpr.usbprint.layout.SheetItem
+import com.escpr.usbprint.layout.SheetLayout
+import com.escpr.usbprint.layout.arrangedInGrid
+import com.escpr.usbprint.layout.broughtToFront
+import com.escpr.usbprint.layout.computeSheetLayout
+import com.escpr.usbprint.layout.movedBy
+import com.escpr.usbprint.layout.scaledBy
 import com.escpr.usbprint.layout.clampedTo
 import com.escpr.usbprint.layout.computePageLayout
 import com.escpr.usbprint.print.PrintTask
@@ -26,6 +34,8 @@ import com.escpr.usbprint.render.ImagePageSource
 import com.escpr.usbprint.render.PageSource
 import com.escpr.usbprint.render.PdfPageSource
 import com.escpr.usbprint.render.PreviewRenderer
+import com.escpr.usbprint.render.SheetPageSource
+import com.escpr.usbprint.render.SheetPhoto
 import com.escpr.usbprint.usb.PrinterErrorKind
 import com.escpr.usbprint.usb.UsbPrinter
 import com.escpr.usbprint.usb.classifyFailure
@@ -35,6 +45,7 @@ import com.escpr.usbprint.util.displayName
 import com.escpr.usbprint.util.formatBytes
 import com.escpr.usbprint.util.mimeType
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -55,6 +66,15 @@ data class Document(
     val name: String,
     val isPdf: Boolean,
     val pageCount: Int
+)
+
+/** Satu foto di atas lembar, lengkap dengan pratinjau dan posisinya. */
+data class PhotoOnSheet(
+    val id: Long,
+    val file: File,
+    val name: String,
+    val preview: ImageBitmap,
+    val item: SheetItem,
 )
 
 data class UiState(
@@ -81,7 +101,50 @@ data class UiState(
     val placement: ContentPlacement = ContentPlacement.Fit,
     /** Editor tata letak layar penuh sedang terbuka. */
     val layoutEditorOpen: Boolean = false,
+    /** Foto-foto yang disusun dalam satu lembar. Kosong berarti mode dokumen. */
+    val photos: List<PhotoOnSheet> = emptyList(),
+    val selectedPhotoId: Long? = null,
 ) {
+    /**
+     * Gambar disusun sebagai lembar; PDF tetap lewat jalur dokumen karena
+     * halamannya punya ukuran sendiri dan tidak bisa ditumpuk sembarangan.
+     */
+    val sheetMode: Boolean get() = photos.isNotEmpty()
+
+    val sheetLayout: SheetLayout
+        get() = computeSheetLayout(
+            paperWidthMm = settings.paper.widthMm,
+            paperHeightMm = settings.paper.heightMm,
+            marginMm = settings.marginMm,
+            items = photos.map { it.item },
+        )
+
+    /** Area cetak yang berlaku, dari model mana pun yang sedang dipakai. */
+    val printableRect: RectMm
+        get() = if (sheetMode) sheetLayout.printable else pageLayout.printable
+
+    /** Isi yang digambar pratinjau, seragam untuk kedua mode. */
+    val previewItems: List<PreviewItem>
+        get() = if (sheetMode) {
+            photos.map { photo ->
+                PreviewItem(
+                    id = photo.id,
+                    rect = photo.item.rect,
+                    image = photo.preview,
+                    selected = photo.id == selectedPhotoId,
+                )
+            }
+        } else {
+            val image = previewImage
+            if (image == null) emptyList()
+            else listOf(PreviewItem(id = 0L, rect = pageLayout.content, image = image))
+        }
+
+    val selectedPhoto: PhotoOnSheet?
+        get() = photos.firstOrNull { it.id == selectedPhotoId }
+
+    val hasContent: Boolean get() = sheetMode || document != null
+
     /** Rasio isi halaman yang sedang dipratinjau; 0 kalau belum ada dokumen. */
     val contentAspect: Float
         get() = previewImage?.let { it.width.toFloat() / it.height.toFloat() } ?: 0f
@@ -111,10 +174,24 @@ data class UiState(
         )
 
     val canPrint: Boolean
-        get() = !busy && document != null && connection.ready
+        get() = !busy && hasContent && connection.ready
 }
 
-class PrintViewModel(app: Application) : AndroidViewModel(app) {
+/**
+ * @param ioDispatcher tempat kerja berat berjalan: menguraikan gambar, membaca
+ *   PDF, dan mengirim data ke printer.
+ * @param uiDispatcher tempat perubahan state diterbitkan. Menulis state yang
+ *   diamati Compose dari utas latar bisa memicu tata letak ulang di utas yang
+ *   salah, jadi penerbitannya selalu di utas utama.
+ *
+ * Keduanya bisa disuntik supaya pengujian menjalankan semuanya secara langsung
+ * tanpa bergantung pada penjadwalan utas.
+ */
+class PrintViewModel(
+    app: Application,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val uiDispatcher: CoroutineDispatcher = Dispatchers.Main.immediate,
+) : AndroidViewModel(app) {
 
     private val usbManager = app.getSystemService(Context.USB_SERVICE) as UsbManager
 
@@ -122,6 +199,9 @@ class PrintViewModel(app: Application) : AndroidViewModel(app) {
     val state: StateFlow<UiState> = _state.asStateFlow()
 
     private var printJob: Job? = null
+
+    /** Id foto naik terus; dipakai untuk mencocokkan pratinjau dengan posisinya. */
+    private var nextPhotoId: Long = 1L
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -236,9 +316,11 @@ class PrintViewModel(app: Application) : AndroidViewModel(app) {
         val device = _state.value.selectedDevice ?: return
         if (!usbManager.hasPermission(device)) return
 
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(uiDispatcher) {
             runCatching {
-                UsbPrinter.open(usbManager, device).use { it.readDeviceId() }
+                withContext(ioDispatcher) {
+                    UsbPrinter.open(usbManager, device).use { it.readDeviceId() }
+                }
             }.onSuccess { id ->
                 val support = when {
                     id == null -> EscpRSupport.NO_REPLY
@@ -263,9 +345,25 @@ class PrintViewModel(app: Application) : AndroidViewModel(app) {
 
     // ------------------------------------------------------------ dokumen
 
+    /**
+     * Membuka satu berkas. Gambar masuk ke lembar; PDF menggantikan lembar.
+     */
     fun openDocument(uri: Uri) {
-        viewModelScope.launch(Dispatchers.IO) {
+        val app = getApplication<Application>()
+        val name = runCatching { displayName(app, uri) }.getOrDefault("")
+        val mime = runCatching { mimeType(app, uri) }.getOrDefault("")
+        val isPdf = mime.contains("pdf") || name.endsWith(".pdf", ignoreCase = true)
+        if (!isPdf) {
+            addPhotos(listOf(uri))
+            return
+        }
+        openPdf(uri)
+    }
+
+    private fun openPdf(uri: Uri) {
+        viewModelScope.launch(uiDispatcher) {
             runCatching {
+                withContext(ioDispatcher) {
                 val app = getApplication<Application>()
                 val name = displayName(app, uri)
                 val mime = mimeType(app, uri)
@@ -277,7 +375,8 @@ class PrintViewModel(app: Application) : AndroidViewModel(app) {
                 } else {
                     1
                 }
-                Document(file, name, isPdf, pages)
+                    Document(file, name, isPdf, pages)
+                }
             }.onSuccess { document ->
                 _state.update {
                     it.copy(
@@ -286,6 +385,8 @@ class PrintViewModel(app: Application) : AndroidViewModel(app) {
                         previewImage = null,
                         placement = ContentPlacement.Fit,
                         layoutEditorOpen = false,
+                        photos = emptyList(),
+                        selectedPhotoId = null,
                     )
                 }
                 log("Dipilih: ${document.name} (${document.pageCount} halaman)")
@@ -318,10 +419,12 @@ class PrintViewModel(app: Application) : AndroidViewModel(app) {
      */
     private fun loadPreview(page: Int) {
         val document = _state.value.document ?: return
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(uiDispatcher) {
             _state.update { it.copy(previewLoading = true) }
             runCatching {
-                PreviewRenderer.render(document.file, document.isPdf, page).asImageBitmap()
+                withContext(ioDispatcher) {
+                    PreviewRenderer.render(document.file, document.isPdf, page).asImageBitmap()
+                }
             }.onSuccess { image ->
                 _state.update {
                     // Abaikan hasil yang keburu basi karena pengguna sudah pindah halaman.
@@ -346,6 +449,10 @@ class PrintViewModel(app: Application) : AndroidViewModel(app) {
      * hasilnya sama berapa pun ukuran pratinjau di layar.
      */
     fun nudgePlacement(panXmm: Float, panYmm: Float, zoom: Float) {
+        if (_state.value.sheetMode) {
+            nudgeSelectedPhoto(panXmm, panYmm, zoom)
+            return
+        }
         _state.update { state ->
             val paper = state.settings.paper
             val next = state.placement.copy(
@@ -358,14 +465,158 @@ class PrintViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Menggeser dan mengubah ukuran foto yang sedang dipilih. */
+    private fun nudgeSelectedPhoto(panXmm: Float, panYmm: Float, zoom: Float) {
+        _state.update { state ->
+            val id = state.selectedPhotoId ?: state.photos.lastOrNull()?.id ?: return@update state
+            val paper = state.settings.paper
+            state.copy(
+                selectedPhotoId = id,
+                photos = state.photos.map { photo ->
+                    if (photo.id != id) photo
+                    else photo.copy(
+                        item = photo.item
+                            .scaledBy(zoom, paper.widthMm, paper.heightMm)
+                            .movedBy(panXmm, panYmm, paper.widthMm, paper.heightMm)
+                    )
+                }
+            )
+        }
+    }
+
     /** Mengembalikan isi ke ukuran muat di tengah kertas. */
     fun resetPlacement() {
+        if (_state.value.sheetMode) {
+            arrangeGrid()
+            return
+        }
         _state.update { it.copy(placement = ContentPlacement.Fit) }
     }
 
-    /** Tanpa dokumen tidak ada yang bisa diatur, jadi editor tidak dibuka. */
+    // ------------------------------------------------------------- lembar
+
+    /**
+     * Menambahkan foto ke lembar, lalu menyusun ulang seluruhnya ke kisi.
+     *
+     * Penyusunan ulang otomatis dipilih supaya foto baru tidak menumpuk persis
+     * di atas yang lama dan tampak seolah tidak masuk. Setelah itu pengguna
+     * bebas menggeser sendiri.
+     */
+    fun addPhotos(uris: List<Uri>) {
+        if (uris.isEmpty()) return
+        // Menguraikan gambar berlangsung di IO, tetapi perubahan state
+        // diterbitkan di utas utama: menulis state yang diamati Compose dari
+        // utas latar bisa memicu tata letak ulang di utas yang salah.
+        viewModelScope.launch(uiDispatcher) {
+            val app = getApplication<Application>()
+            val added = mutableListOf<PhotoOnSheet>()
+            val failures = mutableListOf<String>()
+
+            withContext(ioDispatcher) {
+                for (uri in uris) {
+                    runCatching {
+                        val name = displayName(app, uri)
+                        val file = copyToCache(app, uri, name + "-" + nextPhotoId)
+                        val preview = PreviewRenderer.render(file, isPdf = false, pageIndex = 0)
+                        val aspect = preview.width.toFloat() / preview.height.toFloat()
+                        PhotoOnSheet(
+                            id = nextPhotoId++,
+                            file = file,
+                            name = name,
+                            preview = preview.asImageBitmap(),
+                            // Posisi sementara; langsung ditimpa penyusunan di bawah.
+                            item = SheetItem(id = nextPhotoId, aspect = aspect, rect = RectMm(0f, 0f, 1f, 1f)),
+                        ).let { photo -> photo.copy(item = photo.item.copy(id = photo.id)) }
+                    }.onSuccess { added += it }
+                        .onFailure { error -> failures += (error.message ?: error.toString()) }
+                }
+            }
+
+            failures.forEach { message ->
+                _state.update {
+                    it.copy(
+                        outcome = PrintOutcome.Failed(
+                            PrinterErrorKind.DOCUMENT_UNREADABLE, message
+                        )
+                    )
+                }
+                log("Gagal membuka gambar: " + message)
+            }
+
+            if (added.isEmpty()) return@launch
+            _state.update { state ->
+                val combined = state.photos + added
+                val printable = computeSheetLayout(
+                    state.settings.paper.widthMm,
+                    state.settings.paper.heightMm,
+                    state.settings.marginMm,
+                    combined.map { it.item },
+                ).printable
+                val arranged = combined.map { it.item }.arrangedInGrid(printable)
+                state.copy(
+                    document = null,
+                    previewImage = null,
+                    photos = combined.mapIndexed { index, photo ->
+                        photo.copy(item = arranged[index])
+                    },
+                    selectedPhotoId = added.last().id,
+                    layoutEditorOpen = false,
+                )
+            }
+            log("Ditambahkan " + added.size + " foto, total " + _state.value.photos.size + ".")
+        }
+    }
+
+    /** Menyusun ulang ke kisi. Nol kolom berarti biarkan aplikasi memilih. */
+    fun arrangeGrid(columns: Int = 0) {
+        _state.update { state ->
+            if (state.photos.isEmpty()) return@update state
+            val arranged = state.photos.map { it.item }
+                .arrangedInGrid(state.sheetLayout.printable, columns)
+            state.copy(
+                photos = state.photos.mapIndexed { index, photo ->
+                    photo.copy(item = arranged[index])
+                }
+            )
+        }
+    }
+
+    /** Memilih foto yang ada di titik itu, dan menaikkannya ke tumpukan atas. */
+    fun selectPhotoAt(xMm: Float, yMm: Float) {
+        _state.update { state ->
+            if (!state.sheetMode) return@update state
+            val hit = state.sheetLayout.itemAt(xMm, yMm)
+            if (hit == null) {
+                state.copy(selectedPhotoId = null)
+            } else {
+                val reordered = state.photos.map { it.item }.broughtToFront(hit.id)
+                state.copy(
+                    photos = reordered.mapNotNull { item ->
+                        state.photos.firstOrNull { it.id == item.id }?.copy(item = item)
+                    },
+                    selectedPhotoId = hit.id,
+                )
+            }
+        }
+    }
+
+    fun removeSelectedPhoto() {
+        _state.update { state ->
+            val id = state.selectedPhotoId ?: return@update state
+            val remaining = state.photos.filterNot { it.id == id }
+            state.copy(photos = remaining, selectedPhotoId = remaining.lastOrNull()?.id)
+        }
+    }
+
+    fun clearPhotos() {
+        _state.update {
+            it.copy(photos = emptyList(), selectedPhotoId = null, layoutEditorOpen = false)
+        }
+    }
+
+    /** Tanpa isi tidak ada yang bisa diatur, jadi editor tidak dibuka. */
     fun openLayoutEditor() {
-        if (_state.value.document == null) return
+        if (!_state.value.hasContent) return
         _state.update { it.copy(layoutEditorOpen = true) }
     }
 
@@ -377,12 +628,13 @@ class PrintViewModel(app: Application) : AndroidViewModel(app) {
 
     fun print() {
         val current = _state.value
-        val document = current.document ?: return
+        if (!current.hasContent) return
         val device = current.selectedDevice ?: return
 
-        val sheets = document.pageCount * current.settings.copies.coerceAtLeast(1)
+        val pages = if (current.sheetMode) 1 else (current.document?.pageCount ?: 1)
+        val sheets = pages * current.settings.copies.coerceAtLeast(1)
 
-        printJob = viewModelScope.launch(Dispatchers.IO) {
+        printJob = viewModelScope.launch(ioDispatcher) {
             _state.update {
                 it.copy(busy = true, progress = 0f, outcome = PrintOutcome.None)
             }
@@ -390,11 +642,12 @@ class PrintViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 UsbPrinter.open(usbManager, device).use { printer ->
                     val sink = printer.sink()
-                    pageSource(document).use { source ->
+                    pageSource(current).use { source ->
                         val (width, height) = current.printableSize
                         log("Mencetak pada $width x $height piksel...")
                         PrintTask.run(
-                            sink, source, current.settings, current.placement
+                            sink, source, current.settings,
+                            if (current.sheetMode) ContentPlacement.Fit else current.placement
                         ) { progress ->
                             _state.update { it.copy(progress = progress.fraction) }
                         }
@@ -450,9 +703,9 @@ class PrintViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun exportPrn(uri: Uri) {
         val current = _state.value
-        val document = current.document ?: return
+        if (!current.hasContent) return
 
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             _state.update { it.copy(busy = true, progress = 0f) }
             try {
                 val app = getApplication<Application>()
@@ -461,9 +714,10 @@ class PrintViewModel(app: Application) : AndroidViewModel(app) {
 
                 var written = 0L
                 StreamSink(stream).use { sink ->
-                    pageSource(document).use { source ->
+                    pageSource(current).use { source ->
                         PrintTask.run(
-                            sink, source, current.settings, current.placement
+                            sink, source, current.settings,
+                            if (current.sheetMode) ContentPlacement.Fit else current.placement
                         ) { progress ->
                             _state.update { it.copy(progress = progress.fraction) }
                         }
@@ -494,9 +748,17 @@ class PrintViewModel(app: Application) : AndroidViewModel(app) {
         return "cetak-$stamp.prn"
     }
 
-    private suspend fun pageSource(document: Document): PageSource =
-        withContext(Dispatchers.IO) {
-            if (document.isPdf) PdfPageSource(document.file) else ImagePageSource(document.file)
+    private suspend fun pageSource(state: UiState): PageSource =
+        withContext(ioDispatcher) {
+            if (state.sheetMode) {
+                SheetPageSource(
+                    photos = state.photos.map { SheetPhoto(it.item, it.file) },
+                    printableMm = state.sheetLayout.printable,
+                )
+            } else {
+                val document = state.document ?: throw java.io.IOException("Tidak ada dokumen")
+                if (document.isPdf) PdfPageSource(document.file) else ImagePageSource(document.file)
+            }
         }
 
     private fun log(message: String) {

@@ -18,7 +18,6 @@ import com.escpr.usbprint.escpr.ColorMode
 import com.escpr.usbprint.escpr.Dpi
 import com.escpr.usbprint.escpr.PaperSize
 import com.escpr.usbprint.escpr.Quality
-import com.escpr.usbprint.layout.ContentPlacement
 import com.escpr.usbprint.ui.PrintOutcome
 import com.escpr.usbprint.ui.StepAction
 import com.escpr.usbprint.ui.adviceFor
@@ -28,6 +27,7 @@ import com.escpr.usbprint.ui.PrintViewModel
 import com.escpr.usbprint.ui.theme.AppTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import kotlinx.coroutines.Dispatchers
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -56,7 +56,7 @@ class PrintScreenTest {
         // Robolectric tidak mengaku mendukung fitur apa pun kecuali diberi tahu.
         shadowOf(app.packageManager)
             .setSystemFeature(PackageManager.FEATURE_USB_HOST, usbHost)
-        val viewModel = PrintViewModel(app)
+        val viewModel = PrintViewModel(app, Dispatchers.Unconfined, Dispatchers.Unconfined)
         compose.setContent { AppTheme { PrintScreen(viewModel) } }
         return viewModel
     }
@@ -121,26 +121,22 @@ class PrintScreenTest {
 
 
     /**
-     * Gambar sederhana di cache, supaya alur dengan dokumen bisa diuji.
+     * Menambahkan satu foto ke lembar.
      *
-     * Yang ditunggu adalah objek dokumennya berganti, bukan namanya: di
-     * Robolectric pada Windows, Uri.fromFile menghasilkan URI tanpa path
-     * segment sehingga nama dokumen berisi path penuh, bukan nama berkas.
-     * Menunggu previewImage != null saja juga tidak cukup, karena syarat itu
-     * sudah terpenuhi sejak muatan sebelumnya.
+     * Yang ditunggu adalah jumlah fotonya bertambah. Menunggu "ada isi" saja
+     * tidak cukup, karena syarat itu sudah terpenuhi sejak foto sebelumnya.
      */
-    private fun loadSampleDocument(viewModel: PrintViewModel, name: String = "uji.png") {
+    private fun addSamplePhoto(viewModel: PrintViewModel, name: String = "uji.png") {
         val app = ApplicationProvider.getApplicationContext<Application>()
         val bitmap = Bitmap.createBitmap(1400, 900, Bitmap.Config.ARGB_8888)
         bitmap.eraseColor(Color.rgb(120, 190, 255))
         val file = File(app.cacheDir, name)
         file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
 
-        val before = viewModel.state.value.document
+        val before = viewModel.state.value.photos.size
         viewModel.openDocument(Uri.fromFile(file))
         compose.waitUntil(timeoutMillis = 10_000) {
-            val now = viewModel.state.value
-            now.document != null && now.document !== before && now.previewImage != null
+            viewModel.state.value.photos.size > before
         }
         compose.waitForIdle()
     }
@@ -156,7 +152,7 @@ class PrintScreenTest {
     @Test
     fun `menekan atur tata letak membuka editor layar penuh, lalu bisa ditutup`() {
         val viewModel = launch()
-        loadSampleDocument(viewModel)
+        addSamplePhoto(viewModel)
 
         compose.onNodeWithText("Atur tata letak").performClick()
         compose.waitForIdle()
@@ -164,7 +160,7 @@ class PrintScreenTest {
 
         // Kontrol khas editor muncul.
         compose.onNodeWithText("Selesai").assertIsDisplayed()
-        compose.onNodeWithText("Ukuran").assertIsDisplayed()
+        compose.onNodeWithText("Foto terpilih").assertIsDisplayed()
         compose.onNodeWithText("Batas cetak").assertIsDisplayed()
 
         compose.onNodeWithText("Selesai").performClick()
@@ -175,31 +171,86 @@ class PrintScreenTest {
     @Test
     fun `tombol perbesar di editor mengubah ukuran isi`() {
         val viewModel = launch()
-        loadSampleDocument(viewModel)
+        addSamplePhoto(viewModel)
         viewModel.openLayoutEditor()
         compose.waitForIdle()
 
-        val sebelum = viewModel.state.value.pageLayout.content.width
+        val sebelum = viewModel.state.value.selectedPhoto!!.item.rect.width
         compose.onNodeWithContentDescription("Perbesar").performClick()
         compose.waitForIdle()
-        val sesudah = viewModel.state.value.pageLayout.content.width
+        val sesudah = viewModel.state.value.selectedPhoto!!.item.rect.width
 
-        assertTrue("menekan perbesar harus melebarkan isi", sesudah > sebelum)
-        assertEquals(true, viewModel.state.value.placement.manual)
+        assertTrue("menekan perbesar harus melebarkan foto", sesudah > sebelum)
     }
 
     @Test
-    fun `mengganti dokumen menutup editor dan mengembalikan penempatan`() {
+    fun `menambah foto kedua menyusun ulang keduanya tanpa bertumpuk`() {
         val viewModel = launch()
-        loadSampleDocument(viewModel)
-        viewModel.nudgePlacement(10f, 10f, 1.3f)
-        viewModel.openLayoutEditor()
-        compose.waitForIdle()
-        assertEquals(true, viewModel.state.value.layoutEditorOpen)
+        addSamplePhoto(viewModel)
+        val sendirian = viewModel.state.value.photos.single().item.rect.width
 
-        loadSampleDocument(viewModel, name = "uji-kedua.png")
-        assertEquals(false, viewModel.state.value.layoutEditorOpen)
-        assertEquals(ContentPlacement.Fit, viewModel.state.value.placement)
+        addSamplePhoto(viewModel, name = "uji-kedua.png")
+        val state = viewModel.state.value
+
+        assertEquals(2, state.photos.size)
+        // Disusun ulang, jadi masing-masing mengecil dan tidak saling menimpa.
+        assertTrue("foto harus mengecil saat berbagi kertas",
+            state.photos[0].item.rect.width < sendirian)
+        val a = state.photos[0].item.rect
+        val b = state.photos[1].item.rect
+        val terpisah = a.right <= b.left + 0.01f || b.right <= a.left + 0.01f ||
+            a.bottom <= b.top + 0.01f || b.bottom <= a.top + 0.01f
+        assertTrue("dua foto bertumpuk setelah disusun", terpisah)
+        assertEquals(false, state.sheetLayout.hasOverflow)
+    }
+
+    @Test
+    fun `menyentuh foto memilihnya, dan yang terpilih bisa dihapus`() {
+        val viewModel = launch()
+        addSamplePhoto(viewModel)
+        addSamplePhoto(viewModel, name = "uji-kedua.png")
+
+        val target = viewModel.state.value.photos.first()
+        viewModel.selectPhotoAt(target.item.rect.centerX, target.item.rect.centerY)
+        assertEquals(target.id, viewModel.state.value.selectedPhotoId)
+
+        viewModel.removeSelectedPhoto()
+        assertEquals(1, viewModel.state.value.photos.size)
+        assertEquals(false, viewModel.state.value.photos.any { it.id == target.id })
+    }
+
+    @Test
+    fun `gestur hanya mengenai foto yang terpilih`() {
+        val viewModel = launch()
+        addSamplePhoto(viewModel)
+        addSamplePhoto(viewModel, name = "uji-kedua.png")
+
+        val photos = viewModel.state.value.photos
+        val target = photos.first()
+        val lainnya = photos.last()
+        viewModel.selectPhotoAt(target.item.rect.centerX, target.item.rect.centerY)
+
+        val sebelumLain = viewModel.state.value.photos.first { it.id == lainnya.id }.item.rect
+        viewModel.nudgePlacement(12f, 0f, 1f)
+
+        val sesudahTarget = viewModel.state.value.photos.first { it.id == target.id }.item.rect
+        val sesudahLain = viewModel.state.value.photos.first { it.id == lainnya.id }.item.rect
+        assertEquals(target.item.rect.left + 12f, sesudahTarget.left, 0.01f)
+        assertEquals(sebelumLain.left, sesudahLain.left, 0.001f)
+    }
+
+    @Test
+    fun `susun ulang mengembalikan semua foto ke dalam area cetak`() {
+        val viewModel = launch()
+        addSamplePhoto(viewModel)
+        addSamplePhoto(viewModel, name = "uji-kedua.png")
+
+        // Dorong satu foto jauh keluar kertas.
+        viewModel.nudgePlacement(200f, 200f, 2f)
+        assertEquals(true, viewModel.state.value.sheetLayout.hasOverflow)
+
+        viewModel.arrangeGrid(2)
+        assertEquals(false, viewModel.state.value.sheetLayout.hasOverflow)
     }
 
     @Test

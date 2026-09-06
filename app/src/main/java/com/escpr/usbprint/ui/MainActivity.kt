@@ -126,6 +126,10 @@ internal fun PrintScreen(viewModel: PrintViewModel) {
         ActivityResultContracts.OpenDocument()
     ) { uri -> uri?.let(viewModel::openDocument) }
 
+    val addPhotos = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris -> viewModel.addPhotos(uris) }
+
     val savePrn = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/octet-stream")
     ) { uri -> uri?.let(viewModel::exportPrn) }
@@ -171,9 +175,12 @@ internal fun PrintScreen(viewModel: PrintViewModel) {
             // Status sambungan lebih dulu: kalau ini belum beres, tidak ada
             // gunanya pengguna mengatur kertas atau melihat pratinjau.
             ConnectionCard(state, viewModel)
-            PreviewSection(state, viewModel) {
-                pickDocument.launch(arrayOf("image/*", "application/pdf"))
-            }
+            PreviewSection(
+                state = state,
+                viewModel = viewModel,
+                onPick = { pickDocument.launch(arrayOf("image/*", "application/pdf")) },
+                onAddPhotos = { addPhotos.launch(arrayOf("image/*")) },
+            )
             PaperSection(state, viewModel)
             OutputSection(state, viewModel)
             LogSection(state)
@@ -197,7 +204,8 @@ internal fun PrintScreen(viewModel: PrintViewModel) {
 private fun PreviewSection(
     state: UiState,
     viewModel: PrintViewModel,
-    onPick: () -> Unit
+    onPick: () -> Unit,
+    onAddPhotos: () -> Unit,
 ) {
     val document = state.document
     val settings = state.settings
@@ -228,10 +236,13 @@ private fun PreviewSection(
                 contentAlignment = Alignment.Center
             ) {
                 PagePreview(
-                    layout = layout,
-                    content = state.previewImage,
+                    paperWidthMm = settings.paper.widthMm,
+                    paperHeightMm = settings.paper.heightMm,
+                    printable = state.printableRect,
+                    items = state.previewItems,
                     monochrome = settings.colorMode == ColorMode.MONO,
                     interactive = false,
+                    onTapMm = { _, _ -> },
                     onGesture = { _, _, _ -> },
                     onReset = {},
                     modifier = Modifier.fillMaxSize()
@@ -241,21 +252,29 @@ private fun PreviewSection(
                 }
             }
 
-            if (document != null) {
+            if (state.hasContent) {
                 Button(onClick = viewModel::openLayoutEditor, enabled = !state.busy) {
                     Text("Atur tata letak")
                 }
 
-                Text(
-                    "Margin  kiri " + fmtMm(layout.marginLeftMm) +
-                        "  atas " + fmtMm(layout.marginTopMm) +
-                        "  kanan " + fmtMm(layout.marginRightMm) +
-                        "  bawah " + fmtMm(layout.marginBottomMm) + " mm",
-                    style = MaterialTheme.typography.labelMedium,
-                    textAlign = TextAlign.Center
-                )
+                if (state.sheetMode) {
+                    Text(
+                        state.photos.size.toString() + " foto dalam satu lembar",
+                        style = MaterialTheme.typography.labelMedium,
+                        textAlign = TextAlign.Center
+                    )
+                } else {
+                    Text(
+                        "Margin  kiri " + fmtMm(layout.marginLeftMm) +
+                            "  atas " + fmtMm(layout.marginTopMm) +
+                            "  kanan " + fmtMm(layout.marginRightMm) +
+                            "  bawah " + fmtMm(layout.marginBottomMm) + " mm",
+                        style = MaterialTheme.typography.labelMedium,
+                        textAlign = TextAlign.Center
+                    )
+                }
 
-                OverflowWarning(layout)
+                OverflowWarning(state)
             }
 
             // Navigasi halaman hanya berguna untuk PDF banyak halaman.
@@ -288,11 +307,18 @@ private fun PreviewSection(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            FilledTonalButton(onClick = onPick, enabled = !state.busy) {
-                Text(if (document == null) "Pilih berkas" else "Ganti berkas")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilledTonalButton(onClick = onPick, enabled = !state.busy) {
+                    Text(if (state.hasContent) "Ganti berkas" else "Pilih berkas")
+                }
+                if (state.sheetMode) {
+                    OutlinedButton(onClick = onAddPhotos, enabled = !state.busy) {
+                        Text("Tambah foto")
+                    }
+                }
             }
 
-            if (document != null) {
+            if (document != null && !state.sheetMode) {
                 // Sebagian penyedia dokumen mengembalikan nama yang sangat
                 // panjang, jadi dibatasi satu baris agar tidak mendorong tata
                 // letak ke bawah.
@@ -313,20 +339,12 @@ private fun PreviewSection(
 /**
  * Peringatan bagian yang akan terpotong.
  *
- * Disebutkan per sisi dan dalam milimeter, karena "gambar terpotong" saja
- * tidak memberi tahu pengguna harus menggeser ke mana dan sejauh apa.
+ * Menyebut jaraknya dalam milimeter, karena "gambar terpotong" saja tidak
+ * memberi tahu pengguna harus menggeser ke mana dan sejauh apa.
  */
 @Composable
-private fun OverflowWarning(layout: PageLayout) {
-    if (!layout.hasOverflow) return
-
-    val tolerance = PageLayout.TOLERANCE_MM
-    val sides = buildList {
-        if (layout.overflowLeftMm > tolerance) add("kiri " + fmtMm(layout.overflowLeftMm))
-        if (layout.overflowTopMm > tolerance) add("atas " + fmtMm(layout.overflowTopMm))
-        if (layout.overflowRightMm > tolerance) add("kanan " + fmtMm(layout.overflowRightMm))
-        if (layout.overflowBottomMm > tolerance) add("bawah " + fmtMm(layout.overflowBottomMm))
-    }
+private fun OverflowWarning(state: UiState) {
+    val message = overflowMessage(state) ?: return
 
     Card(
         Modifier.fillMaxWidth(),
@@ -350,8 +368,7 @@ private fun OverflowWarning(layout: PageLayout) {
                     color = MaterialTheme.colorScheme.onErrorContainer
                 )
                 Text(
-                    "Keluar dari area cetak: " + sides.joinToString("  ") +
-                        " mm. Bagian merah tidak akan tercetak.",
+                    message + ". Bagian merah tidak akan tercetak.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onErrorContainer
                 )

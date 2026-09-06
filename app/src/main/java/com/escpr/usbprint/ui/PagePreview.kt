@@ -14,17 +14,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
@@ -33,30 +34,39 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.escpr.usbprint.layout.PageLayout
+import com.escpr.usbprint.layout.RectMm
 import kotlin.math.min
 import kotlin.math.roundToInt
 
+/** Satu isi yang digambar di atas kertas pratinjau. */
+data class PreviewItem(
+    val id: Long,
+    val rect: RectMm,
+    val image: ImageBitmap?,
+    val selected: Boolean = false,
+)
+
 /**
- * Pratinjau satu halaman cetak yang bisa diatur dengan jari.
+ * Pratinjau satu halaman cetak.
  *
- * Semua penempatan datang dari [layout], yang dihitung dalam milimeter oleh
- * `computePageLayout` -- fungsi yang sama persis dipakai jalur cetak. Jadi
- * yang terlihat di sini bukan perkiraan, melainkan hasil hitungan yang identik
- * dengan yang dikirim ke printer.
- *
- * Geser untuk memindahkan, cubit untuk memperbesar, ketuk dua kali untuk
- * mengembalikan ke ukuran muat.
+ * Menerima daftar isi, bukan satu isi saja, sehingga bentuk yang sama dipakai
+ * untuk dokumen tunggal maupun lembar berisi banyak foto. Semua posisi datang
+ * dalam milimeter dari model tata letak -- fungsi yang sama yang dipakai jalur
+ * cetak -- jadi yang terlihat di sini bukan perkiraan.
  */
 @Composable
 fun PagePreview(
-    layout: PageLayout,
-    content: ImageBitmap?,
+    paperWidthMm: Float,
+    paperHeightMm: Float,
+    printable: RectMm,
+    items: List<PreviewItem>,
     monochrome: Boolean,
     interactive: Boolean,
+    onTapMm: (xMm: Float, yMm: Float) -> Unit,
     onGesture: (panXmm: Float, panYmm: Float, zoom: Float) -> Unit,
     onReset: () -> Unit,
     modifier: Modifier = Modifier,
+    emptyText: String = "Belum ada dokumen",
 ) {
     val monoFilter = remember(monochrome) {
         if (monochrome) ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) })
@@ -72,70 +82,84 @@ fun PagePreview(
     val emptyColor = scheme.onSurfaceVariant
 
     BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
-        // Skala kertas ke piksel layar disimpan di luar Canvas supaya gestur
-        // bisa mengubah geseran piksel menjadi milimeter memakai angka yang sama.
-        val density = androidx.compose.ui.platform.LocalDensity.current
+        // Skala kertas dihitung di luar Canvas supaya gestur bisa mengubah
+        // geseran piksel menjadi milimeter memakai angka yang sama.
+        val density = LocalDensity.current
         val gutterPx = with(density) { RULER_GUTTER.toPx() }
         val widthPx = with(density) { maxWidth.toPx() }
         val heightPx = with(density) { maxHeight.toPx() }
         val paperScale = min(
-            (widthPx - gutterPx) / layout.paperWidthMm,
-            (heightPx - gutterPx) / layout.paperHeightMm,
+            (widthPx - gutterPx) / paperWidthMm,
+            (heightPx - gutterPx) / paperHeightMm,
         ).coerceAtLeast(0.01f)
 
+        val paperWidthPx = paperWidthMm * paperScale
+        val paperHeightPx = paperHeightMm * paperScale
+        val originX = gutterPx + (widthPx - gutterPx - paperWidthPx) / 2f
+        val originY = gutterPx + (heightPx - gutterPx - paperHeightPx) / 2f
+
         val gestureModifier = if (!interactive) Modifier else Modifier
-            .pointerInput(paperScale) {
+            .pointerInput(paperScale, originX, originY) {
                 detectTransformGestures { _, pan, zoom, _ ->
                     onGesture(pan.x / paperScale, pan.y / paperScale, zoom)
                 }
             }
-            .pointerInput(Unit) {
-                detectTapGestures(onDoubleTap = { onReset() })
+            .pointerInput(paperScale, originX, originY) {
+                detectTapGestures(
+                    onTap = { offset ->
+                        onTapMm(
+                            (offset.x - originX) / paperScale,
+                            (offset.y - originY) / paperScale,
+                        )
+                    },
+                    onDoubleTap = { onReset() },
+                )
             }
 
         Canvas(Modifier.fillMaxSize().then(gestureModifier)) {
-            val paperWidthPx = layout.paperWidthMm * paperScale
-            val paperHeightPx = layout.paperHeightMm * paperScale
-            val originX = gutterPx + (size.width - gutterPx - paperWidthPx) / 2f
-            val originY = gutterPx + (size.height - gutterPx - paperHeightPx) / 2f
-
             fun x(mm: Float) = originX + mm * paperScale
             fun y(mm: Float) = originY + mm * paperScale
 
             val paperRect = Rect(originX, originY, originX + paperWidthPx, originY + paperHeightPx)
             val printableRect = Rect(
-                x(layout.printable.left), y(layout.printable.top),
-                x(layout.printable.right), y(layout.printable.bottom),
+                x(printable.left), y(printable.top), x(printable.right), y(printable.bottom)
             )
 
-            // Kertas.
+            fun isClipped(rect: RectMm) =
+                rect.left < printable.left - TOLERANCE ||
+                    rect.top < printable.top - TOLERANCE ||
+                    rect.right > printable.right + TOLERANCE ||
+                    rect.bottom > printable.bottom + TOLERANCE
+
             drawRect(Color.White, paperRect.topLeft, paperRect.size)
 
-            // Isi dokumen, dipotong pada tepi kertas.
-            if (content != null && layout.hasContent) {
-                val contentRect = Rect(
-                    x(layout.content.left), y(layout.content.top),
-                    x(layout.content.right), y(layout.content.bottom),
-                )
-                clipRect(
-                    paperRect.left, paperRect.top, paperRect.right, paperRect.bottom
-                ) {
+            val anyClipped = items.any { it.image != null && isClipped(it.rect) }
+
+            clipRect(paperRect.left, paperRect.top, paperRect.right, paperRect.bottom) {
+                for (item in items) {
+                    val image = item.image ?: continue
+                    val itemRect = Rect(
+                        x(item.rect.left), y(item.rect.top),
+                        x(item.rect.right), y(item.rect.bottom),
+                    )
+                    if (itemRect.width < 1f || itemRect.height < 1f) continue
+
                     drawImage(
-                        image = content,
+                        image = image,
                         dstOffset = IntOffset(
-                            contentRect.left.roundToInt(), contentRect.top.roundToInt()
+                            itemRect.left.roundToInt(), itemRect.top.roundToInt()
                         ),
                         dstSize = IntSize(
-                            contentRect.width.roundToInt().coerceAtLeast(1),
-                            contentRect.height.roundToInt().coerceAtLeast(1),
+                            itemRect.width.roundToInt().coerceAtLeast(1),
+                            itemRect.height.roundToInt().coerceAtLeast(1),
                         ),
                         colorFilter = monoFilter,
                         filterQuality = FilterQuality.Medium,
                     )
 
-                    // Bagian isi yang keluar dari area cetak diberi warna merah:
-                    // itulah yang tidak akan tercetak.
-                    if (layout.hasOverflow) {
+                    // Bagian yang keluar area cetak diwarnai merah: itulah yang
+                    // tidak akan tercetak.
+                    if (isClipped(item.rect)) {
                         clipRect(
                             printableRect.left, printableRect.top,
                             printableRect.right, printableRect.bottom,
@@ -143,15 +167,23 @@ fun PagePreview(
                         ) {
                             drawRect(
                                 color = cutColor.copy(alpha = 0.45f),
-                                topLeft = contentRect.topLeft,
-                                size = contentRect.size,
+                                topLeft = itemRect.topLeft,
+                                size = itemRect.size,
                             )
                         }
+                    }
+
+                    if (item.selected) {
+                        drawRect(
+                            color = safeColor,
+                            topLeft = itemRect.topLeft,
+                            size = itemRect.size,
+                            style = Stroke(width = 3f),
+                        )
                     }
                 }
             }
 
-            // Tepi kertas.
             drawRect(
                 color = paperEdge,
                 topLeft = paperRect.topLeft,
@@ -159,20 +191,20 @@ fun PagePreview(
                 style = Stroke(width = 1f),
             )
 
-            // Batas area cetak: merah kalau ada yang terpotong.
-            val boundary = if (layout.hasOverflow) cutColor else safeColor
+            val boundary = if (anyClipped) cutColor else safeColor
             drawRect(
-                color = boundary.copy(alpha = if (layout.hasOverflow) 0.95f else 0.55f),
+                color = boundary.copy(alpha = if (anyClipped) 0.95f else 0.55f),
                 topLeft = printableRect.topLeft,
                 size = printableRect.size,
                 style = Stroke(
-                    width = if (layout.hasOverflow) 2.5f else 2f,
+                    width = if (anyClipped) 2.5f else 2f,
                     pathEffect = PathEffect.dashPathEffect(floatArrayOf(9f, 7f), 0f),
                 ),
             )
 
             drawRulers(
-                layout = layout,
+                paperWidthMm = paperWidthMm,
+                paperHeightMm = paperHeightMm,
                 paperScale = paperScale,
                 originX = originX,
                 originY = originY,
@@ -180,14 +212,13 @@ fun PagePreview(
                 color = rulerColor,
                 measurer = measurer,
             )
-
         }
 
         // Keadaan kosong ditulis sebagai komponen, bukan digambar ke kanvas:
         // teks di dalam Canvas tidak terbaca pembaca layar.
-        if (content == null) {
+        if (items.none { it.image != null }) {
             Text(
-                text = "Belum ada dokumen",
+                text = emptyText,
                 style = MaterialTheme.typography.bodyMedium,
                 color = emptyColor,
                 modifier = Modifier
@@ -199,16 +230,17 @@ fun PagePreview(
 }
 
 private val RULER_GUTTER = 18.dp
+private const val TOLERANCE = 0.05f
 
 /**
  * Penggaris milimeter di tepi atas dan kiri.
  *
- * Jarak antar garis dipilih menyesuaikan skala: pada kertas besar yang
- * ditampilkan kecil, garis tiap 5 mm akan menyatu jadi blok abu-abu, jadi
- * yang dipakai 10 mm atau 20 mm.
+ * Jarak antar garis menyesuaikan skala: pada kertas besar yang ditampilkan
+ * kecil, garis tiap 5 mm akan menyatu jadi blok abu-abu.
  */
 private fun DrawScope.drawRulers(
-    layout: PageLayout,
+    paperWidthMm: Float,
+    paperHeightMm: Float,
     paperScale: Float,
     originX: Float,
     originY: Float,
@@ -236,8 +268,10 @@ private fun DrawScope.drawRulers(
                 strokeWidth = 1f,
             )
             if (major && mm > 0f) {
-                val measured = measurer.measure(mm.roundToInt().toString(), labelStyle)
-                drawText(measured, topLeft = Offset(px + 2f, originY - gutter))
+                drawText(
+                    measurer.measure(mm.roundToInt().toString(), labelStyle),
+                    topLeft = Offset(px + 2f, originY - gutter),
+                )
             }
         } else {
             val px = originY + mm * paperScale
@@ -248,34 +282,35 @@ private fun DrawScope.drawRulers(
                 strokeWidth = 1f,
             )
             if (major && mm > 0f) {
-                val measured = measurer.measure(mm.roundToInt().toString(), labelStyle)
-                drawText(measured, topLeft = Offset(originX - gutter, px + 1f))
+                drawText(
+                    measurer.measure(mm.roundToInt().toString(), labelStyle),
+                    topLeft = Offset(originX - gutter, px + 1f),
+                )
             }
         }
     }
 
     var mm = 0f
-    while (mm <= layout.paperWidthMm + 0.01f) {
+    while (mm <= paperWidthMm + 0.01f) {
         tick(mm, horizontal = true)
         mm += minorMm
     }
     mm = 0f
-    while (mm <= layout.paperHeightMm + 0.01f) {
+    while (mm <= paperHeightMm + 0.01f) {
         tick(mm, horizontal = false)
         mm += minorMm
     }
 
-    // Garis dasar penggaris, supaya tepi kertas terbaca sebagai titik nol.
     drawLine(
         color = color.copy(alpha = 0.5f),
         start = Offset(originX, originY),
-        end = Offset(originX + layout.paperWidthMm * paperScale, originY),
+        end = Offset(originX + paperWidthMm * paperScale, originY),
         strokeWidth = 1f,
     )
     drawLine(
         color = color.copy(alpha = 0.5f),
         start = Offset(originX, originY),
-        end = Offset(originX, originY + layout.paperHeightMm * paperScale),
+        end = Offset(originX, originY + paperHeightMm * paperScale),
         strokeWidth = 1f,
     )
 }

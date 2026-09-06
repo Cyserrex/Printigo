@@ -1,6 +1,8 @@
 package com.escpr.usbprint.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,6 +17,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -113,10 +116,13 @@ internal fun LayoutEditorContent(
                 contentAlignment = Alignment.Center,
             ) {
                 PagePreview(
-                    layout = layout,
-                    content = state.previewImage,
+                    paperWidthMm = settings.paper.widthMm,
+                    paperHeightMm = settings.paper.heightMm,
+                    printable = state.printableRect,
+                    items = state.previewItems,
                     monochrome = settings.colorMode == ColorMode.MONO,
                     interactive = true,
+                    onTapMm = viewModel::selectPhotoAt,
                     onGesture = viewModel::nudgePlacement,
                     onReset = viewModel::resetPlacement,
                     modifier = Modifier.fillMaxSize(),
@@ -141,27 +147,34 @@ private fun EditorControls(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            if (layout.hasOverflow) {
-                OverflowNotice(layout)
-            }
+            overflowMessage(state)?.let { message -> OverflowNotice(message) }
 
-            Text(
-                "Margin  kiri " + fmtMm(layout.marginLeftMm) +
-                    "  atas " + fmtMm(layout.marginTopMm) +
-                    "  kanan " + fmtMm(layout.marginRightMm) +
-                    "  bawah " + fmtMm(layout.marginBottomMm) + " mm",
-                style = MaterialTheme.typography.labelLarge,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
-            )
+            if (state.sheetMode) {
+                SheetControls(state, viewModel)
+            } else {
+                Text(
+                    "Margin  kiri " + fmtMm(layout.marginLeftMm) +
+                        "  atas " + fmtMm(layout.marginTopMm) +
+                        "  kanan " + fmtMm(layout.marginRightMm) +
+                        "  bawah " + fmtMm(layout.marginBottomMm) + " mm",
+                    style = MaterialTheme.typography.labelLarge,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
 
             // Ukuran isi di atas kertas, bukan persentase abstrak: angka dalam
             // milimeter bisa langsung dicocokkan dengan penggaris.
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Ukuran", style = MaterialTheme.typography.bodyMedium)
-                Spacer(Modifier.width(12.dp))
                 Text(
-                    fmtMm(layout.content.width) + " x " + fmtMm(layout.content.height) + " mm",
+                    if (state.sheetMode) "Foto terpilih" else "Ukuran",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Spacer(Modifier.width(12.dp))
+                val sized = if (state.sheetMode) state.selectedPhoto?.item?.rect else layout.content
+                Text(
+                    if (sized == null) "-"
+                    else fmtMm(sized.width) + " x " + fmtMm(sized.height) + " mm",
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
                 )
@@ -214,15 +227,7 @@ private fun EditorControls(
 
 /** Peringatan ringkas di dalam editor; versi lengkapnya ada di halaman utama. */
 @Composable
-private fun OverflowNotice(layout: PageLayout) {
-    val tolerance = PageLayout.TOLERANCE_MM
-    val sides = buildList {
-        if (layout.overflowLeftMm > tolerance) add("kiri " + fmtMm(layout.overflowLeftMm))
-        if (layout.overflowTopMm > tolerance) add("atas " + fmtMm(layout.overflowTopMm))
-        if (layout.overflowRightMm > tolerance) add("kanan " + fmtMm(layout.overflowRightMm))
-        if (layout.overflowBottomMm > tolerance) add("bawah " + fmtMm(layout.overflowBottomMm))
-    }
-
+private fun OverflowNotice(message: String) {
     Card(
         Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -238,7 +243,7 @@ private fun OverflowNotice(layout: PageLayout) {
             )
             Spacer(Modifier.width(8.dp))
             Text(
-                "Akan terpotong: " + sides.joinToString("  ") + " mm",
+                message,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onErrorContainer,
             )
@@ -246,8 +251,73 @@ private fun OverflowNotice(layout: PageLayout) {
     }
 }
 
+/**
+ * Kontrol khusus mode lembar: menyusun ulang ke kisi dan menghapus foto.
+ *
+ * Tombol kisi memakai jumlah kolom, bukan "2 per lembar", karena yang
+ * menentukan bentuk susunan memang kolomnya; jumlah barisnya mengikuti.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SheetControls(state: UiState, viewModel: PrintViewModel) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            state.photos.size.toString() + " foto di lembar ini" +
+                (if (state.selectedPhoto != null) " - satu terpilih" else ""),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            AssistChip(
+                onClick = { viewModel.arrangeGrid(0) },
+                label = { Text("Susun otomatis") },
+            )
+            listOf(1, 2, 3, 4).forEach { columns ->
+                AssistChip(
+                    onClick = { viewModel.arrangeGrid(columns) },
+                    label = { Text(columns.toString() + " kolom") },
+                )
+            }
+            AssistChip(
+                onClick = viewModel::removeSelectedPhoto,
+                enabled = state.selectedPhoto != null,
+                label = { Text("Hapus terpilih") },
+            )
+        }
+    }
+}
+
 /** Satu langkah perbesaran tombol. 5% cukup halus untuk menyetel, tidak lambat. */
 private const val ZOOM_STEP = 1.05f
+
+/**
+ * Satu kalimat tentang apa yang akan terpotong, atau null kalau semuanya aman.
+ *
+ * Mode dokumen menyebut jarak per sisi; mode lembar menyebut berapa foto yang
+ * kena dan yang terjauh, karena mendaftar empat sisi untuk enam foto sekaligus
+ * justru tidak terbaca.
+ */
+internal fun overflowMessage(state: UiState): String? {
+    if (state.sheetMode) {
+        val layout = state.sheetLayout
+        val clipped = layout.clipped
+        if (clipped.isEmpty()) return null
+        val worst = clipped.maxOf { layout.overflowOf(it).worstMm }
+        return clipped.size.toString() + " foto keluar area cetak, terjauh " +
+            fmtMm(worst) + " mm"
+    }
+
+    val layout = state.pageLayout
+    if (!layout.hasOverflow) return null
+    val tolerance = PageLayout.TOLERANCE_MM
+    val sides = buildList {
+        if (layout.overflowLeftMm > tolerance) add("kiri " + fmtMm(layout.overflowLeftMm))
+        if (layout.overflowTopMm > tolerance) add("atas " + fmtMm(layout.overflowTopMm))
+        if (layout.overflowRightMm > tolerance) add("kanan " + fmtMm(layout.overflowRightMm))
+        if (layout.overflowBottomMm > tolerance) add("bawah " + fmtMm(layout.overflowBottomMm))
+    }
+    return "Keluar dari area cetak: " + sides.joinToString("  ") + " mm"
+}
 
 /** 3.0 -> "3", 2.54 -> "2,5" */
 internal fun fmtMm(value: Float): String {

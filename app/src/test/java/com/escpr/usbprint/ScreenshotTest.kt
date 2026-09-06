@@ -19,6 +19,7 @@ import com.escpr.usbprint.ui.PrintScreen
 import com.escpr.usbprint.ui.PrintViewModel
 import com.escpr.usbprint.ui.theme.AppTheme
 import org.junit.Assert.assertTrue
+import kotlinx.coroutines.Dispatchers
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -65,6 +66,62 @@ class ScreenshotTest {
         println("SCREENSHOT ${file.absolutePath} ${bitmap.width}x${bitmap.height}")
     }
 
+    /** Beberapa foto contoh dengan warna dan rasio berbeda. */
+    private fun samplePhotos(app: Application, count: Int): List<Uri> =
+        (0 until count).map { index ->
+            val landscape = index % 2 == 0
+            val width = if (landscape) 1200 else 800
+            val height = if (landscape) 800 else 1200
+            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bitmap)
+            val hue = floatArrayOf((index * 67f) % 360f, 0.55f, 0.85f)
+            canvas.drawColor(Color.HSVToColor(hue))
+            val paint = Paint().apply {
+                color = Color.rgb(60, 70, 90)
+                style = Paint.Style.STROKE
+                strokeWidth = 18f
+            }
+            canvas.drawRect(9f, 9f, width - 9f, height - 9f, paint)
+            paint.style = Paint.Style.FILL
+            paint.color = Color.WHITE
+            canvas.drawCircle(width * 0.7f, height * 0.3f, width * 0.12f, paint)
+
+            val file = File(app.cacheDir, "foto-$index.png")
+            file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            Uri.fromFile(file)
+        }
+
+    @Test
+    @Config(qualifiers = "w411dp-h891dp")
+    fun `tangkap layar lembar berisi banyak foto`() {
+        val app = ApplicationProvider.getApplicationContext<Application>()
+        val viewModel = PrintViewModel(app, Dispatchers.Unconfined, Dispatchers.Unconfined)
+        compose.setContent {
+            AppTheme {
+                val current = viewModel.state.collectAsState().value
+                LayoutEditorContent(current, viewModel)
+            }
+        }
+
+        viewModel.addPhotos(samplePhotos(app, 6))
+        compose.waitUntil(timeoutMillis = 10_000) {
+            viewModel.state.value.photos.size == 6
+        }
+        compose.waitForIdle()
+        capture("10-lembar-enam-foto")
+
+        viewModel.arrangeGrid(2)
+        compose.waitForIdle()
+        capture("11-lembar-dua-kolom")
+
+        // Satu foto digeser keluar area cetak.
+        val target = viewModel.state.value.photos.first()
+        viewModel.selectPhotoAt(target.item.rect.centerX, target.item.rect.centerY)
+        viewModel.nudgePlacement(-60f, -60f, 1.6f)
+        compose.waitForIdle()
+        capture("12-lembar-terpotong")
+    }
+
     /** Dokumen contoh: gambar lanskap sederhana dengan bingkai tegas. */
     private fun sampleDocument(app: Application): Uri {
         val bitmap = Bitmap.createBitmap(1400, 900, Bitmap.Config.ARGB_8888)
@@ -96,7 +153,7 @@ class ScreenshotTest {
         shadowOf(app.packageManager)
             .setSystemFeature(PackageManager.FEATURE_USB_HOST, true)
 
-        val viewModel = PrintViewModel(app)
+        val viewModel = PrintViewModel(app, Dispatchers.Unconfined, Dispatchers.Unconfined)
         compose.setContent { AppTheme { PrintScreen(viewModel) } }
         compose.waitForIdle()
         capture("5-belum-tersambung")
@@ -111,7 +168,7 @@ class ScreenshotTest {
     @Test
     fun `tangkap layar keadaan kosong dan dengan dokumen`() {
         val app = ApplicationProvider.getApplicationContext<Application>()
-        val viewModel = PrintViewModel(app)
+        val viewModel = PrintViewModel(app, Dispatchers.Unconfined, Dispatchers.Unconfined)
         compose.setContent { AppTheme { PrintScreen(viewModel) } }
 
         compose.waitForIdle()
@@ -120,7 +177,7 @@ class ScreenshotTest {
         viewModel.openDocument(sampleDocument(app))
         // Dokumen dibaca dan dirender di utas lain, jadi tunggu sampai siap.
         compose.waitUntil(timeoutMillis = 10_000) {
-            viewModel.state.value.previewImage != null
+            viewModel.state.value.previewItems.isNotEmpty()
         }
         compose.waitForIdle()
         capture("2-dokumen-a4-margin3")
@@ -154,7 +211,7 @@ class ScreenshotTest {
     @Config(qualifiers = "w411dp-h891dp")
     fun `tangkap layar editor tata letak`() {
         val app = ApplicationProvider.getApplicationContext<Application>()
-        val viewModel = PrintViewModel(app)
+        val viewModel = PrintViewModel(app, Dispatchers.Unconfined, Dispatchers.Unconfined)
 
         // Isi editor dirender langsung, tanpa pembungkus Dialog: jendela dialog
         // punya decorView sendiri yang tidak ikut tergambar dari activity.
@@ -169,7 +226,7 @@ class ScreenshotTest {
 
         viewModel.openDocument(sampleDocument(app))
         compose.waitUntil(timeoutMillis = 10_000) {
-            viewModel.state.value.previewImage != null
+            viewModel.state.value.previewItems.isNotEmpty()
         }
         compose.waitForIdle()
         capture("8-editor-tata-letak")

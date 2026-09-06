@@ -5,9 +5,9 @@ kabel USB (USB-C di HP → USB-B di printer). Tanpa WiFi, tanpa komputer, tanpa
 server cetak.
 
 <p align="center">
+  <img src="docs/screenshots/10-lembar-enam-foto.png" width="30%" alt="Enam foto dalam satu lembar">
   <img src="docs/screenshots/8-editor-tata-letak.png" width="30%" alt="Editor tata letak layar penuh">
-  <img src="docs/screenshots/9-editor-terpotong.png" width="30%" alt="Peringatan terpotong">
-  <img src="docs/screenshots/5-belum-tersambung.png" width="30%" alt="Daftar periksa sambungan">
+  <img src="docs/screenshots/12-lembar-terpotong.png" width="30%" alt="Peringatan terpotong">
 </p>
 
 ---
@@ -42,12 +42,13 @@ untuk mengujinya, jadi batas antara "terbukti" dan "belum" dijaga ketat.
 | Encoder Kotlin dan encoder Python identik **byte per byte** | SHA-256 sama untuk halaman uji yang sama |
 | RLE bolak-balik utuh, termasuk batas penghitung 128/129 | 11 pola data |
 | Pratinjau dan raster memakai penempatan yang sama | seluruh kombinasi kertas × dpi × margin |
-| Layar utama dan editor tata letak tersusun dan bisa disentuh | Robolectric, 14 uji |
+| Layar utama dan editor tata letak tersusun dan bisa disentuh | Robolectric, 17 uji |
+| Susunan banyak foto: kisi, geser, ukur, pilih, potong | 16 uji lembar |
 | Penempatan manual, pemotongan, dan pembatas geseran | 15 uji tata letak |
 | Tampilan benar-benar tergambar | tangkapan layar dari komposisi Compose di JVM |
 | APK terkompilasi, tertandatangani, zipalign, manifes benar | `apksigner`, `zipalign`, `aapt2` |
 
-**53 unit test**, semuanya lolos: `gradlew test`.
+**72 unit test**, semuanya lolos: `gradlew test`.
 
 ### Belum terbukti
 
@@ -105,6 +106,10 @@ Berguna untuk memisahkan masalah data dari masalah kabel.
 ## Fitur
 
 - Cetak **gambar** (JPEG/PNG/WebP, rotasi EXIF dihormati) dan **PDF** banyak halaman
+- **Banyak foto dalam satu lembar**: tambahkan sekaligus, susun otomatis ke
+  kisi 1-4 kolom, atau atur sendiri posisi dan ukuran tiap foto
+- Sentuh sebuah foto untuk memilihnya; geser dan cubit hanya mengenai yang
+  terpilih, dan yang dipilih naik ke tumpukan paling atas
 - **Editor tata letak layar penuh**: geser untuk memindahkan, cubit untuk
   memperbesar, ketuk dua kali untuk mengembalikan ke ukuran muat, plus tombol
   perbesar/perkecil bertahap untuk menyetel beberapa persen
@@ -131,7 +136,9 @@ Berguna untuk memisahkan masalah data dari masalah kabel.
 
 ```
 app/src/main/java/com/escpr/usbprint/
-  layout/PageLayout.kt       penempatan isi di kertas, dalam milimeter
+  layout/PageLayout.kt       penempatan satu isi di kertas, dalam milimeter
+  layout/Sheet.kt            banyak foto dalam satu lembar: kisi, geser, ukur
+  render/SheetPageSource.kt  merender lembar berisi banyak foto
   ui/LayoutEditorDialog.kt   editor tata letak layar penuh
   escpr/EscpR.kt             perintah ESC/P-R tingkat byte + enum pengaturan
   escpr/Rle.kt               kompresi run-length per piksel
@@ -165,6 +172,30 @@ Isi dokumen dirender **sekali** pada rasio aslinya oleh `PreviewRenderer.kt`.
 Penempatan kertas, margin, geseran, dan perbesaran cuma aritmetika yang
 dihitung ulang tiap frame di `layout/PageLayout.kt`. Jadi menggeser jari tidak
 pernah memicu render ulang dokumen.
+
+### Kenapa lembar dan dokumen dipisah
+
+Gambar disusun sebagai **lembar**: sekumpulan foto yang masing-masing punya
+kotak sendiri dalam milimeter. PDF tetap lewat jalur **dokumen**, karena tiap
+halamannya punya ukuran sendiri dan tidak masuk akal ditumpuk bersama foto lain.
+
+Untuk satu isi per kertas, "sebesar mungkin di dalam area cetak" adalah acuan
+yang masuk akal, dan itulah yang disimpan `ContentPlacement`. Begitu ada banyak
+foto, acuan itu hilang dan yang tersisa hanyalah posisi sesungguhnya di kertas
+-- karena itu `SheetItem` menyimpan kotak milimeter apa adanya.
+
+Jalur cetak tidak perlu tahu bedanya. `SheetPageSource` melaporkan rasio yang
+sama dengan rasio area cetak, sehingga kotak tujuannya persis seluas area cetak,
+lalu ia menempatkan tiap foto di dalamnya sendiri.
+
+### Kenapa dispatcher-nya bisa disuntik
+
+`PrintViewModel` menerima dispatcher untuk kerja berat dan untuk penerbitan
+state. Menulis state yang diamati Compose dari utas latar bisa memicu tata letak
+ulang di utas yang salah, jadi penerbitannya selalu di utas utama. Pengujian
+menyuntikkan dispatcher langsung sehingga semuanya berjalan tanpa bergantung
+pada penjadwalan utas -- itu menghapus satu kelas kerapuhan yang sebelumnya
+muncul berulang.
 
 ### Kenapa editornya layar penuh
 
@@ -212,10 +243,10 @@ pemeriksaan langsung, bukan tebakan dari isi pesan.
 ```bash
 gradlew assembleRelease    # APK rilis, tertandatangani
 gradlew assembleDebug      # APK debug
-gradlew test               # 53 unit test
+gradlew test               # 72 unit test
 ```
 
-Nama berkas APK memuat nomor versi (`Printigo-v1.4-release.apk`), jadi dua
+Nama berkas APK memuat nomor versi (`Printigo-v1.5-release.apk`), jadi dua
 build berbeda tidak pernah bernama sama. Versi yang sama juga tampil di bawah
 judul aplikasi, supaya bisa disebutkan saat melaporkan masalah.
 
@@ -302,6 +333,9 @@ legacy persegi dan bulat di lima kerapatan layar plus lapisan ikon adaptif.
 - Slider margin memakai satu nilai untuk keempat sisi; margin per sisi hanya
   bisa diatur dengan menggeser gambar di pratinjau.
 - Penempatan berlaku sama untuk semua halaman PDF dalam satu pekerjaan cetak.
+- Lembar foto selalu satu halaman; foto yang tidak muat tidak tumpah ke lembar
+  berikutnya.
+- Foto pada lembar tidak bisa diputar sendiri-sendiri.
 - Membatalkan cetak menghentikan pengiriman, tapi halaman yang sudah terlanjur
   masuk ke printer tetap akan keluar.
 
@@ -311,7 +345,8 @@ legacy persegi dan bulat di lima kerapatan layar plus lapisan ikon adaptif.
 
 | Versi | Isi |
 |---|---|
-| **1.4** | Pengaturan tata letak pindah ke editor layar penuh yang dibuka dengan mengetuk pratinjau; tombol perbesar/perkecil bertahap; ukuran isi dan batas cetak bisa diatur di satu tempat |
+| **1.5** | Banyak foto dalam satu lembar: tambah sekaligus, susun otomatis 1-4 kolom, pilih dengan menyentuh, geser dan ubah ukuran per foto, hapus yang terpilih; dispatcher ViewModel bisa disuntik |
+| 1.4 | Pengaturan tata letak pindah ke editor layar penuh yang dibuka dengan mengetuk pratinjau; tombol perbesar/perkecil bertahap; ukuran isi dan batas cetak bisa diatur di satu tempat |
 | 1.3 | Pratinjau bisa diatur dengan jari (geser, cubit, ketuk dua kali); penggaris milimeter; peringatan bagian yang akan terpotong beserta jaraknya per sisi; penempatan dipakai bersama oleh pratinjau dan jalur cetak lewat model milimeter; judul layar jadi "USB Printer OTG" dan nama aplikasi jadi "Printigo" |
 | 1.2 | Tanda tangan APK memakai skema v1 + v2 + v3 sekaligus, untuk pemasang bawaan yang masih mencari blok v1 |
 | 1.1 | Panel daftar periksa sambungan di paling atas; pesan kegagalan berbahasa manusia dengan satu tombol tindakan di dekat tombol Cetak; sebab kegagalan bertipe; pembatalan tidak lagi terbaca sebagai kegagalan; nomor versi masuk ke nama berkas APK dan tampil di aplikasi |
