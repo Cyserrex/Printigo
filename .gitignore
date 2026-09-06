@@ -14,3 +14,8 @@ keystore.properties
 keystore/
 *.jks
 *.keystore
+
+# Artefak build: dihasilkan ulang oleh gradlew dan skrip di tools/
+*.apk
+*.aab
+*.prn

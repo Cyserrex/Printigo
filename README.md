@@ -1,2 +1,287 @@
-# print_andro
+# Cetak USB — Epson L3110 dari Android
 
+Aplikasi Android untuk mencetak **gambar dan PDF** langsung ke Epson L3110 lewat
+kabel USB (USB-C di HP → USB-B di printer). Tanpa WiFi, tanpa komputer, tanpa
+server cetak.
+
+<p align="center">
+  <img src="docs/screenshots/2-dokumen-a4-margin3.png" width="30%" alt="Pratinjau A4 margin 3 mm">
+  <img src="docs/screenshots/3-margin18.png" width="30%" alt="Margin 18 mm">
+  <img src="docs/screenshots/5-belum-tersambung.png" width="30%" alt="Daftar periksa sambungan">
+</p>
+
+---
+
+## Kenapa harus dibuat sendiri
+
+L3110 hanya punya port USB, dan dia **tidak mengerti PDF, PostScript, maupun
+PCL**. Satu-satunya bahasa yang dia pahami adalah **ESC/P-R**, format raster
+milik Epson. Jadi tidak ada jalan pintas berupa "kirim berkas PDF ke printer".
+Alurnya harus:
+
+```
+Gambar / PDF  →  render jadi bitmap  →  encode ESC/P-R  →  USB bulk endpoint
+```
+
+Ketiga tahap itulah isi aplikasi ini.
+
+---
+
+## Status: apa yang terbukti, apa yang belum
+
+Ini bagian terpenting dari README ini. Aplikasi ini dibangun tanpa akses ke HP
+untuk mengujinya, jadi batas antara "terbukti" dan "belum" dijaga ketat.
+
+### Sudah terbukti
+
+| Pemeriksaan | Cara |
+|---|---|
+| **Halaman uji tercetak benar di Epson L3110 sungguhan** | `tools/testpage_light.py` dikirim apa adanya lewat `tools/send_raw.ps1` (winspool, datatype RAW, tanpa melewati driver Epson) |
+| Printer memang keluarga ESC/P-R | Registry Windows melaporkan compatible ID `1284_CID_EpsonRGB` |
+| Panjang tiap perintah cocok dengan driver resmi Epson | `setj`=22, `setq`=9, `endp`=1, `sttp`/`endj`=0 byte data |
+| Encoder Kotlin dan encoder Python identik **byte per byte** | SHA-256 sama untuk halaman uji yang sama |
+| RLE bolak-balik utuh, termasuk batas penghitung 128/129 | 11 pola data |
+| Pratinjau setara dengan geometri cetak | 128 kombinasi kertas × margin × rasio dokumen |
+| Layar utama tersusun dan bisa disentuh | Robolectric, 10 uji |
+| Tampilan benar-benar tergambar | tangkapan layar dari komposisi Compose di JVM |
+| APK terkompilasi, tertandatangani, zipalign, manifes benar | `apksigner`, `zipalign`, `aapt2` |
+
+**39 unit test**, semuanya lolos: `gradlew test`.
+
+### Belum terbukti
+
+**Lapisan transport USB di Android** (`usb/UsbPrinter.kt`) — penemuan perangkat,
+dialog izin USB, dan bulk transfer. Pengujian di atas menempuh jalur Windows →
+spooler → port USB, bukan jalur OTG dari HP.
+
+Jadi yang terbukti adalah **datanya**, bukan **pengantarannya**.
+
+---
+
+## Memasang
+
+Bangun APK-nya (lihat [Membangun sendiri](#membangun-sendiri)), salin ke HP,
+buka, lalu izinkan "Install unknown apps" untuk aplikasi tempat Anda membukanya.
+
+> **Kalau pemasangan menggantung di "Installing…"**, kemungkinan besar ada versi
+> lama yang tanda tangannya berbeda. Hapus dulu lewat **Settings → Apps → Cetak
+> USB → Uninstall**, baru pasang lagi. Antar-APK yang ditandatangani kunci yang
+> sama, pembaruan berjalan normal karena `versionCode` ikut naik.
+
+### Yang dibutuhkan
+
+- HP Android 7.0+ yang mendukung **USB OTG / USB Host**. Ini syarat mutlak dan
+  tidak semua HP punya. Aplikasi akan memberi tahu kalau HP Anda tidak mendukung.
+- Kabel **USB-C ke USB-B**, atau adaptor OTG USB-C→USB-A ditambah kabel printer
+  USB-A→USB-B biasa.
+- Printer tetap harus tercolok listrik; dia tidak mengambil daya dari HP.
+
+---
+
+## Cara pakai
+
+1. Colok printer ke HP, nyalakan printer.
+2. Buka aplikasi. Panel paling atas menuntun langkah demi langkah: HP mendukung
+   OTG → printer terdeteksi → izin USB → siap. Hanya satu tombol yang muncul
+   sekaligus, jadi tidak perlu menebak harus menekan apa.
+3. **Pilih berkas** (gambar atau PDF). Pratinjau langsung muncul.
+4. Atur kertas, margin, resolusi. Pratinjau ikut berubah seketika.
+5. Tekan **Cetak**.
+
+Bisa juga membagikan (Share) gambar atau PDF dari aplikasi lain ke aplikasi ini.
+
+Tombol **Simpan .prn** menulis pekerjaan cetak ke berkas alih-alih ke printer.
+Berguna untuk memisahkan masalah data dari masalah kabel.
+
+---
+
+## Fitur
+
+- Cetak **gambar** (JPEG/PNG/WebP, rotasi EXIF dihormati) dan **PDF** banyak halaman
+- **Pratinjau realtime**: kertas, batas area cetak, dan isi dokumen
+- Ukuran kertas: A4, Letter, Legal/F4, A5, A6, B5, 4R, kartu pos
+- Margin 0–20 mm dengan slider
+- Resolusi 300 / 360 / 600 / 720 dpi
+- Kualitas draft / normal / tinggi, berwarna atau hitam putih
+- Jenis media: kertas biasa, matte, kertas foto, foto glossy
+- Salinan 1–20
+- **Daftar periksa sambungan** yang menuntun sampai siap cetak
+- **Pesan kegagalan berbahasa manusia** dengan satu tombol tindakan
+- Pemeriksaan dukungan ESC/P-R lewat IEEE-1284 Device ID
+- Ekspor `.prn` untuk diagnosis
+
+---
+
+## Cara kerjanya
+
+```
+app/src/main/java/com/escpr/usbprint/
+  escpr/EscpR.kt             perintah ESC/P-R tingkat byte + enum pengaturan
+  escpr/Rle.kt               kompresi run-length per piksel
+  escpr/EscpRJob.kt          perakit job: start -> halaman -> baris -> selesai
+  usb/UsbPrinter.kt          penemuan perangkat, klaim antarmuka, bulk transfer,
+                             pembacaan Device ID, sink berbuffer
+  usb/PrinterError.kt        sebab kegagalan bertipe
+  render/PageSource.kt       render PDF dan gambar per pita (band)
+  render/PreviewRenderer.kt  render isi dokumen untuk pratinjau
+  print/PrintTask.kt         penyatu: pita -> baris RGB -> perintah dsnd
+  ui/                        ViewModel dan tampilan Compose
+```
+
+### Kenapa dirender per pita
+
+Halaman A4 pada 720 dpi berukuran sekitar 5783 × 8249 piksel. Kalau di-render
+sekaligus butuh sekitar 190 MB dan aplikasi pasti mati kehabisan memori. Karena
+itu halaman digambar sepotong demi sepotong setinggi ±128 baris, langsung diubah
+jadi perintah `dsnd`, lalu dibuang. Pemakaian memori jadi tetap sekitar 4 MB
+berapa pun resolusinya.
+
+### Kenapa RLE penting
+
+Tanpa kompresi, satu halaman A4 360 dpi berukuran 37 MB dan pengirimannya lama
+sekali lewat USB. Dengan RLE, halaman uji yang sama jadi 1,9 MB, dan dokumen
+teks biasa bisa menyusut lebih dari 50 kali.
+
+### Kenapa pratinjaunya bisa realtime
+
+Isi dokumen dirender **sekali** pada rasio aslinya oleh `PreviewRenderer.kt`.
+Penempatan kertas dan margin cuma aritmetika yang dihitung ulang tiap frame di
+`ui/PreviewLayout.kt`. Jadi menggeser slider margin tidak pernah memicu render
+ulang dokumen.
+
+Aturan penempatannya sengaja disalin persis dari jalur cetak: area cetak =
+kertas dikurangi margin keempat sisi, isi diskalakan seragam agar muat, lalu
+diletakkan di tengah. Kesetaraan itu **diuji, bukan sekadar diklaim** — lihat
+`PreviewLayoutTest`.
+
+### Kenapa sebab kegagalan dibuat bertipe
+
+Semua `throw` di `UsbPrinter` membawa `PrinterErrorKind`, bukan sekadar pesan
+teks. Pesan untuk pengguna bisa berubah kapan saja tanpa mengacaukan cara
+aplikasi memilih tindakan pemulihan.
+
+Satu hal tidak bisa ditentukan dari jenis pengecualian saja: transfer gagal bisa
+berarti kertas habis, atau kabel tersenggol. Jadi saat gagal, aplikasi memeriksa
+**apakah printer masih terdaftar di daftar perangkat USB saat itu juga** —
+pemeriksaan langsung, bukan tebakan dari isi pesan.
+
+---
+
+## Membangun sendiri
+
+```bash
+gradlew assembleRelease    # APK rilis, tertandatangani
+gradlew assembleDebug      # APK debug
+gradlew test               # 39 unit test
+```
+
+Nama berkas APK memuat nomor versi (`CetakUSB-L3110-v1.2-release.apk`), jadi dua
+build berbeda tidak pernah bernama sama. Versi yang sama juga tampil di bawah
+judul aplikasi, supaya bisa disebutkan saat melaporkan masalah.
+
+Kebutuhan: `minSdk 24` (Android 7.0), target SDK 35, Kotlin 2.0.21, AGP 8.6.1,
+Gradle 8.9, JDK 17+.
+
+`local.properties` harus menunjuk ke Android SDK Anda (`sdk.dir=...`). Android
+Studio mengisinya otomatis saat proyek dibuka.
+
+### Penandatanganan
+
+Varian rilis membaca `keystore.properties` di akar proyek:
+
+```properties
+storeFile=../keystore/nama-kunci.jks
+storePassword=...
+keyAlias=...
+keyPassword=...
+```
+
+Berkas itu dan seluruh isi `keystore/` **tidak ikut ke repositori** — keduanya
+ada di `.gitignore`. Kalau `keystore.properties` tidak ada, varian rilis tetap
+bisa dirakit, hanya saja hasilnya tidak tertandatangani dan tidak bisa dipasang.
+
+**Simpan kunci Anda baik-baik**: Android hanya mau memasang pembaruan yang
+ditandatangani kunci yang sama. Kalau kunci hilang, satu-satunya cara memperbarui
+adalah menghapus dulu aplikasi yang terpasang.
+
+Pengecilan kode R8 sengaja dimatikan sampai aplikasi terbukti jalan di HP: R8
+bisa membuang sesuatu yang ternyata dipakai saat berjalan, dan rilis pertama
+dibuat seidentik mungkin dengan varian yang diuji.
+
+---
+
+## Perkakas di `tools/`
+
+Semuanya berdiri sendiri dan tidak butuh Android.
+
+### Menguji printer tanpa HP
+
+Cara tercepat memisahkan masalah data dari masalah USB. Kalau halaman uji keluar
+dari printer, encoder-nya benar dan sisa masalah pasti ada di sisi Android.
+
+```bash
+python tools/testpage_light.py uji.prn --paper A4 --dpi 300
+powershell -File tools/send_raw.ps1 -Printer "EPSON L3110 Series" -File uji.prn
+```
+
+`send_raw.ps1` memakai winspool dengan datatype `RAW`, jadi byte-nya sampai ke
+printer persis seperti yang dihasilkan encoder — driver Epson tidak ikut
+mengubahnya. Halaman ujinya hemat tinta (~3% cakupan) dan memuat penggaris
+milimeter, sehingga skala dan margin bisa diperiksa dengan penggaris sungguhan.
+
+### Encoder Python (kembaran dari yang di aplikasi)
+
+```bash
+python tools/selftest.py                                         # 30 pemeriksaan encoder
+python tools/make_prn.py keluar.prn --image foto.jpg --dpi 720   # butuh Pillow
+```
+
+`tools/parity/` membandingkan keluaran encoder Kotlin dan Python byte per byte.
+
+### Ikon aplikasi
+
+```bash
+powershell -File tools/make_icons.ps1 -Source ikon.png -ResDir app/src/main/res
+```
+
+Mengukur radius sudut dan batas artwork dari gambar, lalu menghasilkan PNG
+legacy persegi dan bulat di lima kerapatan layar plus lapisan ikon adaptif.
+
+---
+
+## Batasan yang diketahui
+
+- **Belum diuji di HP sungguhan.** Lihat bagian Status di atas.
+- Tidak terhubung ke kerangka cetak bawaan Android, jadi tombol "Print" di
+  aplikasi lain tidak memakai aplikasi ini. Pakai "Bagikan" atau buka berkasnya
+  dari dalam aplikasi.
+- Tidak ada orientasi lanskap: dokumen lanskap dicetak mengecil di tengah kertas
+  potret.
+- Tidak ada pemilihan rentang halaman PDF — selalu semua halaman.
+- Tanpa borderless, tanpa dupleks (L3110 memang tidak punya), tanpa pemindai.
+- Margin memakai satu nilai untuk keempat sisi.
+- Membatalkan cetak menghentikan pengiriman, tapi halaman yang sudah terlanjur
+  masuk ke printer tetap akan keluar.
+
+---
+
+## Riwayat versi
+
+| Versi | Isi |
+|---|---|
+| **1.2** | Tanda tangan APK memakai skema v1 + v2 + v3 sekaligus, untuk pemasang bawaan yang masih mencari blok v1 |
+| 1.1 | Panel daftar periksa sambungan di paling atas; pesan kegagalan berbahasa manusia dengan satu tombol tindakan di dekat tombol Cetak; sebab kegagalan bertipe; pembatalan tidak lagi terbaca sebagai kegagalan; nomor versi masuk ke nama berkas APK dan tampil di aplikasi |
+| 1.0 | Encoder ESC/P-R (terbukti mencetak di L3110), pratinjau realtime kertas dan margin, tampilan Material 3, ikon aplikasi, transport USB OTG |
+
+---
+
+## Rujukan
+
+Tata letak byte ESC/P-R disusun dari dua sumber terbuka yang saling
+mengonfirmasi, lalu dicek silang terhadap panjang perintah di driver C resmi
+Epson:
+
+- [ezrec/python-epson](https://github.com/ezrec/python-epson) (MIT) — struktur
+  perintah `setj`, `setq`, `dsnd`, `sttp`, `endp` beserta urutan REMOTE1
+- [epson-inkjet-printer-escpr](https://github.com/mrnuke/epson-printer-escpr-improved)
+  (GPL) — konstanta perintah di driver CUPS resmi Epson
