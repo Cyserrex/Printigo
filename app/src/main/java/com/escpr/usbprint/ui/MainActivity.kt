@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -667,7 +668,15 @@ private fun PrintBar(
     onExport: () -> Unit,
 ) {
     Surface(tonalElevation = 3.dp) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+        // enableEdgeToEdge membuat aplikasi menggambar sampai ke belakang bilah
+        // sistem, dan slot bottomBar tidak menerima inset itu sendiri. Tanpa
+        // navigationBarsPadding, tombol Cetak berada persis di bawah tombol
+        // navigasi dan hampir tidak bisa disentuh.
+        Column(
+            Modifier
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+        ) {
             // Hasil dan kesalahan muncul di sini, menempel pada tombol Cetak --
             // bukan di kartu Catatan yang letaknya jauh di bawah dan harus
             // digulir untuk ditemukan.

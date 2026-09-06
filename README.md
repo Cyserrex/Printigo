@@ -59,6 +59,12 @@ spooler → port USB, bukan jalur OTG dari HP.
 
 Jadi yang terbukti adalah **datanya**, bukan **pengantarannya**.
 
+**Perilaku terhadap bilah sistem.** Robolectric tidak mengantarkan window inset
+ke Compose: inset yang dikirim terbaca nol, sehingga uji apa pun tentang jarak
+ke bilah navigasi akan lolos baik perbaikannya ada maupun tidak. Karena uji yang
+lolos di kedua keadaan lebih menyesatkan daripada tidak ada uji, bagian ini
+sengaja tidak diuji dan hanya bisa diperiksa di perangkat.
+
 ---
 
 ## Memasang
@@ -247,7 +253,7 @@ gradlew assembleDebug      # APK debug
 gradlew test               # 75 unit test
 ```
 
-Nama berkas APK memuat nomor versi (`Printigo-v1.6-release.apk`), jadi dua
+Nama berkas APK memuat nomor versi (`Printigo-v1.7-release.apk`), jadi dua
 build berbeda tidak pernah bernama sama. Versi yang sama juga tampil di bawah
 judul aplikasi, supaya bisa disebutkan saat melaporkan masalah.
 
@@ -346,7 +352,8 @@ legacy persegi dan bulat di lima kerapatan layar plus lapisan ikon adaptif.
 
 | Versi | Isi |
 |---|---|
-| **1.6** | Perbaikan mati saat dibuka: konstruktor `PrintViewModel` kehilangan tanda tangan `(Application)` yang dicari factory bawaan, karena parameter dispatcher yang ditambahkan di 1.5. Ditambah uji yang membuat ViewModel lewat jalur yang sama dengan `by viewModels()` |
+| **1.7** | Tombol Simpan .prn dan Cetak tidak lagi tertutup bilah navigasi sistem: bilah bawah kini menerima inset navigasi, begitu pula kontrol di editor tata letak |
+| 1.6 | Perbaikan mati saat dibuka: konstruktor `PrintViewModel` kehilangan tanda tangan `(Application)` yang dicari factory bawaan, karena parameter dispatcher yang ditambahkan di 1.5. Ditambah uji yang membuat ViewModel lewat jalur yang sama dengan `by viewModels()` |
 | 1.5 | Banyak foto dalam satu lembar: tambah sekaligus, susun otomatis 1-4 kolom, pilih dengan menyentuh, geser dan ubah ukuran per foto, hapus yang terpilih; dispatcher ViewModel bisa disuntik |
 | 1.4 | Pengaturan tata letak pindah ke editor layar penuh yang dibuka dengan mengetuk pratinjau; tombol perbesar/perkecil bertahap; ukuran isi dan batas cetak bisa diatur di satu tempat |
 | 1.3 | Pratinjau bisa diatur dengan jari (geser, cubit, ketuk dua kali); penggaris milimeter; peringatan bagian yang akan terpotong beserta jaraknya per sisi; penempatan dipakai bersama oleh pratinjau dan jalur cetak lewat model milimeter; judul layar jadi "USB Printer OTG" dan nama aplikasi jadi "Printigo" |
