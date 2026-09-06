@@ -2,10 +2,14 @@ package com.escpr.usbprint
 
 import android.app.Application
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Color
 import android.net.Uri
+import java.io.File
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
@@ -14,6 +18,7 @@ import com.escpr.usbprint.escpr.ColorMode
 import com.escpr.usbprint.escpr.Dpi
 import com.escpr.usbprint.escpr.PaperSize
 import com.escpr.usbprint.escpr.Quality
+import com.escpr.usbprint.layout.ContentPlacement
 import com.escpr.usbprint.ui.PrintOutcome
 import com.escpr.usbprint.ui.StepAction
 import com.escpr.usbprint.ui.adviceFor
@@ -22,6 +27,7 @@ import com.escpr.usbprint.ui.PrintScreen
 import com.escpr.usbprint.ui.PrintViewModel
 import com.escpr.usbprint.ui.theme.AppTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -111,6 +117,89 @@ class PrintScreenTest {
         compose.onNodeWithText("Tutup").performClick()
         compose.waitForIdle()
         assertEquals(PrintOutcome.None, viewModel.state.value.outcome)
+    }
+
+
+    /**
+     * Gambar sederhana di cache, supaya alur dengan dokumen bisa diuji.
+     *
+     * Yang ditunggu adalah objek dokumennya berganti, bukan namanya: di
+     * Robolectric pada Windows, Uri.fromFile menghasilkan URI tanpa path
+     * segment sehingga nama dokumen berisi path penuh, bukan nama berkas.
+     * Menunggu previewImage != null saja juga tidak cukup, karena syarat itu
+     * sudah terpenuhi sejak muatan sebelumnya.
+     */
+    private fun loadSampleDocument(viewModel: PrintViewModel, name: String = "uji.png") {
+        val app = ApplicationProvider.getApplicationContext<Application>()
+        val bitmap = Bitmap.createBitmap(1400, 900, Bitmap.Config.ARGB_8888)
+        bitmap.eraseColor(Color.rgb(120, 190, 255))
+        val file = File(app.cacheDir, name)
+        file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+
+        val before = viewModel.state.value.document
+        viewModel.openDocument(Uri.fromFile(file))
+        compose.waitUntil(timeoutMillis = 10_000) {
+            val now = viewModel.state.value
+            now.document != null && now.document !== before && now.previewImage != null
+        }
+        compose.waitForIdle()
+    }
+
+    @Test
+    fun `editor tata letak hanya bisa dibuka kalau ada dokumen`() {
+        val viewModel = launch()
+        viewModel.openLayoutEditor()
+        compose.waitForIdle()
+        assertEquals(false, viewModel.state.value.layoutEditorOpen)
+    }
+
+    @Test
+    fun `menekan atur tata letak membuka editor layar penuh, lalu bisa ditutup`() {
+        val viewModel = launch()
+        loadSampleDocument(viewModel)
+
+        compose.onNodeWithText("Atur tata letak").performClick()
+        compose.waitForIdle()
+        assertEquals(true, viewModel.state.value.layoutEditorOpen)
+
+        // Kontrol khas editor muncul.
+        compose.onNodeWithText("Selesai").assertIsDisplayed()
+        compose.onNodeWithText("Ukuran").assertIsDisplayed()
+        compose.onNodeWithText("Batas cetak").assertIsDisplayed()
+
+        compose.onNodeWithText("Selesai").performClick()
+        compose.waitForIdle()
+        assertEquals(false, viewModel.state.value.layoutEditorOpen)
+    }
+
+    @Test
+    fun `tombol perbesar di editor mengubah ukuran isi`() {
+        val viewModel = launch()
+        loadSampleDocument(viewModel)
+        viewModel.openLayoutEditor()
+        compose.waitForIdle()
+
+        val sebelum = viewModel.state.value.pageLayout.content.width
+        compose.onNodeWithContentDescription("Perbesar").performClick()
+        compose.waitForIdle()
+        val sesudah = viewModel.state.value.pageLayout.content.width
+
+        assertTrue("menekan perbesar harus melebarkan isi", sesudah > sebelum)
+        assertEquals(true, viewModel.state.value.placement.manual)
+    }
+
+    @Test
+    fun `mengganti dokumen menutup editor dan mengembalikan penempatan`() {
+        val viewModel = launch()
+        loadSampleDocument(viewModel)
+        viewModel.nudgePlacement(10f, 10f, 1.3f)
+        viewModel.openLayoutEditor()
+        compose.waitForIdle()
+        assertEquals(true, viewModel.state.value.layoutEditorOpen)
+
+        loadSampleDocument(viewModel, name = "uji-kedua.png")
+        assertEquals(false, viewModel.state.value.layoutEditorOpen)
+        assertEquals(ContentPlacement.Fit, viewModel.state.value.placement)
     }
 
     @Test

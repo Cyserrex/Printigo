@@ -79,6 +79,8 @@ data class UiState(
     val outcome: PrintOutcome = PrintOutcome.None,
     /** Penempatan isi di atas kertas, diatur pengguna lewat pratinjau. */
     val placement: ContentPlacement = ContentPlacement.Fit,
+    /** Editor tata letak layar penuh sedang terbuka. */
+    val layoutEditorOpen: Boolean = false,
 ) {
     /** Rasio isi halaman yang sedang dipratinjau; 0 kalau belum ada dokumen. */
     val contentAspect: Float
@@ -283,6 +285,7 @@ class PrintViewModel(app: Application) : AndroidViewModel(app) {
                         previewPage = 0,
                         previewImage = null,
                         placement = ContentPlacement.Fit,
+                        layoutEditorOpen = false,
                     )
                 }
                 log("Dipilih: ${document.name} (${document.pageCount} halaman)")
@@ -358,6 +361,16 @@ class PrintViewModel(app: Application) : AndroidViewModel(app) {
     /** Mengembalikan isi ke ukuran muat di tengah kertas. */
     fun resetPlacement() {
         _state.update { it.copy(placement = ContentPlacement.Fit) }
+    }
+
+    /** Tanpa dokumen tidak ada yang bisa diatur, jadi editor tidak dibuka. */
+    fun openLayoutEditor() {
+        if (_state.value.document == null) return
+        _state.update { it.copy(layoutEditorOpen = true) }
+    }
+
+    fun closeLayoutEditor() {
+        _state.update { it.copy(layoutEditorOpen = false) }
     }
 
     // -------------------------------------------------------------- cetak

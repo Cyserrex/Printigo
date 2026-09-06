@@ -13,6 +13,8 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.escpr.usbprint.escpr.ColorMode
 import com.escpr.usbprint.escpr.PaperSize
+import androidx.compose.runtime.collectAsState
+import com.escpr.usbprint.ui.LayoutEditorContent
 import com.escpr.usbprint.ui.PrintScreen
 import com.escpr.usbprint.ui.PrintViewModel
 import com.escpr.usbprint.ui.theme.AppTheme
@@ -143,5 +145,37 @@ class ScreenshotTest {
         viewModel.nudgePlacement(panXmm = 14f, panYmm = -10f, zoom = 1.45f)
         compose.waitForIdle()
         capture("7-atur-tangan-terpotong")
+    }
+
+    // Editor mengisi satu layar penuh, jadi ditangkap pada ukuran layar HP
+    // sungguhan. Viewport uji yang sengaja dibuat tinggi untuk halaman utama
+    // akan membuat kertasnya tampak kecil di tengah ruang kosong.
+    @Test
+    @Config(qualifiers = "w411dp-h891dp")
+    fun `tangkap layar editor tata letak`() {
+        val app = ApplicationProvider.getApplicationContext<Application>()
+        val viewModel = PrintViewModel(app)
+
+        // Isi editor dirender langsung, tanpa pembungkus Dialog: jendela dialog
+        // punya decorView sendiri yang tidak ikut tergambar dari activity.
+        // setContent hanya boleh sekali per uji, jadi state dibaca sebagai flow
+        // supaya perubahan berikutnya ikut tergambar.
+        compose.setContent {
+            AppTheme {
+                val current = viewModel.state.collectAsState().value
+                LayoutEditorContent(current, viewModel)
+            }
+        }
+
+        viewModel.openDocument(sampleDocument(app))
+        compose.waitUntil(timeoutMillis = 10_000) {
+            viewModel.state.value.previewImage != null
+        }
+        compose.waitForIdle()
+        capture("8-editor-tata-letak")
+
+        viewModel.nudgePlacement(panXmm = 10f, panYmm = -8f, zoom = 1.4f)
+        compose.waitForIdle()
+        capture("9-editor-terpotong")
     }
 }

@@ -11,7 +11,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -178,10 +180,19 @@ internal fun PrintScreen(viewModel: PrintViewModel) {
             Spacer(Modifier.height(8.dp))
         }
     }
+
+    LayoutEditorDialog(state, viewModel)
 }
 
 // ------------------------------------------------------------ pratinjau
 
+/**
+ * Pratinjau ringkas di halaman utama.
+ *
+ * Sengaja tidak bisa diatur di sini: menggeser satu milimeter pada kertas
+ * sebesar ini tidak terlihat bedanya, dan gestur di dalam halaman yang bisa
+ * digulir akan saling berebut sentuhan. Mengetuknya membuka editor layar penuh.
+ */
 @Composable
 private fun PreviewSection(
     state: UiState,
@@ -203,14 +214,26 @@ private fun PreviewSection(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Box(Modifier.fillMaxWidth().height(380.dp), contentAlignment = Alignment.Center) {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(300.dp)
+                    .then(
+                        if (document != null && !state.busy) {
+                            Modifier.clickable(onClick = viewModel::openLayoutEditor)
+                        } else {
+                            Modifier
+                        }
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
                 PagePreview(
                     layout = layout,
                     content = state.previewImage,
                     monochrome = settings.colorMode == ColorMode.MONO,
-                    interactive = document != null && !state.busy,
-                    onGesture = viewModel::nudgePlacement,
-                    onReset = viewModel::resetPlacement,
+                    interactive = false,
+                    onGesture = { _, _, _ -> },
+                    onReset = {},
                     modifier = Modifier.fillMaxSize()
                 )
                 if (state.previewLoading) {
@@ -219,21 +242,15 @@ private fun PreviewSection(
             }
 
             if (document != null) {
-                Text(
-                    "Geser untuk memindahkan, cubit untuk memperbesar, " +
-                        "ketuk dua kali untuk mengembalikan",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
-                )
+                Button(onClick = viewModel::openLayoutEditor, enabled = !state.busy) {
+                    Text("Atur tata letak")
+                }
 
-                // Margin sesungguhnya, dibaca dari tata letak yang sama dengan
-                // yang dipakai mencetak -- bukan dari nilai slider.
                 Text(
-                    "Margin  kiri " + fmt(layout.marginLeftMm) +
-                        "  atas " + fmt(layout.marginTopMm) +
-                        "  kanan " + fmt(layout.marginRightMm) +
-                        "  bawah " + fmt(layout.marginBottomMm) + " mm",
+                    "Margin  kiri " + fmtMm(layout.marginLeftMm) +
+                        "  atas " + fmtMm(layout.marginTopMm) +
+                        "  kanan " + fmtMm(layout.marginRightMm) +
+                        "  bawah " + fmtMm(layout.marginBottomMm) + " mm",
                     style = MaterialTheme.typography.labelMedium,
                     textAlign = TextAlign.Center
                 )
@@ -271,16 +288,8 @@ private fun PreviewSection(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilledTonalButton(onClick = onPick, enabled = !state.busy) {
-                    Text(if (document == null) "Pilih berkas" else "Ganti berkas")
-                }
-                if (state.placement.manual) {
-                    OutlinedButton(
-                        onClick = viewModel::resetPlacement,
-                        enabled = !state.busy
-                    ) { Text("Atur ulang") }
-                }
+            FilledTonalButton(onClick = onPick, enabled = !state.busy) {
+                Text(if (document == null) "Pilih berkas" else "Ganti berkas")
             }
 
             if (document != null) {
@@ -313,10 +322,10 @@ private fun OverflowWarning(layout: PageLayout) {
 
     val tolerance = PageLayout.TOLERANCE_MM
     val sides = buildList {
-        if (layout.overflowLeftMm > tolerance) add("kiri " + fmt(layout.overflowLeftMm))
-        if (layout.overflowTopMm > tolerance) add("atas " + fmt(layout.overflowTopMm))
-        if (layout.overflowRightMm > tolerance) add("kanan " + fmt(layout.overflowRightMm))
-        if (layout.overflowBottomMm > tolerance) add("bawah " + fmt(layout.overflowBottomMm))
+        if (layout.overflowLeftMm > tolerance) add("kiri " + fmtMm(layout.overflowLeftMm))
+        if (layout.overflowTopMm > tolerance) add("atas " + fmtMm(layout.overflowTopMm))
+        if (layout.overflowRightMm > tolerance) add("kanan " + fmtMm(layout.overflowRightMm))
+        if (layout.overflowBottomMm > tolerance) add("bawah " + fmtMm(layout.overflowBottomMm))
     }
 
     Card(
@@ -369,7 +378,7 @@ private fun PaperSection(state: UiState, viewModel: PrintViewModel) {
             Text("Margin", style = MaterialTheme.typography.bodyMedium)
             Spacer(Modifier.weight(1f))
             Text(
-                "${fmt(settings.marginMm)} mm",
+                "${fmtMm(settings.marginMm)} mm",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -869,7 +878,3 @@ private fun OutcomeCard(
     }
 }
 
-/** 3.0 -> "3", 2.5 -> "2,5" */
-private fun fmt(value: Float): String =
-    if (value == value.toInt().toFloat()) value.toInt().toString()
-    else "%.1f".format(value)

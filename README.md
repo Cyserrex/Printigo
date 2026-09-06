@@ -5,8 +5,8 @@ kabel USB (USB-C di HP → USB-B di printer). Tanpa WiFi, tanpa komputer, tanpa
 server cetak.
 
 <p align="center">
-  <img src="docs/screenshots/2-dokumen-a4-margin3.png" width="30%" alt="Pratinjau dengan penggaris">
-  <img src="docs/screenshots/7-atur-tangan-terpotong.png" width="30%" alt="Peringatan terpotong">
+  <img src="docs/screenshots/8-editor-tata-letak.png" width="30%" alt="Editor tata letak layar penuh">
+  <img src="docs/screenshots/9-editor-terpotong.png" width="30%" alt="Peringatan terpotong">
   <img src="docs/screenshots/5-belum-tersambung.png" width="30%" alt="Daftar periksa sambungan">
 </p>
 
@@ -42,12 +42,12 @@ untuk mengujinya, jadi batas antara "terbukti" dan "belum" dijaga ketat.
 | Encoder Kotlin dan encoder Python identik **byte per byte** | SHA-256 sama untuk halaman uji yang sama |
 | RLE bolak-balik utuh, termasuk batas penghitung 128/129 | 11 pola data |
 | Pratinjau dan raster memakai penempatan yang sama | seluruh kombinasi kertas × dpi × margin |
-| Layar utama tersusun dan bisa disentuh | Robolectric, 10 uji |
+| Layar utama dan editor tata letak tersusun dan bisa disentuh | Robolectric, 14 uji |
 | Penempatan manual, pemotongan, dan pembatas geseran | 15 uji tata letak |
 | Tampilan benar-benar tergambar | tangkapan layar dari komposisi Compose di JVM |
 | APK terkompilasi, tertandatangani, zipalign, manifes benar | `apksigner`, `zipalign`, `aapt2` |
 
-**48 unit test**, semuanya lolos: `gradlew test`.
+**53 unit test**, semuanya lolos: `gradlew test`.
 
 ### Belum terbukti
 
@@ -87,11 +87,12 @@ buka, lalu izinkan "Install unknown apps" untuk aplikasi tempat Anda membukanya.
    sekaligus, jadi tidak perlu menebak harus menekan apa.
 3. **Pilih berkas** (gambar atau PDF). Pratinjau langsung muncul.
 4. Atur kertas, margin, resolusi. Pratinjau ikut berubah seketika.
-5. Kalau perlu, atur sendiri di pratinjau: **geser** untuk memindahkan,
-   **cubit** untuk memperbesar, **ketuk dua kali** untuk mengembalikan.
-   Penggaris milimeter di tepi membantu menempatkan dengan tepat, dan bagian
-   yang keluar area cetak diwarnai merah beserta peringatan berapa milimeter
-   yang akan terpotong.
+5. Kalau perlu, ketuk pratinjau atau tekan **Atur tata letak** untuk membuka
+   editor layar penuh: **geser** untuk memindahkan, **cubit** untuk
+   memperbesar, **ketuk dua kali** untuk mengembalikan. Ada juga tombol
+   perbesar/perkecil bertahap dan penggeser batas cetak. Penggaris milimeter
+   di tepi membantu menempatkan dengan tepat, dan bagian yang keluar area
+   cetak diwarnai merah beserta peringatan berapa milimeter yang terpotong.
 6. Tekan **Cetak**.
 
 Bisa juga membagikan (Share) gambar atau PDF dari aplikasi lain ke aplikasi ini.
@@ -104,9 +105,12 @@ Berguna untuk memisahkan masalah data dari masalah kabel.
 ## Fitur
 
 - Cetak **gambar** (JPEG/PNG/WebP, rotasi EXIF dihormati) dan **PDF** banyak halaman
-- **Pratinjau yang bisa diatur dengan jari**: geser untuk memindahkan, cubit
-  untuk memperbesar, ketuk dua kali untuk mengembalikan ke ukuran muat
+- **Editor tata letak layar penuh**: geser untuk memindahkan, cubit untuk
+  memperbesar, ketuk dua kali untuk mengembalikan ke ukuran muat, plus tombol
+  perbesar/perkecil bertahap untuk menyetel beberapa persen
 - **Penggaris milimeter** di tepi atas dan kiri kertas
+- Ukuran isi ditampilkan dalam milimeter, bukan persentase, supaya bisa
+  langsung dicocokkan dengan penggaris sungguhan
 - **Peringatan terpotong**: bagian yang keluar area cetak diwarnai merah, dan
   jaraknya disebutkan per sisi dalam milimeter
 - Pembacaan margin sesungguhnya per sisi, ikut berubah saat digeser
@@ -128,6 +132,7 @@ Berguna untuk memisahkan masalah data dari masalah kabel.
 ```
 app/src/main/java/com/escpr/usbprint/
   layout/PageLayout.kt       penempatan isi di kertas, dalam milimeter
+  ui/LayoutEditorDialog.kt   editor tata letak layar penuh
   escpr/EscpR.kt             perintah ESC/P-R tingkat byte + enum pengaturan
   escpr/Rle.kt               kompresi run-length per piksel
   escpr/EscpRJob.kt          perakit job: start -> halaman -> baris -> selesai
@@ -160,6 +165,16 @@ Isi dokumen dirender **sekali** pada rasio aslinya oleh `PreviewRenderer.kt`.
 Penempatan kertas, margin, geseran, dan perbesaran cuma aritmetika yang
 dihitung ulang tiap frame di `layout/PageLayout.kt`. Jadi menggeser jari tidak
 pernah memicu render ulang dokumen.
+
+### Kenapa editornya layar penuh
+
+Mengatur posisi dan ukuran dengan jari butuh kertas sebesar mungkin. Di kartu
+setinggi 300 dp, penggaris milimeter tidak terbaca dan geseran satu milimeter
+tidak terlihat bedanya. Selain itu gestur di dalam halaman yang bisa digulir
+akan berebut sentuhan dengan gulirannya.
+
+Karena itu pratinjau di halaman utama sengaja tidak bisa diatur -- ia hanya
+menampilkan hasil dan membuka editor saat diketuk.
 
 ### Kenapa pratinjau dan hasil cetak tidak mungkin berbeda
 
@@ -197,10 +212,10 @@ pemeriksaan langsung, bukan tebakan dari isi pesan.
 ```bash
 gradlew assembleRelease    # APK rilis, tertandatangani
 gradlew assembleDebug      # APK debug
-gradlew test               # 48 unit test
+gradlew test               # 53 unit test
 ```
 
-Nama berkas APK memuat nomor versi (`Printigo-v1.3-release.apk`), jadi dua
+Nama berkas APK memuat nomor versi (`Printigo-v1.4-release.apk`), jadi dua
 build berbeda tidak pernah bernama sama. Versi yang sama juga tampil di bawah
 judul aplikasi, supaya bisa disebutkan saat melaporkan masalah.
 
@@ -296,7 +311,8 @@ legacy persegi dan bulat di lima kerapatan layar plus lapisan ikon adaptif.
 
 | Versi | Isi |
 |---|---|
-| **1.3** | Pratinjau bisa diatur dengan jari (geser, cubit, ketuk dua kali); penggaris milimeter; peringatan bagian yang akan terpotong beserta jaraknya per sisi; penempatan dipakai bersama oleh pratinjau dan jalur cetak lewat model milimeter; judul layar jadi "USB Printer OTG" dan nama aplikasi jadi "Printigo" |
+| **1.4** | Pengaturan tata letak pindah ke editor layar penuh yang dibuka dengan mengetuk pratinjau; tombol perbesar/perkecil bertahap; ukuran isi dan batas cetak bisa diatur di satu tempat |
+| 1.3 | Pratinjau bisa diatur dengan jari (geser, cubit, ketuk dua kali); penggaris milimeter; peringatan bagian yang akan terpotong beserta jaraknya per sisi; penempatan dipakai bersama oleh pratinjau dan jalur cetak lewat model milimeter; judul layar jadi "USB Printer OTG" dan nama aplikasi jadi "Printigo" |
 | 1.2 | Tanda tangan APK memakai skema v1 + v2 + v3 sekaligus, untuk pemasang bawaan yang masih mencari blok v1 |
 | 1.1 | Panel daftar periksa sambungan di paling atas; pesan kegagalan berbahasa manusia dengan satu tombol tindakan di dekat tombol Cetak; sebab kegagalan bertipe; pembatalan tidak lagi terbaca sebagai kegagalan; nomor versi masuk ke nama berkas APK dan tampil di aplikasi |
 | 1.0 | Encoder ESC/P-R (terbukti mencetak di L3110), pratinjau realtime kertas dan margin, tampilan Material 3, ikon aplikasi, transport USB OTG |
