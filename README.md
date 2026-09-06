@@ -44,11 +44,12 @@ untuk mengujinya, jadi batas antara "terbukti" dan "belum" dijaga ketat.
 | Pratinjau dan raster memakai penempatan yang sama | seluruh kombinasi kertas × dpi × margin |
 | Layar utama dan editor tata letak tersusun dan bisa disentuh | Robolectric, 17 uji |
 | Susunan banyak foto: kisi, geser, ukur, pilih, potong | 16 uji lembar |
+| ViewModel bisa dibuat lewat factory bawaan seperti `by viewModels()` | 2 uji |
 | Penempatan manual, pemotongan, dan pembatas geseran | 15 uji tata letak |
 | Tampilan benar-benar tergambar | tangkapan layar dari komposisi Compose di JVM |
 | APK terkompilasi, tertandatangani, zipalign, manifes benar | `apksigner`, `zipalign`, `aapt2` |
 
-**72 unit test**, semuanya lolos: `gradlew test`.
+**75 unit test**, semuanya lolos: `gradlew test`.
 
 ### Belum terbukti
 
@@ -243,10 +244,10 @@ pemeriksaan langsung, bukan tebakan dari isi pesan.
 ```bash
 gradlew assembleRelease    # APK rilis, tertandatangani
 gradlew assembleDebug      # APK debug
-gradlew test               # 72 unit test
+gradlew test               # 75 unit test
 ```
 
-Nama berkas APK memuat nomor versi (`Printigo-v1.5-release.apk`), jadi dua
+Nama berkas APK memuat nomor versi (`Printigo-v1.6-release.apk`), jadi dua
 build berbeda tidak pernah bernama sama. Versi yang sama juga tampil di bawah
 judul aplikasi, supaya bisa disebutkan saat melaporkan masalah.
 
@@ -345,7 +346,8 @@ legacy persegi dan bulat di lima kerapatan layar plus lapisan ikon adaptif.
 
 | Versi | Isi |
 |---|---|
-| **1.5** | Banyak foto dalam satu lembar: tambah sekaligus, susun otomatis 1-4 kolom, pilih dengan menyentuh, geser dan ubah ukuran per foto, hapus yang terpilih; dispatcher ViewModel bisa disuntik |
+| **1.6** | Perbaikan mati saat dibuka: konstruktor `PrintViewModel` kehilangan tanda tangan `(Application)` yang dicari factory bawaan, karena parameter dispatcher yang ditambahkan di 1.5. Ditambah uji yang membuat ViewModel lewat jalur yang sama dengan `by viewModels()` |
+| 1.5 | Banyak foto dalam satu lembar: tambah sekaligus, susun otomatis 1-4 kolom, pilih dengan menyentuh, geser dan ubah ukuran per foto, hapus yang terpilih; dispatcher ViewModel bisa disuntik |
 | 1.4 | Pengaturan tata letak pindah ke editor layar penuh yang dibuka dengan mengetuk pratinjau; tombol perbesar/perkecil bertahap; ukuran isi dan batas cetak bisa diatur di satu tempat |
 | 1.3 | Pratinjau bisa diatur dengan jari (geser, cubit, ketuk dua kali); penggaris milimeter; peringatan bagian yang akan terpotong beserta jaraknya per sisi; penempatan dipakai bersama oleh pratinjau dan jalur cetak lewat model milimeter; judul layar jadi "USB Printer OTG" dan nama aplikasi jadi "Printigo" |
 | 1.2 | Tanda tangan APK memakai skema v1 + v2 + v3 sekaligus, untuk pemasang bawaan yang masih mencari blok v1 |

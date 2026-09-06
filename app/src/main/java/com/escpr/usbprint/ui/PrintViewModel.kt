@@ -186,8 +186,14 @@ data class UiState(
  *
  * Keduanya bisa disuntik supaya pengujian menjalankan semuanya secara langsung
  * tanpa bergantung pada penjadwalan utas.
+ *
+ * `@JvmOverloads` wajib ada. Factory bawaan ViewModel mencari konstruktor
+ * `(Application)` lewat refleksi, sedangkan parameter default Kotlin tidak
+ * menghasilkan konstruktor itu -- hanya versi lengkap plus satu versi sintetis.
+ * Tanpa anotasi ini, `by viewModels()` gagal dengan "Cannot create an instance
+ * of class PrintViewModel" dan aplikasi mati saat dibuka.
  */
-class PrintViewModel(
+class PrintViewModel @JvmOverloads constructor(
     app: Application,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val uiDispatcher: CoroutineDispatcher = Dispatchers.Main.immediate,
