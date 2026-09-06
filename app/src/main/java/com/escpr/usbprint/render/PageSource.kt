@@ -11,7 +11,7 @@ import android.os.ParcelFileDescriptor
 import androidx.exifinterface.media.ExifInterface
 import java.io.Closeable
 import java.io.File
-import kotlin.math.min
+import kotlin.math.roundToInt
 
 /**
  * Sumber halaman yang bisa digambar pita demi pita (band).
@@ -19,14 +19,25 @@ import kotlin.math.min
  * Halaman A4 pada 720 dpi berukuran sekitar 5800 x 8250 piksel; kalau
  * di-render sekaligus butuh 190 MB dan aplikasi pasti mati kehabisan memori.
  * Karena itu semua penggambaran dilakukan per pita setinggi seratusan baris.
+ *
+ * Sumber ini tidak lagi memutuskan sendiri di mana isi ditaruh. Kotak
+ * tujuannya ditentukan dari luar lewat [setDestination], sehingga penempatan
+ * yang diatur pengguna di pratinjau dipakai apa adanya saat mencetak. Kotak
+ * itu boleh melewati batas area cetak; bagian yang lewat akan terpotong
+ * sendiri karena bitmap pita hanya seluas area cetak.
+ *
+ * Urutan pemakaian: openPage -> contentAspect -> setDestination -> renderBand*
  */
 interface PageSource : Closeable {
     val pageCount: Int
 
-    /** Dipanggil sekali, memberi tahu ukuran area cetak dalam piksel. */
-    fun prepare(pageWidthPx: Int, pageHeightPx: Int)
-
     fun openPage(index: Int)
+
+    /** Lebar dibagi tinggi isi halaman yang sedang terbuka. */
+    fun contentAspect(): Float
+
+    /** Kotak tujuan dalam piksel, diukur dari sudut kiri-atas area cetak. */
+    fun setDestination(destination: RectF)
 
     /**
      * Menggambar bagian halaman mulai baris [bandTop] ke dalam [bitmap].
@@ -48,32 +59,27 @@ class PdfPageSource(file: File) : PageSource {
     override val pageCount: Int = renderer.pageCount
 
     private var page: PdfRenderer.Page? = null
-    private var targetWidth = 0
-    private var targetHeight = 0
     private val baseMatrix = Matrix()
-
-    override fun prepare(pageWidthPx: Int, pageHeightPx: Int) {
-        targetWidth = pageWidthPx
-        targetHeight = pageHeightPx
-    }
 
     override fun openPage(index: Int) {
         closePage()
-        val p = renderer.openPage(index)
-        page = p
+        page = renderer.openPage(index)
+    }
 
-        // p.width / p.height dalam poin (1/72 inci). Skalakan agar pas di area
-        // cetak dengan rasio terjaga, lalu ketengahkan.
-        val scale = min(
-            targetWidth.toFloat() / p.width,
-            targetHeight.toFloat() / p.height
-        )
+    override fun contentAspect(): Float {
+        val p = page ?: return 0f
+        if (p.height <= 0) return 0f
+        return p.width.toFloat() / p.height.toFloat()
+    }
+
+    override fun setDestination(destination: RectF) {
+        val p = page ?: return
+        // p.width / p.height dalam poin (1/72 inci).
+        val scaleX = destination.width() / p.width
+        val scaleY = destination.height() / p.height
         baseMatrix.reset()
-        baseMatrix.setScale(scale, scale)
-        baseMatrix.postTranslate(
-            (targetWidth - p.width * scale) / 2f,
-            (targetHeight - p.height * scale) / 2f
-        )
+        baseMatrix.setScale(scaleX, scaleY)
+        baseMatrix.postTranslate(destination.left, destination.top)
     }
 
     override fun renderBand(bitmap: Bitmap, bandTop: Int) {
@@ -101,25 +107,43 @@ class ImagePageSource(private val file: File) : PageSource {
 
     override val pageCount: Int = 1
 
+    private val sourceWidth: Int
+    private val sourceHeight: Int
+    private val rotation: Int
+
     private var bitmap: Bitmap? = null
     private val destination = RectF()
     private val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.DITHER_FLAG)
 
-    override fun prepare(pageWidthPx: Int, pageHeightPx: Int) {
+    init {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(file.absolutePath, bounds)
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
             throw IllegalArgumentException("Berkas gambar tidak bisa dibaca")
         }
+        rotation = readExifRotation()
+        // Rasio dilaporkan setelah rotasi EXIF diterapkan, sama seperti yang
+        // dilihat pengguna di pratinjau.
+        val upright = rotation % 180 != 0
+        sourceWidth = if (upright) bounds.outHeight else bounds.outWidth
+        sourceHeight = if (upright) bounds.outWidth else bounds.outHeight
+    }
 
-        val rotation = readExifRotation()
+    override fun openPage(index: Int) = Unit
+
+    override fun contentAspect(): Float = sourceWidth.toFloat() / sourceHeight.toFloat()
+
+    override fun setDestination(destination: RectF) {
+        this.destination.set(destination)
+        if (bitmap == null) decode(destination)
+    }
+
+    private fun decode(destination: RectF) {
+        val targetWidth = destination.width().roundToInt().coerceAtLeast(1)
+        val targetHeight = destination.height().roundToInt().coerceAtLeast(1)
 
         val options = BitmapFactory.Options().apply {
-            inSampleSize = chooseSampleSize(
-                bounds.outWidth, bounds.outHeight,
-                if (rotation % 180 == 0) pageWidthPx else pageHeightPx,
-                if (rotation % 180 == 0) pageHeightPx else pageWidthPx
-            )
+            inSampleSize = chooseSampleSize(sourceWidth, sourceHeight, targetWidth, targetHeight)
             inPreferredConfig = Bitmap.Config.ARGB_8888
         }
         var decoded = BitmapFactory.decodeFile(file.absolutePath, options)
@@ -134,20 +158,7 @@ class ImagePageSource(private val file: File) : PageSource {
             decoded = rotated
         }
         bitmap = decoded
-
-        // Muat sebesar mungkin di dalam area cetak tanpa mengubah rasio.
-        val scale = min(
-            pageWidthPx.toFloat() / decoded.width,
-            pageHeightPx.toFloat() / decoded.height
-        )
-        val drawWidth = decoded.width * scale
-        val drawHeight = decoded.height * scale
-        val left = (pageWidthPx - drawWidth) / 2f
-        val top = (pageHeightPx - drawHeight) / 2f
-        destination.set(left, top, left + drawWidth, top + drawHeight)
     }
-
-    override fun openPage(index: Int) = Unit
 
     override fun renderBand(bitmap: Bitmap, bandTop: Int) {
         val source = this.bitmap ?: return

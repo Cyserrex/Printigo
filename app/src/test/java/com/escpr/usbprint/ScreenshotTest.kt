@@ -134,5 +134,14 @@ class ScreenshotTest {
         }
         compose.waitForIdle()
         capture("4-kertas-4R-mono")
+
+        // Diperbesar dan digeser dengan tangan sampai keluar area cetak:
+        // bagian yang terpotong ditandai merah dan peringatannya muncul.
+        viewModel.updateSettings {
+            it.copy(paper = PaperSize.A4, colorMode = ColorMode.COLOR)
+        }
+        viewModel.nudgePlacement(panXmm = 14f, panYmm = -10f, zoom = 1.45f)
+        compose.waitForIdle()
+        capture("7-atur-tangan-terpotong")
     }
 }

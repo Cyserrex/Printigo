@@ -2,10 +2,14 @@ package com.escpr.usbprint.print
 
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.RectF
 import com.escpr.usbprint.escpr.ColorMode
 import com.escpr.usbprint.escpr.EscpRJob
 import com.escpr.usbprint.escpr.PrintSettings
 import com.escpr.usbprint.escpr.PrinterSink
+import com.escpr.usbprint.layout.ContentPlacement
+import com.escpr.usbprint.layout.computePageLayout
+import com.escpr.usbprint.layout.contentRectInPrintablePx
 import com.escpr.usbprint.render.PageSource
 import kotlinx.coroutines.ensureActive
 import kotlin.coroutines.coroutineContext
@@ -40,14 +44,13 @@ object PrintTask {
         sink: PrinterSink,
         source: PageSource,
         settings: PrintSettings,
+        placement: ContentPlacement = ContentPlacement.Fit,
         onProgress: (PrintProgress) -> Unit = {}
     ) {
         val job = EscpRJob(sink, settings)
         val geometry = job.start()
         val width = geometry.printableWidth
         val height = geometry.printableHeight
-
-        source.prepare(width, height)
 
         val copies = settings.copies.coerceAtLeast(1)
         val totalPages = source.pageCount * copies
@@ -67,6 +70,19 @@ object PrintTask {
                     pageCounter++
 
                     source.openPage(index)
+
+                    // Tata letak dihitung per halaman karena satu PDF bisa
+                    // memuat halaman dengan rasio berbeda-beda.
+                    val layout = computePageLayout(
+                        paperWidthMm = settings.paper.widthMm,
+                        paperHeightMm = settings.paper.heightMm,
+                        marginMm = settings.marginMm,
+                        contentAspect = source.contentAspect(),
+                        placement = placement,
+                    )
+                    val box = layout.contentRectInPrintablePx(settings.dpi.value)
+                    source.setDestination(RectF(box[0], box[1], box[2], box[3]))
+
                     job.startPage(pageCounter)
 
                     var y = 0

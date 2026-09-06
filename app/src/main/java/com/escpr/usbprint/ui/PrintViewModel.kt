@@ -18,6 +18,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.escpr.usbprint.escpr.EscpRJob
 import com.escpr.usbprint.escpr.PrintSettings
+import com.escpr.usbprint.layout.ContentPlacement
+import com.escpr.usbprint.layout.clampedTo
+import com.escpr.usbprint.layout.computePageLayout
 import com.escpr.usbprint.print.PrintTask
 import com.escpr.usbprint.render.ImagePageSource
 import com.escpr.usbprint.render.PageSource
@@ -74,7 +77,22 @@ data class UiState(
     val permissionDenied: Boolean = false,
     val escpRSupport: EscpRSupport = EscpRSupport.UNKNOWN,
     val outcome: PrintOutcome = PrintOutcome.None,
+    /** Penempatan isi di atas kertas, diatur pengguna lewat pratinjau. */
+    val placement: ContentPlacement = ContentPlacement.Fit,
 ) {
+    /** Rasio isi halaman yang sedang dipratinjau; 0 kalau belum ada dokumen. */
+    val contentAspect: Float
+        get() = previewImage?.let { it.width.toFloat() / it.height.toFloat() } ?: 0f
+
+    val pageLayout
+        get() = computePageLayout(
+            paperWidthMm = settings.paper.widthMm,
+            paperHeightMm = settings.paper.heightMm,
+            marginMm = settings.marginMm,
+            contentAspect = contentAspect,
+            placement = placement,
+        )
+
     val printableSize: Pair<Int, Int>
         get() = EscpRJob.computeGeometry(settings).let { it.printableWidth to it.printableHeight }
 
@@ -260,7 +278,12 @@ class PrintViewModel(app: Application) : AndroidViewModel(app) {
                 Document(file, name, isPdf, pages)
             }.onSuccess { document ->
                 _state.update {
-                    it.copy(document = document, previewPage = 0, previewImage = null)
+                    it.copy(
+                        document = document,
+                        previewPage = 0,
+                        previewImage = null,
+                        placement = ContentPlacement.Fit,
+                    )
                 }
                 log("Dipilih: ${document.name} (${document.pageCount} halaman)")
                 loadPreview(0)
@@ -313,6 +336,30 @@ class PrintViewModel(app: Application) : AndroidViewModel(app) {
         _state.update { it.copy(settings = transform(it.settings)) }
     }
 
+    /**
+     * Menerapkan satu gestur dari pratinjau.
+     *
+     * Geseran datang dalam milimeter kertas, bukan piksel layar, supaya
+     * hasilnya sama berapa pun ukuran pratinjau di layar.
+     */
+    fun nudgePlacement(panXmm: Float, panYmm: Float, zoom: Float) {
+        _state.update { state ->
+            val paper = state.settings.paper
+            val next = state.placement.copy(
+                scale = state.placement.scale * zoom,
+                offsetXmm = state.placement.offsetXmm + panXmm,
+                offsetYmm = state.placement.offsetYmm + panYmm,
+                manual = true,
+            ).clampedTo(paper.widthMm, paper.heightMm)
+            state.copy(placement = next)
+        }
+    }
+
+    /** Mengembalikan isi ke ukuran muat di tengah kertas. */
+    fun resetPlacement() {
+        _state.update { it.copy(placement = ContentPlacement.Fit) }
+    }
+
     // -------------------------------------------------------------- cetak
 
     fun print() {
@@ -333,7 +380,9 @@ class PrintViewModel(app: Application) : AndroidViewModel(app) {
                     pageSource(document).use { source ->
                         val (width, height) = current.printableSize
                         log("Mencetak pada $width x $height piksel...")
-                        PrintTask.run(sink, source, current.settings) { progress ->
+                        PrintTask.run(
+                            sink, source, current.settings, current.placement
+                        ) { progress ->
                             _state.update { it.copy(progress = progress.fraction) }
                         }
                     }
@@ -400,7 +449,9 @@ class PrintViewModel(app: Application) : AndroidViewModel(app) {
                 var written = 0L
                 StreamSink(stream).use { sink ->
                     pageSource(document).use { source ->
-                        PrintTask.run(sink, source, current.settings) { progress ->
+                        PrintTask.run(
+                            sink, source, current.settings, current.placement
+                        ) { progress ->
                             _state.update { it.copy(progress = progress.fraction) }
                         }
                     }

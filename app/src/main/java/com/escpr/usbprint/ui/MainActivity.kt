@@ -76,6 +76,7 @@ import com.escpr.usbprint.escpr.Dpi
 import com.escpr.usbprint.escpr.MediaType
 import com.escpr.usbprint.escpr.PaperSize
 import com.escpr.usbprint.escpr.Quality
+import com.escpr.usbprint.layout.PageLayout
 import com.escpr.usbprint.ui.theme.AppTheme
 import kotlin.math.roundToInt
 
@@ -132,7 +133,7 @@ internal fun PrintScreen(viewModel: PrintViewModel) {
             CenterAlignedTopAppBar(
                 title = {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Cetak USB", fontWeight = FontWeight.SemiBold)
+                        Text("USB Printer OTG", fontWeight = FontWeight.SemiBold)
                         Text(
                             "Epson ESC/P-R  -  v${BuildConfig.VERSION_NAME}",
                             style = MaterialTheme.typography.labelSmall,
@@ -189,6 +190,7 @@ private fun PreviewSection(
 ) {
     val document = state.document
     val settings = state.settings
+    val layout = state.pageLayout
 
     Card(
         Modifier.fillMaxWidth(),
@@ -199,19 +201,44 @@ private fun PreviewSection(
         Column(
             Modifier.padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Box(Modifier.fillMaxWidth().height(340.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxWidth().height(380.dp), contentAlignment = Alignment.Center) {
                 PagePreview(
-                    paper = settings.paper,
-                    marginMm = settings.marginMm,
+                    layout = layout,
                     content = state.previewImage,
                     monochrome = settings.colorMode == ColorMode.MONO,
+                    interactive = document != null && !state.busy,
+                    onGesture = viewModel::nudgePlacement,
+                    onReset = viewModel::resetPlacement,
                     modifier = Modifier.fillMaxSize()
                 )
                 if (state.previewLoading) {
                     CircularProgressIndicator(Modifier.size(36.dp))
                 }
+            }
+
+            if (document != null) {
+                Text(
+                    "Geser untuk memindahkan, cubit untuk memperbesar, " +
+                        "ketuk dua kali untuk mengembalikan",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+
+                // Margin sesungguhnya, dibaca dari tata letak yang sama dengan
+                // yang dipakai mencetak -- bukan dari nilai slider.
+                Text(
+                    "Margin  kiri " + fmt(layout.marginLeftMm) +
+                        "  atas " + fmt(layout.marginTopMm) +
+                        "  kanan " + fmt(layout.marginRightMm) +
+                        "  bawah " + fmt(layout.marginBottomMm) + " mm",
+                    style = MaterialTheme.typography.labelMedium,
+                    textAlign = TextAlign.Center
+                )
+
+                OverflowWarning(layout)
             }
 
             // Navigasi halaman hanya berguna untuk PDF banyak halaman.
@@ -222,7 +249,7 @@ private fun PreviewSection(
                         enabled = state.previewPage > 0
                     ) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Halaman sebelumnya") }
                     Text(
-                        "Halaman ${state.previewPage + 1} / ${document.pageCount}",
+                        "Halaman " + (state.previewPage + 1) + " / " + document.pageCount,
                         style = MaterialTheme.typography.labelLarge
                     )
                     IconButton(
@@ -237,16 +264,25 @@ private fun PreviewSection(
                 text = if (document == null) {
                     "Pilih gambar atau PDF untuk melihat pratinjaunya"
                 } else {
-                    "Area cetak $width x $height piksel  -  " +
-                        "${settings.dpi.value} dpi  -  margin ${fmt(settings.marginMm)} mm"
+                    "Area cetak " + width + " x " + height + " piksel  -  " +
+                        settings.dpi.value + " dpi"
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            FilledTonalButton(onClick = onPick, enabled = !state.busy) {
-                Text(if (document == null) "Pilih berkas" else "Ganti berkas")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilledTonalButton(onClick = onPick, enabled = !state.busy) {
+                    Text(if (document == null) "Pilih berkas" else "Ganti berkas")
+                }
+                if (state.placement.manual) {
+                    OutlinedButton(
+                        onClick = viewModel::resetPlacement,
+                        enabled = !state.busy
+                    ) { Text("Atur ulang") }
+                }
             }
+
             if (document != null) {
                 // Sebagian penyedia dokumen mengembalikan nama yang sangat
                 // panjang, jadi dibatasi satu baris agar tidak mendorong tata
@@ -259,6 +295,56 @@ private fun PreviewSection(
                     overflow = TextOverflow.Ellipsis,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Peringatan bagian yang akan terpotong.
+ *
+ * Disebutkan per sisi dan dalam milimeter, karena "gambar terpotong" saja
+ * tidak memberi tahu pengguna harus menggeser ke mana dan sejauh apa.
+ */
+@Composable
+private fun OverflowWarning(layout: PageLayout) {
+    if (!layout.hasOverflow) return
+
+    val tolerance = PageLayout.TOLERANCE_MM
+    val sides = buildList {
+        if (layout.overflowLeftMm > tolerance) add("kiri " + fmt(layout.overflowLeftMm))
+        if (layout.overflowTopMm > tolerance) add("atas " + fmt(layout.overflowTopMm))
+        if (layout.overflowRightMm > tolerance) add("kanan " + fmt(layout.overflowRightMm))
+        if (layout.overflowBottomMm > tolerance) add("bawah " + fmt(layout.overflowBottomMm))
+    }
+
+    Card(
+        Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer
+        )
+    ) {
+        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                Icons.Default.Warning,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onErrorContainer,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(Modifier.width(10.dp))
+            Column {
+                Text(
+                    "Sebagian gambar akan terpotong",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onErrorContainer
+                )
+                Text(
+                    "Keluar dari area cetak: " + sides.joinToString("  ") +
+                        " mm. Bagian merah tidak akan tercetak.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer
                 )
             }
         }

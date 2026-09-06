@@ -26,8 +26,8 @@ android {
         targetSdk = 35
         // Dinaikkan tiap kali APK diserahkan. versionCode harus naik agar
         // Android mau memasang sebagai pembaruan; versionName yang dibaca orang.
-        versionCode = 3
-        versionName = "1.2"
+        versionCode = 4
+        versionName = "1.3"
     }
 
     signingConfigs {
@@ -88,7 +88,7 @@ android {
         outputs.all {
             val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
             output.outputFileName =
-                "CetakUSB-L3110-v${variant.versionName}-${variant.buildType.name}.apk"
+                "Printigo-v${variant.versionName}-${variant.buildType.name}.apk"
         }
     }
 

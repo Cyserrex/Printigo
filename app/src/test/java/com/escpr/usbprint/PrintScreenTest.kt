@@ -58,7 +58,7 @@ class PrintScreenTest {
     @Test
     fun `layar utama tersusun tanpa gagal`() {
         launch()
-        compose.onNodeWithText("Cetak USB").assertIsDisplayed()
+        compose.onNodeWithText("USB Printer OTG").assertIsDisplayed()
         compose.onNodeWithText("Kertas").assertIsDisplayed()
         compose.onNodeWithText("Hasil cetak").assertIsDisplayed()
     }

@@ -1,12 +1,12 @@
-# Cetak USB — Epson L3110 dari Android
+# Printigo — cetak ke Epson L3110 dari Android
 
 Aplikasi Android untuk mencetak **gambar dan PDF** langsung ke Epson L3110 lewat
 kabel USB (USB-C di HP → USB-B di printer). Tanpa WiFi, tanpa komputer, tanpa
 server cetak.
 
 <p align="center">
-  <img src="docs/screenshots/2-dokumen-a4-margin3.png" width="30%" alt="Pratinjau A4 margin 3 mm">
-  <img src="docs/screenshots/3-margin18.png" width="30%" alt="Margin 18 mm">
+  <img src="docs/screenshots/2-dokumen-a4-margin3.png" width="30%" alt="Pratinjau dengan penggaris">
+  <img src="docs/screenshots/7-atur-tangan-terpotong.png" width="30%" alt="Peringatan terpotong">
   <img src="docs/screenshots/5-belum-tersambung.png" width="30%" alt="Daftar periksa sambungan">
 </p>
 
@@ -41,12 +41,13 @@ untuk mengujinya, jadi batas antara "terbukti" dan "belum" dijaga ketat.
 | Panjang tiap perintah cocok dengan driver resmi Epson | `setj`=22, `setq`=9, `endp`=1, `sttp`/`endj`=0 byte data |
 | Encoder Kotlin dan encoder Python identik **byte per byte** | SHA-256 sama untuk halaman uji yang sama |
 | RLE bolak-balik utuh, termasuk batas penghitung 128/129 | 11 pola data |
-| Pratinjau setara dengan geometri cetak | 128 kombinasi kertas × margin × rasio dokumen |
+| Pratinjau dan raster memakai penempatan yang sama | seluruh kombinasi kertas × dpi × margin |
 | Layar utama tersusun dan bisa disentuh | Robolectric, 10 uji |
+| Penempatan manual, pemotongan, dan pembatas geseran | 15 uji tata letak |
 | Tampilan benar-benar tergambar | tangkapan layar dari komposisi Compose di JVM |
 | APK terkompilasi, tertandatangani, zipalign, manifes benar | `apksigner`, `zipalign`, `aapt2` |
 
-**39 unit test**, semuanya lolos: `gradlew test`.
+**48 unit test**, semuanya lolos: `gradlew test`.
 
 ### Belum terbukti
 
@@ -64,8 +65,8 @@ Bangun APK-nya (lihat [Membangun sendiri](#membangun-sendiri)), salin ke HP,
 buka, lalu izinkan "Install unknown apps" untuk aplikasi tempat Anda membukanya.
 
 > **Kalau pemasangan menggantung di "Installing…"**, kemungkinan besar ada versi
-> lama yang tanda tangannya berbeda. Hapus dulu lewat **Settings → Apps → Cetak
-> USB → Uninstall**, baru pasang lagi. Antar-APK yang ditandatangani kunci yang
+> lama yang tanda tangannya berbeda. Hapus dulu lewat **Settings → Apps → Printigo
+> → Uninstall**, baru pasang lagi. Antar-APK yang ditandatangani kunci yang
 > sama, pembaruan berjalan normal karena `versionCode` ikut naik.
 
 ### Yang dibutuhkan
@@ -86,7 +87,12 @@ buka, lalu izinkan "Install unknown apps" untuk aplikasi tempat Anda membukanya.
    sekaligus, jadi tidak perlu menebak harus menekan apa.
 3. **Pilih berkas** (gambar atau PDF). Pratinjau langsung muncul.
 4. Atur kertas, margin, resolusi. Pratinjau ikut berubah seketika.
-5. Tekan **Cetak**.
+5. Kalau perlu, atur sendiri di pratinjau: **geser** untuk memindahkan,
+   **cubit** untuk memperbesar, **ketuk dua kali** untuk mengembalikan.
+   Penggaris milimeter di tepi membantu menempatkan dengan tepat, dan bagian
+   yang keluar area cetak diwarnai merah beserta peringatan berapa milimeter
+   yang akan terpotong.
+6. Tekan **Cetak**.
 
 Bisa juga membagikan (Share) gambar atau PDF dari aplikasi lain ke aplikasi ini.
 
@@ -98,7 +104,12 @@ Berguna untuk memisahkan masalah data dari masalah kabel.
 ## Fitur
 
 - Cetak **gambar** (JPEG/PNG/WebP, rotasi EXIF dihormati) dan **PDF** banyak halaman
-- **Pratinjau realtime**: kertas, batas area cetak, dan isi dokumen
+- **Pratinjau yang bisa diatur dengan jari**: geser untuk memindahkan, cubit
+  untuk memperbesar, ketuk dua kali untuk mengembalikan ke ukuran muat
+- **Penggaris milimeter** di tepi atas dan kiri kertas
+- **Peringatan terpotong**: bagian yang keluar area cetak diwarnai merah, dan
+  jaraknya disebutkan per sisi dalam milimeter
+- Pembacaan margin sesungguhnya per sisi, ikut berubah saat digeser
 - Ukuran kertas: A4, Letter, Legal/F4, A5, A6, B5, 4R, kartu pos
 - Margin 0–20 mm dengan slider
 - Resolusi 300 / 360 / 600 / 720 dpi
@@ -116,6 +127,7 @@ Berguna untuk memisahkan masalah data dari masalah kabel.
 
 ```
 app/src/main/java/com/escpr/usbprint/
+  layout/PageLayout.kt       penempatan isi di kertas, dalam milimeter
   escpr/EscpR.kt             perintah ESC/P-R tingkat byte + enum pengaturan
   escpr/Rle.kt               kompresi run-length per piksel
   escpr/EscpRJob.kt          perakit job: start -> halaman -> baris -> selesai
@@ -145,14 +157,27 @@ teks biasa bisa menyusut lebih dari 50 kali.
 ### Kenapa pratinjaunya bisa realtime
 
 Isi dokumen dirender **sekali** pada rasio aslinya oleh `PreviewRenderer.kt`.
-Penempatan kertas dan margin cuma aritmetika yang dihitung ulang tiap frame di
-`ui/PreviewLayout.kt`. Jadi menggeser slider margin tidak pernah memicu render
-ulang dokumen.
+Penempatan kertas, margin, geseran, dan perbesaran cuma aritmetika yang
+dihitung ulang tiap frame di `layout/PageLayout.kt`. Jadi menggeser jari tidak
+pernah memicu render ulang dokumen.
 
-Aturan penempatannya sengaja disalin persis dari jalur cetak: area cetak =
-kertas dikurangi margin keempat sisi, isi diskalakan seragam agar muat, lalu
-diletakkan di tengah. Kesetaraan itu **diuji, bukan sekadar diklaim** — lihat
-`PreviewLayoutTest`.
+### Kenapa pratinjau dan hasil cetak tidak mungkin berbeda
+
+Keduanya memanggil fungsi yang sama, `computePageLayout`, dan hasilnya dalam
+**milimeter** — bukan piksel layar maupun piksel printer. Pratinjau mengalikan
+milimeter itu dengan skala layar; jalur cetak mengalikannya dengan dpi. Tidak
+ada rumus penempatan kedua yang bisa menyimpang.
+
+Penempatan pengguna disimpan relatif terhadap ukuran "muat", bukan absolut,
+sehingga tetap masuk akal ketika kertas atau resolusi diganti.
+
+Pemotongan pun tidak diprogram khusus: kotak tujuan boleh bernilai negatif atau
+melebihi lebar area cetak, dan bagian yang di luar bitmap pita memang tidak
+pernah tergambar. Peringatan di layar menghitung selisih yang sama.
+
+Kesetaraan itu **diuji, bukan sekadar diklaim** — lihat `PageLayoutTest`, yang
+mencocokkan area cetak model milimeter dengan geometri raster
+`EscpRJob.computeGeometry` untuk seluruh kombinasi kertas, dpi, dan margin.
 
 ### Kenapa sebab kegagalan dibuat bertipe
 
@@ -172,10 +197,10 @@ pemeriksaan langsung, bukan tebakan dari isi pesan.
 ```bash
 gradlew assembleRelease    # APK rilis, tertandatangani
 gradlew assembleDebug      # APK debug
-gradlew test               # 39 unit test
+gradlew test               # 48 unit test
 ```
 
-Nama berkas APK memuat nomor versi (`CetakUSB-L3110-v1.2-release.apk`), jadi dua
+Nama berkas APK memuat nomor versi (`Printigo-v1.3-release.apk`), jadi dua
 build berbeda tidak pernah bernama sama. Versi yang sama juga tampil di bawah
 judul aplikasi, supaya bisa disebutkan saat melaporkan masalah.
 
@@ -255,11 +280,13 @@ legacy persegi dan bulat di lima kerapatan layar plus lapisan ikon adaptif.
 - Tidak terhubung ke kerangka cetak bawaan Android, jadi tombol "Print" di
   aplikasi lain tidak memakai aplikasi ini. Pakai "Bagikan" atau buka berkasnya
   dari dalam aplikasi.
-- Tidak ada orientasi lanskap: dokumen lanskap dicetak mengecil di tengah kertas
-  potret.
+- Tidak ada rotasi 90 derajat. Dokumen lanskap bisa diperbesar dan digeser
+  sendiri, tapi tidak bisa diputar agar memenuhi kertas potret.
 - Tidak ada pemilihan rentang halaman PDF — selalu semua halaman.
 - Tanpa borderless, tanpa dupleks (L3110 memang tidak punya), tanpa pemindai.
-- Margin memakai satu nilai untuk keempat sisi.
+- Slider margin memakai satu nilai untuk keempat sisi; margin per sisi hanya
+  bisa diatur dengan menggeser gambar di pratinjau.
+- Penempatan berlaku sama untuk semua halaman PDF dalam satu pekerjaan cetak.
 - Membatalkan cetak menghentikan pengiriman, tapi halaman yang sudah terlanjur
   masuk ke printer tetap akan keluar.
 
@@ -269,7 +296,8 @@ legacy persegi dan bulat di lima kerapatan layar plus lapisan ikon adaptif.
 
 | Versi | Isi |
 |---|---|
-| **1.2** | Tanda tangan APK memakai skema v1 + v2 + v3 sekaligus, untuk pemasang bawaan yang masih mencari blok v1 |
+| **1.3** | Pratinjau bisa diatur dengan jari (geser, cubit, ketuk dua kali); penggaris milimeter; peringatan bagian yang akan terpotong beserta jaraknya per sisi; penempatan dipakai bersama oleh pratinjau dan jalur cetak lewat model milimeter; judul layar jadi "USB Printer OTG" dan nama aplikasi jadi "Printigo" |
+| 1.2 | Tanda tangan APK memakai skema v1 + v2 + v3 sekaligus, untuk pemasang bawaan yang masih mencari blok v1 |
 | 1.1 | Panel daftar periksa sambungan di paling atas; pesan kegagalan berbahasa manusia dengan satu tombol tindakan di dekat tombol Cetak; sebab kegagalan bertipe; pembatalan tidak lagi terbaca sebagai kegagalan; nomor versi masuk ke nama berkas APK dan tampil di aplikasi |
 | 1.0 | Encoder ESC/P-R (terbukti mencetak di L3110), pratinjau realtime kertas dan margin, tampilan Material 3, ikon aplikasi, transport USB OTG |
 
