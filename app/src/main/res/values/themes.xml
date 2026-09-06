@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Tampilan seluruhnya digambar oleh Compose Material 3, jadi tema
+         platform cukup yang polos tanpa action bar. -->
+    <style name="Theme.EpsonUsbPrint" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>

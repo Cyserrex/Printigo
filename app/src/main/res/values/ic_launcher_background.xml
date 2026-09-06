@@ -1,0 +1,5 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Rata-rata biru latar ikon, diukur dari berkas sumber. -->
+    <color name="ic_launcher_background">#27ACFD</color>
+</resources>

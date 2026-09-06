@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Semua perangkat Seiko Epson (vendor id 0x04B8 = 1208). -->
+    <usb-device vendor-id="1208" />
+
+    <!-- Perangkat apa pun yang mengaku sebagai printer di level device.
+         Printer multifungsi seperti L3110 biasanya memakai class 0 di level
+         device dan class 7 di level interface, jadi filter di atas yang
+         sebenarnya bekerja untuk L3110. Dua baris ini untuk printer lain. -->
+    <usb-device class="7" subclass="1" protocol="1" />
+    <usb-device class="7" subclass="1" protocol="2" />
+</resources>
