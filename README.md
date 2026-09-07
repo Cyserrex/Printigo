@@ -45,11 +45,12 @@ untuk mengujinya, jadi batas antara "terbukti" dan "belum" dijaga ketat.
 | Layar utama dan editor tata letak tersusun dan bisa disentuh | Robolectric, 17 uji |
 | Susunan banyak foto: kisi, geser, ukur, pilih, potong | 16 uji lembar |
 | ViewModel bisa dibuat lewat factory bawaan seperti `by viewModels()` | 2 uji |
+| Ukuran kertas di editor tidak berubah saat isi kontrol berubah | 3 uji stabilitas |
 | Penempatan manual, pemotongan, dan pembatas geseran | 15 uji tata letak |
 | Tampilan benar-benar tergambar | tangkapan layar dari komposisi Compose di JVM |
 | APK terkompilasi, tertandatangani, zipalign, manifes benar | `apksigner`, `zipalign`, `aapt2` |
 
-**75 unit test**, semuanya lolos: `gradlew test`.
+**78 unit test**, semuanya lolos: `gradlew test`.
 
 ### Belum terbukti
 
@@ -204,6 +205,22 @@ menyuntikkan dispatcher langsung sehingga semuanya berjalan tanpa bergantung
 pada penjadwalan utas -- itu menghapus satu kelas kerapuhan yang sebelumnya
 muncul berulang.
 
+### Kenapa kertas dan kontrol dibagi menurut bobot tetap
+
+Kertas di editor tidak mengambil "sisa ruang" setelah bilah kontrol, melainkan
+porsi tetap dari tinggi layar. Alasannya bukan estetika: bilah kontrol berubah
+tinggi ketika peringatan terpotong muncul atau baris margin melipat jadi dua.
+Kalau kertas mengambil sisanya, ia ikut menyusut -- gambar melompat saat digeser,
+dan yang lebih parah, skala kertas berubah di tengah gestur.
+
+Isi kontrol yang tidak muat digulir, bukan mendorong kertas mengecil.
+
+`PagePreview` juga tidak lagi memakai skala dan posisi kertas sebagai kunci
+`pointerInput`. Nilai-nilai itu berubah setiap kertas berganti ukuran, dan
+mengubah kunci `pointerInput` akan merestart detektor gestur sehingga sentuhan
+yang sedang berjalan terputus. Sekarang nilainya dibaca lewat
+`rememberUpdatedState` dari blok gestur yang stabil.
+
 ### Kenapa editornya layar penuh
 
 Mengatur posisi dan ukuran dengan jari butuh kertas sebesar mungkin. Di kartu
@@ -250,10 +267,10 @@ pemeriksaan langsung, bukan tebakan dari isi pesan.
 ```bash
 gradlew assembleRelease    # APK rilis, tertandatangani
 gradlew assembleDebug      # APK debug
-gradlew test               # 75 unit test
+gradlew test               # 78 unit test
 ```
 
-Nama berkas APK memuat nomor versi (`Printigo-v1.7-release.apk`), jadi dua
+Nama berkas APK memuat nomor versi (`Printigo-v1.8-release.apk`), jadi dua
 build berbeda tidak pernah bernama sama. Versi yang sama juga tampil di bawah
 judul aplikasi, supaya bisa disebutkan saat melaporkan masalah.
 
@@ -352,7 +369,8 @@ legacy persegi dan bulat di lima kerapatan layar plus lapisan ikon adaptif.
 
 | Versi | Isi |
 |---|---|
-| **1.7** | Tombol Simpan .prn dan Cetak tidak lagi tertutup bilah navigasi sistem: bilah bawah kini menerima inset navigasi, begitu pula kontrol di editor tata letak |
+| **1.8** | Ukuran kertas di editor tidak lagi berubah-ubah. Sebelumnya kertas mengambil sisa ruang, jadi munculnya peringatan terpotong atau melipatnya baris margin membuat kertas menyusut, gambar melompat, dan geseran terputus di tengah jalan |
+| 1.7 | Tombol Simpan .prn dan Cetak tidak lagi tertutup bilah navigasi sistem: bilah bawah kini menerima inset navigasi, begitu pula kontrol di editor tata letak |
 | 1.6 | Perbaikan mati saat dibuka: konstruktor `PrintViewModel` kehilangan tanda tangan `(Application)` yang dicari factory bawaan, karena parameter dispatcher yang ditambahkan di 1.5. Ditambah uji yang membuat ViewModel lewat jalur yang sama dengan `by viewModels()` |
 | 1.5 | Banyak foto dalam satu lembar: tambah sekaligus, susun otomatis 1-4 kolom, pilih dengan menyentuh, geser dan ubah ukuran per foto, hapus yang terpilih; dispatcher ViewModel bisa disuntik |
 | 1.4 | Pengaturan tata letak pindah ke editor layar penuh yang dibuka dengan mengetuk pratinjau; tombol perbesar/perkecil bertahap; ukuran isi dan batas cetak bisa diatur di satu tempat |

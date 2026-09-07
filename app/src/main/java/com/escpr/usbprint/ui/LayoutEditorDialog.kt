@@ -1,6 +1,8 @@
 package com.escpr.usbprint.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Box
@@ -34,6 +36,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -108,12 +111,18 @@ internal fun LayoutEditorContent(
                 },
             )
 
-            // Kertas mendapat semua ruang yang tersisa.
+            // Kertas dan bilah kontrol dibagi menurut bobot tetap, bukan
+            // menurut isinya. Sebelumnya kertas mengambil "sisa ruang", jadi
+            // ketika peringatan terpotong muncul atau baris margin melipat jadi
+            // dua, kertas ikut menyusut. Itu bukan sekadar kedip: skala kertas
+            // berubah di tengah gestur, gambar melompat, dan geseran terasa
+            // patah-patah.
             Box(
                 Modifier
-                    .weight(1f)
+                    .weight(PREVIEW_WEIGHT)
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .testTag(PREVIEW_TEST_TAG),
                 contentAlignment = Alignment.Center,
             ) {
                 PagePreview(
@@ -130,7 +139,7 @@ internal fun LayoutEditorContent(
                 )
             }
 
-            EditorControls(state, viewModel, layout)
+            EditorControls(state, viewModel, layout, Modifier.weight(CONTROLS_WEIGHT))
         }
     }
 }
@@ -140,12 +149,16 @@ private fun EditorControls(
     state: UiState,
     viewModel: PrintViewModel,
     layout: PageLayout,
+    modifier: Modifier = Modifier,
 ) {
-    Surface(tonalElevation = 3.dp) {
+    Surface(modifier, tonalElevation = 3.dp) {
+        // Tingginya sudah dipatok dari luar, jadi isi yang tidak muat digulir
+        // -- bukan mendorong kertas mengecil.
         Column(
             Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
@@ -210,17 +223,27 @@ private fun EditorControls(
                 steps = 39,
             )
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = viewModel::resetPlacement) {
-                    Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Atur ulang")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Di mode lembar tombol ini duplikat "Susun otomatis" di atas,
+                // jadi tidak ditampilkan dua kali.
+                if (!state.sheetMode) {
+                    TextButton(onClick = viewModel::resetPlacement) {
+                        Icon(
+                            Icons.Default.Refresh,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text("Atur ulang")
+                    }
+                    Spacer(Modifier.weight(1f))
                 }
-                Spacer(Modifier.weight(1f))
                 Text(
                     "Geser, cubit, atau ketuk dua kali",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = if (state.sheetMode) Modifier.fillMaxWidth() else Modifier,
+                    textAlign = if (state.sheetMode) TextAlign.Center else null,
                 )
             }
         }
@@ -288,6 +311,19 @@ private fun SheetControls(state: UiState, viewModel: PrintViewModel) {
         }
     }
 }
+
+/** Wadah kertas di editor; dipakai uji untuk memastikan ukurannya tidak berubah. */
+internal const val PREVIEW_TEST_TAG = "editorPreview"
+
+/**
+ * Pembagian ruang antara kertas dan bilah kontrol.
+ *
+ * Angkanya tetap dan tidak bergantung pada isi, itulah intinya. Bagian kontrol
+ * dibuat cukup lebar untuk keadaan terburuk -- mode lembar dengan peringatan
+ * terpotong dan chip yang melipat dua baris -- dan sisanya digulir.
+ */
+private const val PREVIEW_WEIGHT = 0.60f
+private const val CONTROLS_WEIGHT = 0.40f
 
 /** Satu langkah perbesaran tombol. 5% cukup halus untuk menyetel, tidak lambat. */
 private const val ZOOM_STEP = 1.05f

@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -98,21 +100,32 @@ fun PagePreview(
         val originX = gutterPx + (widthPx - gutterPx - paperWidthPx) / 2f
         val originY = gutterPx + (heightPx - gutterPx - paperHeightPx) / 2f
 
+        // Nilai-nilai ini berubah setiap kali kertas berganti ukuran. Kalau
+        // dipakai sebagai kunci pointerInput, detektor gestur direstart di
+        // tengah geseran dan sentuhan pengguna terputus. Karena itu blok gestur
+        // dibuat stabil dan nilainya dibaca lewat state yang selalu terbarui.
+        val currentScale by rememberUpdatedState(paperScale)
+        val currentOriginX by rememberUpdatedState(originX)
+        val currentOriginY by rememberUpdatedState(originY)
+        val currentGesture by rememberUpdatedState(onGesture)
+        val currentTap by rememberUpdatedState(onTapMm)
+        val currentReset by rememberUpdatedState(onReset)
+
         val gestureModifier = if (!interactive) Modifier else Modifier
-            .pointerInput(paperScale, originX, originY) {
+            .pointerInput(Unit) {
                 detectTransformGestures { _, pan, zoom, _ ->
-                    onGesture(pan.x / paperScale, pan.y / paperScale, zoom)
+                    currentGesture(pan.x / currentScale, pan.y / currentScale, zoom)
                 }
             }
-            .pointerInput(paperScale, originX, originY) {
+            .pointerInput(Unit) {
                 detectTapGestures(
                     onTap = { offset ->
-                        onTapMm(
-                            (offset.x - originX) / paperScale,
-                            (offset.y - originY) / paperScale,
+                        currentTap(
+                            (offset.x - currentOriginX) / currentScale,
+                            (offset.y - currentOriginY) / currentScale,
                         )
                     },
-                    onDoubleTap = { onReset() },
+                    onDoubleTap = { currentReset() },
                 )
             }
 
