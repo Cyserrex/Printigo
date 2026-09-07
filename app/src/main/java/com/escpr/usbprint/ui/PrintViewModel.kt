@@ -17,6 +17,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.escpr.usbprint.escpr.EscpRJob
+import com.escpr.usbprint.escpr.Maintenance
 import com.escpr.usbprint.escpr.MaintenanceTask
 import com.escpr.usbprint.escpr.PrintSettings
 import com.escpr.usbprint.layout.ContentPlacement
@@ -43,6 +44,7 @@ import com.escpr.usbprint.render.PdfPageSource
 import com.escpr.usbprint.render.PreviewRenderer
 import com.escpr.usbprint.render.SheetPageSource
 import com.escpr.usbprint.render.SheetPhoto
+import com.escpr.usbprint.usb.InkLevel
 import com.escpr.usbprint.usb.PrinterErrorKind
 import com.escpr.usbprint.usb.parsePrinterStatus
 import com.escpr.usbprint.usb.UsbPrinter
@@ -73,6 +75,20 @@ import java.util.Locale
 
 private const val ACTION_USB_PERMISSION = "com.escpr.usbprint.USB_PERMISSION"
 
+/**
+ * Kenapa aplikasi sedang sibuk.
+ *
+ * Bukan hiasan: bilah bawah menampilkan kemajuan cetak dan tombol Batalkan
+ * selama sibuk. Untuk percakapan singkat dengan printer -- membaca sisa tinta,
+ * mengirim perintah perawatan -- keduanya menyesatkan: tidak ada kemajuan untuk
+ * ditampilkan, dan tidak ada pekerjaan cetak yang bisa dibatalkan.
+ */
+enum class BusyReason { PRINTING, PRINTER_TALK }
+
+/** Sekitar tiga detik total: printer yang sibuk butuh waktu menyusun laporan. */
+private const val STATUS_READ_ATTEMPTS = 8
+private const val STATUS_READ_TIMEOUT_MS = 400
+
 data class Document(
     val file: File,
     val name: String,
@@ -97,6 +113,7 @@ data class UiState(
     val document: Document? = null,
     val settings: PrintSettings = PrintSettings(),
     val busy: Boolean = false,
+    val busyReason: BusyReason = BusyReason.PRINTING,
     val progress: Float = 0f,
     val log: List<String> = emptyList(),
     /** Isi halaman pada rasio aslinya; kertas dan margin dihitung saat menggambar. */
@@ -124,6 +141,15 @@ data class UiState(
     val sheetPage: Int = 0,
     /** Perawatan yang sedang menunggu persetujuan pengguna. */
     val maintenanceAsked: MaintenanceTask? = null,
+    /** Sisa tinta hasil pembacaan terakhir. */
+    val inks: List<InkLevel> = emptyList(),
+    /**
+     * Sudah pernah mencoba membaca sisa tinta sejak aplikasi dibuka.
+     *
+     * Dibedakan dari daftar kosong supaya "belum pernah diperiksa" dan
+     * "sudah diperiksa, printer tidak melaporkan apa-apa" tidak tampak sama.
+     */
+    val inkChecked: Boolean = false,
 ) {
     /** Indeks halaman yang akan dicetak, sudah diselesaikan dari pilihan. */
     val pagesToPrint: List<Int>
@@ -781,6 +807,65 @@ class PrintViewModel @JvmOverloads constructor(
     }
 
     /**
+     * Membaca sisa tinta dari printer.
+     *
+     * Hanya membaca: tidak ada satu pun byte yang mengubah keadaan printer.
+     * Angkanya perkiraan printer sendiri -- L3110 tidak punya sensor di dalam
+     * tangki dan hanya menghitung tetes sejak terakhir kali di-reset.
+     */
+    fun refreshInk() {
+        val current = _state.value
+        if (current.busy) return
+        val device = current.selectedDevice ?: return
+
+        viewModelScope.launch(ioDispatcher) {
+            _state.update { it.copy(busy = true, busyReason = BusyReason.PRINTER_TALK) }
+            try {
+                UsbPrinter.open(usbManager, device).use { printer ->
+                    val request = Maintenance.statusRequest()
+                    printer.writeBulk(request, 0, request.size)
+
+                    val status = parsePrinterStatus(readStatusReply(printer))
+                    if (status.raw.isNotBlank()) log("Status: " + status.raw)
+                    _state.update { it.copy(inks = status.inks, inkChecked = true) }
+
+                    if (status.inks.isEmpty()) {
+                        log("Printer tidak melaporkan sisa tinta.")
+                    } else {
+                        log(status.inks.joinToString(", ") { it.label + " " + it.percent + "%" })
+                    }
+                }
+            } catch (error: Throwable) {
+                _state.update { it.copy(inkChecked = true) }
+                log("Gagal membaca sisa tinta: " + (error.message ?: error.toString()))
+            } finally {
+                _state.update { it.copy(busy = false) }
+            }
+        }
+    }
+
+    /**
+     * Mengumpulkan balasan printer sampai berhenti mengalir.
+     *
+     * Balasan status bisa datang terpotong beberapa paket USB, jadi pembacaan
+     * diteruskan sampai ada satu bacaan kosong -- bukan berhenti begitu judul
+     * `@BDC ST2` terlihat, karena judulnya datang paling awal dan justru sisa
+     * tinta ada di belakangnya.
+     */
+    private fun readStatusReply(printer: UsbPrinter): ByteArray {
+        var reply = ByteArray(0)
+        repeat(STATUS_READ_ATTEMPTS) {
+            val chunk = printer.readStatus(STATUS_READ_TIMEOUT_MS)
+            if (chunk.isEmpty()) {
+                if (reply.isNotEmpty()) return reply
+            } else {
+                reply += chunk
+            }
+        }
+        return reply
+    }
+
+    /**
      * Mengirim satu perintah perawatan ke printer.
      *
      * Perintahnya hanya beberapa puluh byte, jadi tidak ada kemajuan yang
@@ -794,7 +879,13 @@ class PrintViewModel @JvmOverloads constructor(
 
         printJob = viewModelScope.launch(ioDispatcher) {
             _state.update {
-                it.copy(busy = true, progress = 0f, maintenanceAsked = null, outcome = PrintOutcome.None)
+                it.copy(
+                    busy = true,
+                    busyReason = BusyReason.PRINTER_TALK,
+                    progress = 0f,
+                    maintenanceAsked = null,
+                    outcome = PrintOutcome.None,
+                )
             }
             try {
                 UsbPrinter.open(usbManager, device).use { printer ->
@@ -854,7 +945,12 @@ class PrintViewModel @JvmOverloads constructor(
 
         printJob = viewModelScope.launch(ioDispatcher) {
             _state.update {
-                it.copy(busy = true, progress = 0f, outcome = PrintOutcome.None)
+                it.copy(
+                    busy = true,
+                    busyReason = BusyReason.PRINTING,
+                    progress = 0f,
+                    outcome = PrintOutcome.None,
+                )
             }
             val started = System.currentTimeMillis()
             try {

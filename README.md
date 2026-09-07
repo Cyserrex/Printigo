@@ -54,10 +54,11 @@ untuk mengujinya, jadi batas antara "terbukti" dan "belum" dijaga ketat.
 | APK rilis hasil R8 masih memuat yang dicari lewat refleksi | `tools/check_release_dex.ps1` membongkar DEX-nya |
 | Byte perintah perawatan dipatok dan tidak bergeser diam-diam | 9 uji |
 | Pembersih cache tidak pernah menghapus berkas yang sedang dipakai | 11 uji |
+| Penguraian sisa tinta: kode asing, entri rusak, balasan terpotong | 10 uji |
 | Tampilan benar-benar tergambar | tangkapan layar dari komposisi Compose di JVM |
 | APK terkompilasi, tertandatangani, zipalign, manifes benar | `apksigner`, `zipalign`, `aapt2` |
 
-**148 unit test**, semuanya lolos: `gradlew test`.
+**158 unit test**, semuanya lolos: `gradlew test`.
 
 ### Belum terbukti
 
@@ -73,6 +74,11 @@ dicocokkan dengan L3110 sungguhan. Karena itu kode yang tidak dikenali
 dilaporkan apa adanya, dan balasan yang tidak dipahami tidak pernah
 menghalangi pencetakan: salah menghalangi lebih merugikan daripada meneruskan
 lalu gagal seperti sebelumnya.
+
+**Sisa tinta.** Nomor blok status dan bentuk entrinya diambil dari driver
+terbuka. Kode warna yang tidak dikenali ditampilkan sebagai "Warna N", bukan
+diberi nama tebakan -- menyebut cyan sebagai magenta membuat orang mengisi
+tangki yang salah.
 
 **Perintah cek nozzle dan pembersihan head.** Urutan byte-nya mengikuti
 escputil di Gutenprint dan belum pernah dijalankan pada L3110. Kalau printer
@@ -174,6 +180,8 @@ Berguna untuk memisahkan masalah data dari masalah kabel.
 - **Layar tidak mati saat mencetak**
 - **Bisa dipakai dengan TalkBack**: slider batas cetak menyebut angka
   milimeternya, tombol tambah/kurang menyebut fungsinya
+- **Sisa tinta** dibaca dari printer. Hanya membaca; angkanya perkiraan printer
+  sendiri karena L3110 tidak punya sensor di dalam tangkinya
 - **Cek nozzle dan pembersihan head** langsung dari HP, dengan persetujuan
   lebih dulu karena keduanya memakai kertas atau tinta. L3110 tidak punya menu,
   jadi tanpa ini pemiliknya tidak punya cara membersihkan head tanpa komputer
@@ -438,9 +446,11 @@ yang meleset lebih buruk daripada penolakan yang jujur.
 - Pekerjaan cetak berhenti kalau aplikasi ditutup. Layar ditahan tetap menyala
   selama mencetak, tapi itu bukan foreground service.
 - Arti kode kesalahan printer belum diverifikasi pada L3110 sungguhan.
-- Sisa tinta belum ditampilkan, dan belum ada reset level tinta maupun reset
-  waste ink pad counter. Rencananya beserta alasan urutannya ada di
+- Belum ada reset level tinta maupun reset waste ink pad counter. Rencananya
+  beserta alasan urutannya ada di
   [docs/RENCANA-PERAWATAN-TINTA.md](docs/RENCANA-PERAWATAN-TINTA.md).
+- Sisa tinta bisa dibaca, tapi belum pernah dicocokkan dengan printer sungguhan:
+  nomor blok dan kode warnanya berasal dari driver terbuka.
 
 ---
 
@@ -448,7 +458,8 @@ yang meleset lebih buruk daripada penolakan yang jujur.
 
 | Versi | Isi |
 |---|---|
-| **2.2** | Cek nozzle dan pembersihan head dari dalam aplikasi; menerima banyak foto sekaligus lewat Bagikan dan bisa dibuka dari pengelola berkas; salinan lama di cache dibersihkan sendiri; satu salinan memori penuh dihapus dari jalur transfer USB |
+| **2.3** | Sisa tinta dibaca dan ditampilkan di kartu Perawatan, dengan permintaan status yang eksplisit ke printer; bilah bawah tidak lagi menampilkan kemajuan cetak palsu saat aplikasi hanya sedang berbicara dengan printer |
+| 2.2 | Cek nozzle dan pembersihan head dari dalam aplikasi; menerima banyak foto sekaligus lewat Bagikan dan bisa dibuka dari pengelola berkas; salinan lama di cache dibersihkan sendiri; satu salinan memori penuh dihapus dari jalur transfer USB |
 | 2.1 | Pilih halaman PDF yang dicetak; foto tumpah ke lembar berikutnya dengan jumlah per lembar yang bisa dipilih; status printer diperiksa sebelum mengirim; pembatalan menutup pekerjaan dengan rapi; pengaturan diingat antar-sesi; layar tidak mati saat mencetak; label untuk TalkBack; R8 dinyalakan (APK 7,0 MB menjadi 1,5 MB) dengan isi DEX-nya diperiksa |
 | 2.0 | Berkas Word, Excel, PowerPoint, OpenDocument, dan RTF dikenali dan ditolak dengan penjelasan yang benar beserta jalan keluarnya, bukan dilaporkan sebagai "gagal membuka gambar" |
 | 1.9 | Foto di editor bisa diputar 90 derajat ke kiri atau kanan. Kotaknya ikut menukar sisi terhadap pusatnya sendiri, dan penyusunan kisi memakai rasio setelah diputar |

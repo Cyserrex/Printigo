@@ -29,6 +29,38 @@ enum class PrinterFault {
 }
 
 /**
+ * Sisa satu warna tinta, seperti yang dilaporkan printer.
+ *
+ * [percent] adalah perkiraan printer sendiri, bukan hasil pengukuran: L3110
+ * tidak punya sensor di dalam tangkinya dan hanya menghitung berapa tetes yang
+ * sudah disemprotkan sejak terakhir kali diberi tahu bahwa tangkinya penuh.
+ * Jadi angka ini bisa meleset jauh kalau tangki diisi tanpa proses reset --
+ * dan itu bukan kesalahan pembacaan.
+ */
+data class InkLevel(
+    /** Kode warna dari printer, apa adanya. */
+    val code: Int,
+    val percent: Int,
+) {
+    /**
+     * Nama warnanya, atau null kalau kodenya tidak dikenali.
+     *
+     * Null di sini penting: menyebut cyan sebagai magenta lebih buruk daripada
+     * menyebutnya "warna 2", karena orang akan mengisi tangki yang salah.
+     */
+    val name: String? get() = when (code) {
+        0x00 -> "Hitam"
+        0x01 -> "Cyan"
+        0x02 -> "Magenta"
+        0x03 -> "Kuning"
+        else -> null
+    }
+
+    /** Yang ditampilkan ke pengguna; tidak pernah menebak nama. */
+    val label: String get() = name ?: ("Warna " + code)
+}
+
+/**
  * Hasil pembacaan status printer.
  *
  * [confident] menandai apakah balasannya benar-benar dipahami. Pemeriksaan
@@ -39,6 +71,8 @@ data class PrinterStatus(
     val state: PrinterState = PrinterState.UNKNOWN,
     val fault: PrinterFault = PrinterFault.NONE,
     val faultCode: Int? = null,
+    /** Sisa tinta per warna; kosong berarti printer tidak melaporkannya. */
+    val inks: List<InkLevel> = emptyList(),
     val confident: Boolean = false,
     /** Isi balasan apa adanya, untuk ditulis ke catatan saat menelusuri masalah. */
     val raw: String = "",
@@ -96,6 +130,7 @@ fun parsePrinterStatus(reply: ByteArray): PrinterStatus {
     var state = PrinterState.UNKNOWN
     var fault = PrinterFault.NONE
     var faultCode: Int? = null
+    var inks: List<InkLevel> = emptyList()
     var understood = false
 
     while (index + 2 <= reply.size) {
@@ -115,6 +150,10 @@ fun parsePrinterStatus(reply: ByteArray): PrinterStatus {
                 fault = mapFault(code)
                 understood = true
             }
+            ID_INK -> parseInk(reply, payloadAt, length)?.let {
+                inks = it
+                understood = true
+            }
         }
         index = payloadAt + length
     }
@@ -123,9 +162,39 @@ fun parsePrinterStatus(reply: ByteArray): PrinterStatus {
         state = state,
         fault = fault,
         faultCode = faultCode,
+        inks = inks,
         confident = understood,
         raw = raw,
     )
+}
+
+/**
+ * Menguraikan blok sisa tinta.
+ *
+ * Bentuknya: satu byte panjang tiap entri, lalu entri-entri berurutan. Byte
+ * pertama tiap entri kode warnanya, byte terakhir sisanya dalam persen.
+ *
+ * Mengembalikan null kalau bentuknya tidak masuk akal, dan **bukan** daftar
+ * kosong: keduanya berbeda artinya. Null berarti "tidak paham blok ini", daftar
+ * kosong berarti "printer tidak melaporkan tinta sama sekali". Entri yang
+ * persennya di luar 0-100 dibuang satu per satu, karena satu entri aneh tidak
+ * boleh membuat tiga entri lain yang waras ikut hilang.
+ */
+private fun parseInk(reply: ByteArray, payloadAt: Int, length: Int): List<InkLevel>? {
+    if (length < 2) return null
+    val entrySize = reply[payloadAt].toInt() and 0xFF
+    if (entrySize < 2 || entrySize > length) return null
+
+    val levels = mutableListOf<InkLevel>()
+    var at = payloadAt + 1
+    val end = payloadAt + length
+    while (at + entrySize <= end) {
+        val code = reply[at].toInt() and 0xFF
+        val percent = reply[at + entrySize - 1].toInt() and 0xFF
+        if (percent in 0..100) levels += InkLevel(code, percent)
+        at += entrySize
+    }
+    return levels
 }
 
 /** Blok status utama. */
@@ -133,6 +202,16 @@ private const val ID_STATUS = 0x01
 
 /** Blok sebab kesalahan; hanya ada saat status bernilai error. */
 private const val ID_ERROR = 0x02
+
+/**
+ * Blok sisa tinta.
+ *
+ * Nomor blok dan bentuk entrinya diambil dari driver ESC/P-R terbuka dan
+ * **belum diverifikasi pada L3110**. Karena itu kode warna yang tidak dikenali
+ * ditampilkan apa adanya, dan blok yang bentuknya tidak masuk akal diabaikan
+ * seluruhnya alih-alih ditafsirkan sekenanya.
+ */
+private const val ID_INK = 0x0F
 
 private fun mapState(code: Int): PrinterState = when (code) {
     0x00 -> PrinterState.ERROR

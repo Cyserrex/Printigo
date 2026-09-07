@@ -280,6 +280,8 @@ private fun MaintenanceSection(state: UiState, viewModel: PrintViewModel) {
             }
 
             if (expanded) {
+                InkPanel(state, viewModel)
+                HorizontalDivider()
                 Text(
                     "Hasil cetak bergaris atau warna hilang biasanya berarti " +
                         "nozzle mampet. Cek dulu, baru bersihkan kalau memang perlu.",
@@ -303,6 +305,78 @@ private fun MaintenanceSection(state: UiState, viewModel: PrintViewModel) {
                 )
             }
         }
+    }
+}
+
+/**
+ * Sisa tinta, dibaca dari printer.
+ *
+ * Hanya membaca. Angkanya perkiraan printer sendiri: L3110 tidak punya sensor
+ * di dalam tangki dan hanya menghitung berapa tetes yang sudah disemprotkan
+ * sejak terakhir kali diberi tahu bahwa tangkinya penuh. Itu disebutkan di
+ * layar, bukan disembunyikan -- pengguna yang baru mengisi tangki perlu tahu
+ * kenapa angkanya masih rendah.
+ */
+@Composable
+private fun InkPanel(state: UiState, viewModel: PrintViewModel) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Sisa tinta", style = MaterialTheme.typography.bodyMedium)
+            Spacer(Modifier.weight(1f))
+            TextButton(onClick = viewModel::refreshInk, enabled = !state.busy) {
+                Text(if (state.inkChecked) "Periksa lagi" else "Periksa")
+            }
+        }
+
+        when {
+            state.inks.isNotEmpty() -> {
+                state.inks.forEach { ink -> InkBar(ink.label, ink.percent) }
+                Text(
+                    "Angka ini perkiraan printer, bukan hasil pengukuran. Kalau " +
+                        "tangki sudah diisi tapi angkanya masih rendah, level " +
+                        "tintanya perlu di-reset lewat tombol tetesan di printer.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            state.inkChecked -> Text(
+                "Printer tidak melaporkan sisa tinta. Lihat catatan di bawah " +
+                    "untuk balasan mentahnya.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            else -> Text(
+                "Belum diperiksa.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun InkBar(label: String, percent: Int) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.width(76.dp),
+        )
+        LinearProgressIndicator(
+            progress = { percent / 100f },
+            modifier = Modifier
+                .weight(1f)
+                .height(8.dp),
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            percent.toString() + "%",
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.width(40.dp),
+            textAlign = TextAlign.End,
+        )
     }
 }
 
@@ -901,7 +975,10 @@ private fun PrintBar(
             // bukan di kartu Catatan yang letaknya jauh di bawah dan harus
             // digulir untuk ditemukan.
             OutcomeCard(state.outcome, viewModel, onPickFile)
-            if (state.busy) {
+            // Kemajuan hanya berarti untuk pencetakan. Membaca sisa tinta
+            // memang menyibukkan aplikasi, tapi menampilkan "Mengirim 0%"
+            // untuk itu membuat orang mengira cetakan sudah mulai.
+            if (state.busy && state.busyReason == BusyReason.PRINTING) {
                 LinearProgressIndicator(
                     progress = { state.progress },
                     modifier = Modifier.fillMaxWidth()
@@ -912,14 +989,26 @@ private fun PrintBar(
                     style = MaterialTheme.typography.labelMedium
                 )
                 Spacer(Modifier.height(8.dp))
+            } else if (state.busy) {
+                LinearProgressIndicator(Modifier.fillMaxWidth())
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Menghubungi printer...",
+                    style = MaterialTheme.typography.labelMedium
+                )
+                Spacer(Modifier.height(8.dp))
             }
 
             Row(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (state.busy) {
+                if (state.busy && state.busyReason == BusyReason.PRINTING) {
                     OutlinedButton(onClick = viewModel::cancel) { Text("Batalkan") }
+                } else if (state.busy) {
+                    // Tidak ada pekerjaan cetak untuk dibatalkan; tombolnya
+                    // hanya akan terlihat berfungsi padahal tidak.
+                    OutlinedButton(onClick = {}, enabled = false) { Text("Tunggu") }
                 } else {
                     OutlinedButton(
                         onClick = onExport,

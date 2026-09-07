@@ -61,6 +61,18 @@ object Maintenance {
     fun headCleaning(variant: Variant = Variant.CLASSIC): ByteArray =
         wrap(command("CH", CLEAN_ALL, variant))
 
+    /**
+     * Meminta printer mengirimkan laporan statusnya.
+     *
+     * Tanpa ini, membaca dari printer hanya menangkap apa yang kebetulan
+     * tersisa di antrian -- biasanya tidak ada apa-apa, atau sisa balasan dari
+     * pekerjaan sebelumnya. Perintah `ST` menyuruh printer menyusun laporan
+     * baru, dan laporan itulah yang memuat sisa tinta.
+     *
+     * Tidak memakai kertas maupun tinta, dan tidak menggerakkan apa pun.
+     */
+    fun statusRequest(): ByteArray = wrap(EscpR.remoteCmd("ST", byteArrayOf(0x01)))
+
     private fun command(name: String, parameter: Int, variant: Variant): ByteArray =
         when (variant) {
             Variant.CLASSIC -> EscpR.remoteCmd(name)

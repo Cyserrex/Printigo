@@ -1,7 +1,7 @@
 # Rencana: reset level tinta dan waste ink pad counter
 
-Status: **rencana, belum satu baris pun dikerjakan.** Ditulis setelah v2.2,
-menunggu hasil uji perangkat.
+Status: **langkah pertama sudah dikerjakan di v2.3** -- sisa tinta bisa dibaca
+dan ditampilkan. Sisanya masih rencana, menunggu hasil uji perangkat.
 
 Dokumen ini sengaja panjang di bagian risiko dan pendek di bagian kode. Bukan
 karena kodenya sulit — justru sebaliknya, kodenya sedikit. Yang sulit adalah
@@ -60,16 +60,19 @@ kemudian ketika angkanya ternyata meleset.
 **Syarat sebelum saya kerjakan:** aplikasi harus lebih dulu bisa **membaca**
 level tinta dari balasan status printer. Tanpa itu tidak ada cara memverifikasi
 reset berhasil, dan fitur yang tidak bisa diverifikasi tidak layak dikirim.
-Pembacaannya sendiri sudah setengah jalan — `parsePrinterStatus` di
+**Sejak v2.3 syarat ini sudah terpenuhi di sisi kode.** `parsePrinterStatus` di
 [PrinterStatus.kt](../app/src/main/java/com/escpr/usbprint/usb/PrinterStatus.kt)
-sudah menguraikan blok TLV `@BDC ST2`; sisa tinta ada di blok yang belum
-ditangani.
+menguraikan blok tintanya, dan kartu Perawatan menampilkannya. Yang belum
+terbukti: apakah L3110 benar-benar mengirim blok itu, dan apakah kode warnanya
+sesuai dugaan. Keduanya hanya bisa dijawab dengan menekan tombol Periksa pada
+printer sungguhan.
 
 ### Urutan kerjanya
 
-1. Tampilkan sisa tinta di aplikasi (baca saja, tidak mengubah apa pun).
+1. ~~Tampilkan sisa tinta di aplikasi (baca saja, tidak mengubah apa pun).~~
+   **Selesai di v2.3.**
 2. Cocokkan angkanya dengan yang dilaporkan Windows. Kalau cocok, pembacaan
-   terbukti.
+   terbukti. **Ini langkah Anda berikutnya.**
 3. Baru tambahkan tombol reset, dengan verifikasi: baca sebelum, reset, baca
    sesudah, tampilkan keduanya.
 
@@ -165,7 +168,7 @@ yang ditulis ke printer Anda — dan itu alasan yang sah.
 
 | | Kapan | Syarat |
 |---|---|---|
-| Baca sisa tinta | Bisa segera | — |
+| Baca sisa tinta | **Selesai (v2.3)** | Cocokkan angkanya dengan Windows |
 | Reset level tinta | Setelah pembacaan terbukti | Bandingkan dengan Windows |
 | EEPROM: baca | Setelah semua di atas | Nomor seri cocok |
 | EEPROM: petakan | Setelah baca terbukti | Alamat naik dua kali berturut-turut |
