@@ -30,8 +30,14 @@ class StreamSink(private val stream: OutputStream) : PrinterSink {
  * PdfRenderer butuh berkas yang bisa di-seek, dan penyedia dokumen tidak selalu
  * menyediakannya. Menyalin ke cache sekali di depan jauh lebih andal.
  */
+/**
+ * Awalan nama berkas salinan. Dipakai juga oleh pembersih cache untuk mengenali
+ * mana miliknya sendiri dan mana sisa cache pustaka lain.
+ */
+const val CACHE_PREFIX = "dokumen_"
+
 fun copyToCache(context: Context, uri: Uri, name: String): File {
-    val target = File(context.cacheDir, "dokumen_${name.hashCode()}_${sanitize(name)}")
+    val target = File(context.cacheDir, "$CACHE_PREFIX${name.hashCode()}_${sanitize(name)}")
     context.contentResolver.openInputStream(uri)
         ?.use { input -> target.outputStream().use { input.copyTo(it, 64 * 1024) } }
         ?: throw java.io.IOException("Tidak bisa membuka berkas yang dipilih")

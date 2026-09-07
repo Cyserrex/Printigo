@@ -17,6 +17,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.escpr.usbprint.escpr.EscpRJob
+import com.escpr.usbprint.escpr.MaintenanceTask
 import com.escpr.usbprint.escpr.PrintSettings
 import com.escpr.usbprint.layout.ContentPlacement
 import com.escpr.usbprint.layout.RectMm
@@ -49,6 +50,7 @@ import com.escpr.usbprint.usb.classifyFailure
 import com.escpr.usbprint.util.SettingsStore
 import com.escpr.usbprint.util.StreamSink
 import com.escpr.usbprint.util.copyToCache
+import com.escpr.usbprint.util.sweepCache
 import com.escpr.usbprint.util.DocumentKind
 import com.escpr.usbprint.util.classifyDocument
 import com.escpr.usbprint.util.displayName
@@ -120,6 +122,8 @@ data class UiState(
     val photosPerSheet: Int = 0,
     /** Lembar foto yang sedang ditampilkan di pratinjau. */
     val sheetPage: Int = 0,
+    /** Perawatan yang sedang menunggu persetujuan pengguna. */
+    val maintenanceAsked: MaintenanceTask? = null,
 ) {
     /** Indeks halaman yang akan dicetak, sudah diselesaikan dari pilihan. */
     val pagesToPrint: List<Int>
@@ -292,6 +296,7 @@ class PrintViewModel @JvmOverloads constructor(
         _state.update { it.copy(hasUsbHost = usbHost, settings = settingsStore.load()) }
         if (!usbHost) log("HP ini tidak mendukung USB Host (OTG).")
 
+        sweepCacheQuietly()
         refreshDevices()
     }
 
@@ -755,6 +760,87 @@ class PrintViewModel @JvmOverloads constructor(
 
     fun closeLayoutEditor() {
         _state.update { it.copy(layoutEditorOpen = false) }
+    }
+
+    // ----------------------------------------------------------- perawatan
+
+    /**
+     * Meminta persetujuan sebelum menjalankan perawatan.
+     *
+     * Keduanya memakai sumber daya yang tidak kembali -- selembar kertas atau
+     * sejumlah tinta -- dan tidak bisa dibatalkan setelah printer mulai. Jadi
+     * tidak ada satu pun yang berjalan hanya karena tombolnya tersenggol.
+     */
+    fun askMaintenance(task: MaintenanceTask) {
+        if (_state.value.busy) return
+        _state.update { it.copy(maintenanceAsked = task) }
+    }
+
+    fun dismissMaintenance() {
+        _state.update { it.copy(maintenanceAsked = null) }
+    }
+
+    /**
+     * Mengirim satu perintah perawatan ke printer.
+     *
+     * Perintahnya hanya beberapa puluh byte, jadi tidak ada kemajuan yang
+     * berarti untuk ditampilkan. Yang bisa dipastikan hanyalah byte-nya sampai;
+     * apakah printer mengerjakannya terlihat dari printernya, bukan dari sini.
+     */
+    fun runMaintenance(task: MaintenanceTask) {
+        val current = _state.value
+        if (current.busy) return
+        val device = current.selectedDevice ?: return
+
+        printJob = viewModelScope.launch(ioDispatcher) {
+            _state.update {
+                it.copy(busy = true, progress = 0f, maintenanceAsked = null, outcome = PrintOutcome.None)
+            }
+            try {
+                UsbPrinter.open(usbManager, device).use { printer ->
+                    val sink = printer.sink()
+                    val bytes = task.bytes()
+                    sink.write(bytes, 0, bytes.size)
+                    sink.flush()
+                }
+                _state.update { it.copy(outcome = PrintOutcome.MaintenanceSent(task)) }
+                log(task.label + " dikirim ke printer.")
+            } catch (error: Throwable) {
+                val stillAttached = usbManager.deviceList.values
+                    .any { it.deviceName == device.deviceName }
+                val kind = classifyFailure(error, stillAttached)
+                _state.update {
+                    it.copy(
+                        outcome = PrintOutcome.Failed(kind, error.message ?: error.toString())
+                    )
+                }
+                log(task.label + " gagal: " + (error.message ?: error.toString()))
+            } finally {
+                _state.update { it.copy(busy = false, progress = 0f) }
+            }
+        }
+    }
+
+    /**
+     * Membuang salinan dokumen lama dari cache.
+     *
+     * Tiap berkas yang dibuka disalin ke cache supaya bisa di-seek, dan sampai
+     * sekarang tidak ada satu pun yang pernah menghapusnya kembali: mencetak
+     * dua ratus foto berarti dua ratus salinan menetap sampai Android sendiri
+     * yang membersihkan. Yang sedang dipakai selalu dipertahankan.
+     */
+    private fun sweepCacheQuietly() {
+        viewModelScope.launch(ioDispatcher) {
+            val state = _state.value
+            val keep = buildSet {
+                state.document?.let { add(it.file.absolutePath) }
+                state.photos.forEach { add(it.file.absolutePath) }
+            }
+            val removed = runCatching {
+                sweepCache(getApplication<Application>().cacheDir, keep)
+            }.getOrDefault(0)
+            if (removed > 0) log("Membersihkan " + removed + " salinan lama dari cache.")
+        }
     }
 
     // -------------------------------------------------------------- cetak

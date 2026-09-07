@@ -1,5 +1,6 @@
 package com.escpr.usbprint.ui
 
+import com.escpr.usbprint.escpr.MaintenanceTask
 import com.escpr.usbprint.usb.PrinterErrorKind
 
 /** Hasil percobaan cetak terakhir, ditampilkan tepat di atas tombol Cetak. */
@@ -9,6 +10,15 @@ sealed interface PrintOutcome {
     data object Cancelled : PrintOutcome
     data class Failed(val kind: PrinterErrorKind, val technical: String) : PrintOutcome
     data class Saved(val bytes: Long) : PrintOutcome
+
+    /**
+     * Perintah perawatan sudah terkirim.
+     *
+     * Sengaja tidak mengaku "berhasil": yang bisa dipastikan hanyalah byte-nya
+     * sampai ke printer. Apakah printer benar-benar mengerjakannya hanya bisa
+     * dilihat dari printernya sendiri.
+     */
+    data class MaintenanceSent(val task: MaintenanceTask) : PrintOutcome
 }
 
 /** Tindakan pemulihan yang ditawarkan bersama pesan kegagalan. */

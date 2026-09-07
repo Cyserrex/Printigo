@@ -52,10 +52,12 @@ untuk mengujinya, jadi batas antara "terbukti" dan "belum" dijaga ketat.
 | Pengaturan yang diingat: salinan tidak ikut, nilai asing kembali ke bawaan | 6 uji |
 | Foto tumpah ke lembar berikutnya tanpa berpindah lembar saat disentuh | 9 uji |
 | APK rilis hasil R8 masih memuat yang dicari lewat refleksi | `tools/check_release_dex.ps1` membongkar DEX-nya |
+| Byte perintah perawatan dipatok dan tidak bergeser diam-diam | 9 uji |
+| Pembersih cache tidak pernah menghapus berkas yang sedang dipakai | 11 uji |
 | Tampilan benar-benar tergambar | tangkapan layar dari komposisi Compose di JVM |
 | APK terkompilasi, tertandatangani, zipalign, manifes benar | `apksigner`, `zipalign`, `aapt2` |
 
-**128 unit test**, semuanya lolos: `gradlew test`.
+**148 unit test**, semuanya lolos: `gradlew test`.
 
 ### Belum terbukti
 
@@ -71,6 +73,13 @@ dicocokkan dengan L3110 sungguhan. Karena itu kode yang tidak dikenali
 dilaporkan apa adanya, dan balasan yang tidak dipahami tidak pernah
 menghalangi pencetakan: salah menghalangi lebih merugikan daripada meneruskan
 lalu gagal seperti sebelumnya.
+
+**Perintah cek nozzle dan pembersihan head.** Urutan byte-nya mengikuti
+escputil di Gutenprint dan belum pernah dijalankan pada L3110. Kalau printer
+tidak bereaksi sama sekali, bentuk perintahnya perlu diganti ke varian
+`EXTENDED` di [Maintenance.kt](app/src/main/java/com/escpr/usbprint/escpr/Maintenance.kt).
+Keduanya operasi perawatan biasa yang juga ada di printer bermenu, jadi tidak
+bisa merusak apa pun -- paling buruk tidak terjadi apa-apa.
 
 **Perilaku APK yang sudah dikecilkan R8 di HP.** Isi DEX-nya diperiksa, tapi
 aplikasinya sendiri belum pernah dijalankan dalam bentuk terkecilkan. Kalau
@@ -165,6 +174,13 @@ Berguna untuk memisahkan masalah data dari masalah kabel.
 - **Layar tidak mati saat mencetak**
 - **Bisa dipakai dengan TalkBack**: slider batas cetak menyebut angka
   milimeternya, tombol tambah/kurang menyebut fungsinya
+- **Cek nozzle dan pembersihan head** langsung dari HP, dengan persetujuan
+  lebih dulu karena keduanya memakai kertas atau tinta. L3110 tidak punya menu,
+  jadi tanpa ini pemiliknya tidak punya cara membersihkan head tanpa komputer
+- **Terima banyak foto sekaligus** dari tombol Bagikan di Galeri, dan bisa
+  dibuka langsung dari pengelola berkas lewat "Buka dengan"
+- **Salinan lama dibersihkan sendiri** dari cache setelah tujuh hari, atau lebih
+  cepat kalau sudah melewati 256 MB. Yang sedang dipakai tidak pernah disentuh
 - **Daftar periksa sambungan** yang menuntun sampai siap cetak
 - **Pesan kegagalan berbahasa manusia** dengan satu tombol tindakan
 - Pemeriksaan dukungan ESC/P-R lewat IEEE-1284 Device ID
@@ -422,6 +438,9 @@ yang meleset lebih buruk daripada penolakan yang jujur.
 - Pekerjaan cetak berhenti kalau aplikasi ditutup. Layar ditahan tetap menyala
   selama mencetak, tapi itu bukan foreground service.
 - Arti kode kesalahan printer belum diverifikasi pada L3110 sungguhan.
+- Sisa tinta belum ditampilkan, dan belum ada reset level tinta maupun reset
+  waste ink pad counter. Rencananya beserta alasan urutannya ada di
+  [docs/RENCANA-PERAWATAN-TINTA.md](docs/RENCANA-PERAWATAN-TINTA.md).
 
 ---
 
@@ -429,7 +448,8 @@ yang meleset lebih buruk daripada penolakan yang jujur.
 
 | Versi | Isi |
 |---|---|
-| **2.1** | Pilih halaman PDF yang dicetak; foto tumpah ke lembar berikutnya dengan jumlah per lembar yang bisa dipilih; status printer diperiksa sebelum mengirim; pembatalan menutup pekerjaan dengan rapi; pengaturan diingat antar-sesi; layar tidak mati saat mencetak; label untuk TalkBack; R8 dinyalakan (APK 7,0 MB menjadi 1,5 MB) dengan isi DEX-nya diperiksa |
+| **2.2** | Cek nozzle dan pembersihan head dari dalam aplikasi; menerima banyak foto sekaligus lewat Bagikan dan bisa dibuka dari pengelola berkas; salinan lama di cache dibersihkan sendiri; satu salinan memori penuh dihapus dari jalur transfer USB |
+| 2.1 | Pilih halaman PDF yang dicetak; foto tumpah ke lembar berikutnya dengan jumlah per lembar yang bisa dipilih; status printer diperiksa sebelum mengirim; pembatalan menutup pekerjaan dengan rapi; pengaturan diingat antar-sesi; layar tidak mati saat mencetak; label untuk TalkBack; R8 dinyalakan (APK 7,0 MB menjadi 1,5 MB) dengan isi DEX-nya diperiksa |
 | 2.0 | Berkas Word, Excel, PowerPoint, OpenDocument, dan RTF dikenali dan ditolak dengan penjelasan yang benar beserta jalan keluarnya, bukan dilaporkan sebagai "gagal membuka gambar" |
 | 1.9 | Foto di editor bisa diputar 90 derajat ke kiri atau kanan. Kotaknya ikut menukar sisi terhadap pusatnya sendiri, dan penyusunan kisi memakai rasio setelah diputar |
 | 1.8 | Ukuran kertas di editor tidak lagi berubah-ubah. Sebelumnya kertas mengambil sisa ruang, jadi munculnya peringatan terpotong atau melipatnya baris margin membuat kertas menyusut, gambar melompat, dan geseran terputus di tengah jalan |

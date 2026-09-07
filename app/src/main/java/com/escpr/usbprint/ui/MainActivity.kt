@@ -42,6 +42,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -83,6 +84,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.escpr.usbprint.BuildConfig
 import com.escpr.usbprint.escpr.ColorMode
 import com.escpr.usbprint.escpr.Dpi
+import com.escpr.usbprint.escpr.MaintenanceTask
 import com.escpr.usbprint.escpr.MediaType
 import com.escpr.usbprint.escpr.PaperSize
 import com.escpr.usbprint.escpr.Quality
@@ -113,17 +115,44 @@ class MainActivity : ComponentActivity() {
         viewModel.refreshDevices()
     }
 
-    /** Menerima gambar atau PDF yang dibagikan dari aplikasi lain. */
+    /**
+     * Menerima berkas dari luar aplikasi.
+     *
+     * Tiga jalan masuk: dibagikan satu berkas, dibagikan beberapa foto
+     * sekaligus, atau dibuka langsung dari pengelola berkas. Ketiganya berakhir
+     * di tempat yang sama, hanya cara mengambil URI-nya yang berbeda.
+     */
     private fun handleIntent(intent: Intent?) {
-        if (intent?.action != Intent.ACTION_SEND) return
-        val uri: Uri? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        when (intent?.action) {
+            Intent.ACTION_SEND -> streamExtra(intent)?.let(viewModel::openDocument)
+
+            Intent.ACTION_SEND_MULTIPLE -> {
+                val uris = streamExtras(intent)
+                // Banyak berkas hanya masuk akal sebagai lembar foto. PDF yang
+                // ikut terbawa akan ditolak satu per satu oleh openDocument
+                // dengan penjelasannya sendiri.
+                if (uris.isNotEmpty()) viewModel.addPhotos(uris)
+            }
+
+            Intent.ACTION_VIEW -> intent.data?.let(viewModel::openDocument)
+        }
+    }
+
+    private fun streamExtra(intent: Intent): Uri? =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
         } else {
             @Suppress("DEPRECATION")
             intent.getParcelableExtra(Intent.EXTRA_STREAM)
         }
-        uri?.let(viewModel::openDocument)
-    }
+
+    private fun streamExtras(intent: Intent): List<Uri> =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)
+        }.orEmpty()
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -203,12 +232,101 @@ internal fun PrintScreen(viewModel: PrintViewModel) {
             )
             PaperSection(state, viewModel)
             OutputSection(state, viewModel)
+            MaintenanceSection(state, viewModel)
             LogSection(state)
             Spacer(Modifier.height(8.dp))
         }
     }
 
     LayoutEditorDialog(state, viewModel)
+    MaintenanceConfirmDialog(state, viewModel)
+}
+
+// ----------------------------------------------------------- perawatan
+
+/**
+ * Cek nozzle dan pembersihan head.
+ *
+ * L3110 tidak punya layar maupun menu, jadi tanpa komputer pemiliknya tidak
+ * punya cara sama sekali membersihkan head yang mampet. Dua tombol ini menutup
+ * lubang itu.
+ *
+ * Ditaruh paling bawah dan tidak menonjol dengan sengaja: ini bukan yang
+ * dikerjakan orang setiap hari, dan pembersihan head memakai tinta.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun MaintenanceSection(state: UiState, viewModel: PrintViewModel) {
+    // Tanpa printer yang tersambung dan berizin, tombolnya hanya menipu.
+    if (state.selectedDevice == null || !state.hasPermission) return
+
+    var expanded by remember { mutableStateOf(false) }
+
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Perawatan printer", fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.weight(1f))
+                Text(
+                    if (expanded) "Tutup" else "Buka",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+
+            if (expanded) {
+                Text(
+                    "Hasil cetak bergaris atau warna hilang biasanya berarti " +
+                        "nozzle mampet. Cek dulu, baru bersihkan kalau memang perlu.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    MaintenanceTask.entries.forEach { task ->
+                        OutlinedButton(
+                            onClick = { viewModel.askMaintenance(task) },
+                            enabled = !state.busy,
+                        ) { Text(task.label) }
+                    }
+                }
+                Text(
+                    "Perintah ini mengikuti driver Epson terbuka dan belum " +
+                        "diuji pada L3110. Kalau printer tidak bereaksi sama " +
+                        "sekali, bentuk perintahnya perlu disesuaikan.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Persetujuan sebelum perawatan berjalan.
+ *
+ * Keduanya memakai sesuatu yang tidak kembali -- selembar kertas atau sejumlah
+ * tinta -- dan tidak bisa dihentikan setelah printer mulai bergerak.
+ */
+@Composable
+private fun MaintenanceConfirmDialog(state: UiState, viewModel: PrintViewModel) {
+    val task = state.maintenanceAsked ?: return
+
+    AlertDialog(
+        onDismissRequest = viewModel::dismissMaintenance,
+        title = { Text(task.label) },
+        text = { Text(task.confirmation) },
+        confirmButton = {
+            TextButton(onClick = { viewModel.runMaintenance(task) }) { Text("Jalankan") }
+        },
+        dismissButton = {
+            TextButton(onClick = viewModel::dismissMaintenance) { Text("Batal") }
+        },
+    )
 }
 
 // ------------------------------------------------------------ pratinjau
@@ -944,6 +1062,7 @@ private fun OutcomeCard(
             "Selesai. ${outcome.sheets} lembar terkirim dalam " +
                 "${outcome.seconds.roundToInt()} detik."
         is PrintOutcome.Saved -> "Tersimpan sebagai berkas .prn."
+        is PrintOutcome.MaintenanceSent -> outcome.task.label + " sudah dikirim."
         PrintOutcome.Cancelled -> "Cetak dibatalkan."
         PrintOutcome.None -> ""
     }
@@ -953,6 +1072,9 @@ private fun OutcomeCard(
             "Halaman yang sudah masuk ke printer tetap akan keluar."
         is PrintOutcome.Success ->
             "Printer mungkin masih menyelesaikan lembar terakhir."
+        is PrintOutcome.MaintenanceSent ->
+            if (outcome.task.usesPaper) "Lihat hasilnya di kertas yang keluar."
+            else "Printer akan sibuk sekitar satu menit. Tunggu sampai lampunya tenang."
         else -> null
     }
 

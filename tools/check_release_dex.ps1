@@ -11,13 +11,23 @@
 #   powershell -File tools\check_release_dex.ps1 -Apk path\ke\lain.apk
 
 param(
-    [string]$Apk = "app\build\outputs\apk\release\Printigo-v2.1-release.apk",
+    [string]$Apk = "",
     [string]$Sdk = "C:\Claude\android-sdk"
 )
 
 $ErrorActionPreference = "Stop"
 
+# Tanpa -Apk, dipakai APK rilis terbaru. Menuliskan nomor versi di sini berarti
+# skrip ini diam-diam memeriksa APK lama setiap kali versinya naik.
+if (-not $Apk) {
+    $latest = Get-ChildItem "app\build\outputs\apk\release\*.apk" -ErrorAction SilentlyContinue |
+        Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    if (-not $latest) { throw "Tidak ada APK rilis. Jalankan gradlew assembleRelease dulu." }
+    $Apk = $latest.FullName
+}
+
 if (-not (Test-Path $Apk)) { throw "APK tidak ditemukan: $Apk" }
+Write-Host ("Memeriksa: " + (Split-Path $Apk -Leaf))
 
 $dexdump = Get-ChildItem "$Sdk\build-tools\*\dexdump.exe" |
     Sort-Object FullName -Descending | Select-Object -First 1

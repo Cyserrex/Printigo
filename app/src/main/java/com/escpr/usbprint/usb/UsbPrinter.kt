@@ -62,16 +62,26 @@ class UsbPrinter private constructor(
         )
 
         var sent = 0
-        val chunk = ByteArray(minOf(length, TRANSFER_CHUNK))
         while (sent < length) {
-            val n = minOf(chunk.size, length - sent)
-            System.arraycopy(data, offset + sent, chunk, 0, n)
+            val n = minOf(TRANSFER_CHUNK, length - sent)
 
-            var transferred = connection.bulkTransfer(endpointOut, chunk, n, timeoutMs)
+            // Dikirim langsung dari larik pemanggil lewat overload beroffset.
+            // Sebelumnya tiap potongan disalin dulu ke buffer perantara, yang
+            // berarti seluruh isi pekerjaan cetak -- puluhan megabyte -- disalin
+            // satu kali penuh tanpa menghasilkan apa pun.
+            var transferred =
+                connection.bulkTransfer(endpointOut, data, offset + sent, n, timeoutMs)
             if (transferred < 0) {
                 // Satu kali percobaan ulang: printer kadang menahan buffer saat
                 // sedang menarik kertas atau membersihkan head.
-                transferred = connection.bulkTransfer(endpointOut, chunk, n, timeoutMs)
+                //
+                // Pengiriman ulang ini hanya aman karena transfer yang gagal
+                // dianggap tidak terkirim sama sekali. Kalau printer ternyata
+                // sempat menerima sebagian sebelum galat, potongan itu akan
+                // dobel -- risiko yang diterima demi bertahan dari jeda mekanis
+                // yang jauh lebih sering terjadi.
+                transferred =
+                    connection.bulkTransfer(endpointOut, data, offset + sent, n, timeoutMs)
             }
             if (transferred < 0) {
                 throw PrinterException(
@@ -79,12 +89,8 @@ class UsbPrinter private constructor(
                     "Transfer USB gagal setelah $sent dari $length byte"
                 )
             }
-            if (transferred < n) {
-                // Terkirim sebagian: geser sisanya pada iterasi berikutnya.
-                sent += transferred
-            } else {
-                sent += n
-            }
+            // Terkirim sebagian: sisanya menyusul pada iterasi berikutnya.
+            sent += if (transferred < n) transferred else n
         }
     }
 
