@@ -88,6 +88,13 @@ fun adviceFor(kind: PrinterErrorKind): FailureAdvice = when (kind) {
         OutcomeAction.PICK_FILE,
     )
 
+    PrinterErrorKind.UNSUPPORTED_FORMAT -> FailureAdvice(
+        "Format berkas ini belum didukung",
+        "Printigo hanya bisa mencetak gambar dan PDF. Buka berkasnya di aplikasi " +
+            "Office, ekspor ke PDF, lalu cetak PDF-nya.",
+        OutcomeAction.PICK_FILE,
+    )
+
     PrinterErrorKind.OUT_OF_MEMORY -> FailureAdvice(
         "Memori HP tidak cukup",
         "Turunkan resolusi, atau tutup aplikasi lain lalu coba lagi.",

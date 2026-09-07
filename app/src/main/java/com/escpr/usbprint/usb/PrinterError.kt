@@ -36,6 +36,14 @@ enum class PrinterErrorKind {
     /** Berkas yang dipilih tidak bisa dibaca atau diurai. */
     DOCUMENT_UNREADABLE,
 
+    /**
+     * Formatnya dikenali tetapi memang belum didukung, misalnya Word atau Excel.
+     *
+     * Dibedakan dari [DOCUMENT_UNREADABLE] karena tindakannya berbeda: berkasnya
+     * baik-baik saja, yang perlu dilakukan adalah mengekspornya ke PDF dulu.
+     */
+    UNSUPPORTED_FORMAT,
+
     /** Kehabisan memori saat merender halaman. */
     OUT_OF_MEMORY,
 

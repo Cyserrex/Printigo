@@ -50,7 +50,7 @@ untuk mengujinya, jadi batas antara "terbukti" dan "belum" dijaga ketat.
 | Tampilan benar-benar tergambar | tangkapan layar dari komposisi Compose di JVM |
 | APK terkompilasi, tertandatangani, zipalign, manifes benar | `apksigner`, `zipalign`, `aapt2` |
 
-**87 unit test**, semuanya lolos: `gradlew test`.
+**95 unit test**, semuanya lolos: `gradlew test`.
 
 ### Belum terbukti
 
@@ -269,10 +269,10 @@ pemeriksaan langsung, bukan tebakan dari isi pesan.
 ```bash
 gradlew assembleRelease    # APK rilis, tertandatangani
 gradlew assembleDebug      # APK debug
-gradlew test               # 87 unit test
+gradlew test               # 95 unit test
 ```
 
-Nama berkas APK memuat nomor versi (`Printigo-v1.9-release.apk`), jadi dua
+Nama berkas APK memuat nomor versi (`Printigo-v2.0-release.apk`), jadi dua
 build berbeda tidak pernah bernama sama. Versi yang sama juga tampil di bawah
 judul aplikasi, supaya bisa disebutkan saat melaporkan masalah.
 
@@ -346,6 +346,21 @@ legacy persegi dan bulat di lima kerapatan layar plus lapisan ikon adaptif.
 
 ---
 
+## Format yang didukung
+
+Hanya **gambar** (JPEG, PNG, WebP, HEIC, BMP) dan **PDF**.
+
+Berkas Word, Excel, PowerPoint, OpenDocument, dan RTF dikenali tapi ditolak
+dengan penjelasan: ekspor dulu ke PDF lewat aplikasi Office di HP, baru cetak
+PDF-nya.
+
+Alasannya bukan kemalasan. Android menyediakan `PdfRenderer` bawaan, tapi tidak
+ada padanannya untuk `.docx`. Berkas Word hanya memuat teks dan gaya, tanpa tata
+letak: aplikasi harus menghitung sendiri pemenggalan baris, penomoran halaman,
+tabel, dan menyediakan font yang cocok. Hasilnya hampir pasti berbeda dari yang
+dilihat pengguna di Word -- dan untuk sesuatu yang dicetak di atas kertas, hasil
+yang meleset lebih buruk daripada penolakan yang jujur.
+
 ## Batasan yang diketahui
 
 - **Belum diuji di HP sungguhan.** Lihat bagian Status di atas.
@@ -372,7 +387,8 @@ legacy persegi dan bulat di lima kerapatan layar plus lapisan ikon adaptif.
 
 | Versi | Isi |
 |---|---|
-| **1.9** | Foto di editor bisa diputar 90 derajat ke kiri atau kanan. Kotaknya ikut menukar sisi terhadap pusatnya sendiri, dan penyusunan kisi memakai rasio setelah diputar |
+| **2.0** | Berkas Word, Excel, PowerPoint, OpenDocument, dan RTF dikenali dan ditolak dengan penjelasan yang benar beserta jalan keluarnya, bukan dilaporkan sebagai "gagal membuka gambar" |
+| 1.9 | Foto di editor bisa diputar 90 derajat ke kiri atau kanan. Kotaknya ikut menukar sisi terhadap pusatnya sendiri, dan penyusunan kisi memakai rasio setelah diputar |
 | 1.8 | Ukuran kertas di editor tidak lagi berubah-ubah. Sebelumnya kertas mengambil sisa ruang, jadi munculnya peringatan terpotong atau melipatnya baris margin membuat kertas menyusut, gambar melompat, dan geseran terputus di tengah jalan |
 | 1.7 | Tombol Simpan .prn dan Cetak tidak lagi tertutup bilah navigasi sistem: bilah bawah kini menerima inset navigasi, begitu pula kontrol di editor tata letak |
 | 1.6 | Perbaikan mati saat dibuka: konstruktor `PrintViewModel` kehilangan tanda tangan `(Application)` yang dicari factory bawaan, karena parameter dispatcher yang ditambahkan di 1.5. Ditambah uji yang membuat ViewModel lewat jalur yang sama dengan `by viewModels()` |

@@ -42,6 +42,8 @@ import com.escpr.usbprint.usb.UsbPrinter
 import com.escpr.usbprint.usb.classifyFailure
 import com.escpr.usbprint.util.StreamSink
 import com.escpr.usbprint.util.copyToCache
+import com.escpr.usbprint.util.DocumentKind
+import com.escpr.usbprint.util.classifyDocument
 import com.escpr.usbprint.util.displayName
 import com.escpr.usbprint.util.formatBytes
 import com.escpr.usbprint.util.mimeType
@@ -360,12 +362,31 @@ class PrintViewModel @JvmOverloads constructor(
         val app = getApplication<Application>()
         val name = runCatching { displayName(app, uri) }.getOrDefault("")
         val mime = runCatching { mimeType(app, uri) }.getOrDefault("")
-        val isPdf = mime.contains("pdf") || name.endsWith(".pdf", ignoreCase = true)
-        if (!isPdf) {
-            addPhotos(listOf(uri))
-            return
+
+        when (classifyDocument(mime, name)) {
+            DocumentKind.PDF -> openPdf(uri)
+
+            // Format yang dikenali tapi belum didukung ditolak di sini dengan
+            // penjelasan yang benar. Sebelumnya berkas seperti ini diperlakukan
+            // sebagai gambar, gagal diurai, lalu dilaporkan "gagal membuka
+            // gambar" -- menyesatkan, karena berkasnya sendiri tidak rusak.
+            DocumentKind.OFFICE -> {
+                _state.update {
+                    it.copy(
+                        outcome = PrintOutcome.Failed(
+                            PrinterErrorKind.UNSUPPORTED_FORMAT,
+                            "Format tidak didukung: " + mime.ifBlank { name },
+                        )
+                    )
+                }
+                log("Format belum didukung: " + name)
+            }
+
+            // Gambar, atau tipe yang tidak dilaporkan sama sekali. Yang terakhir
+            // tetap dicoba sebagai gambar karena sebagian penyedia dokumen
+            // memang tidak memberi tipe MIME.
+            DocumentKind.IMAGE, DocumentKind.UNKNOWN -> addPhotos(listOf(uri))
         }
-        openPdf(uri)
     }
 
     private fun openPdf(uri: Uri) {

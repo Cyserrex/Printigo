@@ -280,6 +280,29 @@ class PrintScreenTest {
     }
 
     @Test
+    fun `membuka berkas word memberi penjelasan format, bukan menuduh berkas rusak`() {
+        val viewModel = launch()
+        val app = ApplicationProvider.getApplicationContext<Application>()
+        val file = File(app.cacheDir, "surat.docx")
+        file.writeText("bukan gambar")
+
+        viewModel.openDocument(Uri.fromFile(file))
+        compose.waitForIdle()
+
+        val outcome = viewModel.state.value.outcome
+        assertTrue("harus gagal dengan sebab bertipe", outcome is PrintOutcome.Failed)
+        assertEquals(
+            PrinterErrorKind.UNSUPPORTED_FORMAT,
+            (outcome as PrintOutcome.Failed).kind
+        )
+        // Tidak ada foto yang terlanjur masuk ke lembar.
+        assertEquals(0, viewModel.state.value.photos.size)
+
+        val advice = adviceFor(PrinterErrorKind.UNSUPPORTED_FORMAT)
+        compose.onNodeWithText(advice.title).assertIsDisplayed()
+    }
+
+    @Test
     fun `menekan chip ukuran kertas mengubah pengaturan`() {
         val viewModel = launch()
 
