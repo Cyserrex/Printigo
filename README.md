@@ -43,14 +43,14 @@ untuk mengujinya, jadi batas antara "terbukti" dan "belum" dijaga ketat.
 | RLE bolak-balik utuh, termasuk batas penghitung 128/129 | 11 pola data |
 | Pratinjau dan raster memakai penempatan yang sama | seluruh kombinasi kertas × dpi × margin |
 | Layar utama dan editor tata letak tersusun dan bisa disentuh | Robolectric, 17 uji |
-| Susunan banyak foto: kisi, geser, ukur, pilih, potong | 16 uji lembar |
+| Susunan banyak foto: kisi, geser, ukur, pilih, potong, putar | 24 uji lembar |
 | ViewModel bisa dibuat lewat factory bawaan seperti `by viewModels()` | 2 uji |
 | Ukuran kertas di editor tidak berubah saat isi kontrol berubah | 3 uji stabilitas |
 | Penempatan manual, pemotongan, dan pembatas geseran | 15 uji tata letak |
 | Tampilan benar-benar tergambar | tangkapan layar dari komposisi Compose di JVM |
 | APK terkompilasi, tertandatangani, zipalign, manifes benar | `apksigner`, `zipalign`, `aapt2` |
 
-**78 unit test**, semuanya lolos: `gradlew test`.
+**87 unit test**, semuanya lolos: `gradlew test`.
 
 ### Belum terbukti
 
@@ -118,6 +118,8 @@ Berguna untuk memisahkan masalah data dari masalah kabel.
   kisi 1-4 kolom, atau atur sendiri posisi dan ukuran tiap foto
 - Sentuh sebuah foto untuk memilihnya; geser dan cubit hanya mengenai yang
   terpilih, dan yang dipilih naik ke tumpukan paling atas
+- **Putar 90 derajat** ke kiri atau kanan per foto, berputar di tempat tanpa
+  berpindah posisi
 - **Editor tata letak layar penuh**: geser untuk memindahkan, cubit untuk
   memperbesar, ketuk dua kali untuk mengembalikan ke ukuran muat, plus tombol
   perbesar/perkecil bertahap untuk menyetel beberapa persen
@@ -267,10 +269,10 @@ pemeriksaan langsung, bukan tebakan dari isi pesan.
 ```bash
 gradlew assembleRelease    # APK rilis, tertandatangani
 gradlew assembleDebug      # APK debug
-gradlew test               # 78 unit test
+gradlew test               # 87 unit test
 ```
 
-Nama berkas APK memuat nomor versi (`Printigo-v1.8-release.apk`), jadi dua
+Nama berkas APK memuat nomor versi (`Printigo-v1.9-release.apk`), jadi dua
 build berbeda tidak pernah bernama sama. Versi yang sama juga tampil di bawah
 judul aplikasi, supaya bisa disebutkan saat melaporkan masalah.
 
@@ -359,7 +361,8 @@ legacy persegi dan bulat di lima kerapatan layar plus lapisan ikon adaptif.
 - Penempatan berlaku sama untuk semua halaman PDF dalam satu pekerjaan cetak.
 - Lembar foto selalu satu halaman; foto yang tidak muat tidak tumpah ke lembar
   berikutnya.
-- Foto pada lembar tidak bisa diputar sendiri-sendiri.
+- Putaran hanya kelipatan 90 derajat; sudut bebas belum didukung.
+- Halaman PDF tidak bisa diputar, hanya foto pada lembar.
 - Membatalkan cetak menghentikan pengiriman, tapi halaman yang sudah terlanjur
   masuk ke printer tetap akan keluar.
 
@@ -369,7 +372,8 @@ legacy persegi dan bulat di lima kerapatan layar plus lapisan ikon adaptif.
 
 | Versi | Isi |
 |---|---|
-| **1.8** | Ukuran kertas di editor tidak lagi berubah-ubah. Sebelumnya kertas mengambil sisa ruang, jadi munculnya peringatan terpotong atau melipatnya baris margin membuat kertas menyusut, gambar melompat, dan geseran terputus di tengah jalan |
+| **1.9** | Foto di editor bisa diputar 90 derajat ke kiri atau kanan. Kotaknya ikut menukar sisi terhadap pusatnya sendiri, dan penyusunan kisi memakai rasio setelah diputar |
+| 1.8 | Ukuran kertas di editor tidak lagi berubah-ubah. Sebelumnya kertas mengambil sisa ruang, jadi munculnya peringatan terpotong atau melipatnya baris margin membuat kertas menyusut, gambar melompat, dan geseran terputus di tengah jalan |
 | 1.7 | Tombol Simpan .prn dan Cetak tidak lagi tertutup bilah navigasi sistem: bilah bawah kini menerima inset navigasi, begitu pula kontrol di editor tata letak |
 | 1.6 | Perbaikan mati saat dibuka: konstruktor `PrintViewModel` kehilangan tanda tangan `(Application)` yang dicari factory bawaan, karena parameter dispatcher yang ditambahkan di 1.5. Ditambah uji yang membuat ViewModel lewat jalur yang sama dengan `by viewModels()` |
 | 1.5 | Banyak foto dalam satu lembar: tambah sekaligus, susun otomatis 1-4 kolom, pilih dengan menyentuh, geser dan ubah ukuran per foto, hapus yang terpilih; dispatcher ViewModel bisa disuntik |

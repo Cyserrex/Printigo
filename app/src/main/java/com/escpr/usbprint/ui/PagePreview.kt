@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextMeasurer
@@ -46,6 +47,8 @@ data class PreviewItem(
     val rect: RectMm,
     val image: ImageBitmap?,
     val selected: Boolean = false,
+    /** Kelipatan 90 derajat. [rect] adalah kotak setelah diputar. */
+    val rotationDegrees: Int = 0,
 )
 
 /**
@@ -157,18 +160,35 @@ fun PagePreview(
                     )
                     if (itemRect.width < 1f || itemRect.height < 1f) continue
 
-                    drawImage(
-                        image = image,
-                        dstOffset = IntOffset(
-                            itemRect.left.roundToInt(), itemRect.top.roundToInt()
-                        ),
-                        dstSize = IntSize(
-                            itemRect.width.roundToInt().coerceAtLeast(1),
-                            itemRect.height.roundToInt().coerceAtLeast(1),
-                        ),
-                        colorFilter = monoFilter,
-                        filterQuality = FilterQuality.Medium,
-                    )
+                    // itemRect adalah kotak SETELAH diputar. Gambarnya dilukis
+                    // ke kotak sebelum putaran, lalu diputar terhadap pusat yang
+                    // sama -- persis seperti yang dilakukan jalur cetak.
+                    val quarterTurned = item.rotationDegrees % 180 != 0
+                    val drawRect = if (quarterTurned) {
+                        Rect(
+                            itemRect.center.x - itemRect.height / 2f,
+                            itemRect.center.y - itemRect.width / 2f,
+                            itemRect.center.x + itemRect.height / 2f,
+                            itemRect.center.y + itemRect.width / 2f,
+                        )
+                    } else {
+                        itemRect
+                    }
+
+                    rotate(item.rotationDegrees.toFloat(), itemRect.center) {
+                        drawImage(
+                            image = image,
+                            dstOffset = IntOffset(
+                                drawRect.left.roundToInt(), drawRect.top.roundToInt()
+                            ),
+                            dstSize = IntSize(
+                                drawRect.width.roundToInt().coerceAtLeast(1),
+                                drawRect.height.roundToInt().coerceAtLeast(1),
+                            ),
+                            colorFilter = monoFilter,
+                            filterQuality = FilterQuality.Medium,
+                        )
+                    }
 
                     // Bagian yang keluar area cetak diwarnai merah: itulah yang
                     // tidak akan tercetak.

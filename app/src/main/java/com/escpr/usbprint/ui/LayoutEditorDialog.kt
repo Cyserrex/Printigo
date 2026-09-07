@@ -187,9 +187,11 @@ private fun EditorControls(
                 )
                 Spacer(Modifier.width(12.dp))
                 val sized = if (state.sheetMode) state.selectedPhoto?.item?.rect else layout.content
+                val turn = if (state.sheetMode) state.selectedPhoto?.item?.rotationDegrees ?: 0 else 0
                 Text(
                     if (sized == null) "-"
-                    else fmtMm(sized.width) + " x " + fmtMm(sized.height) + " mm",
+                    else fmtMm(sized.width) + " x " + fmtMm(sized.height) + " mm" +
+                        (if (turn != 0) "  ($turn derajat)" else ""),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
                 )
@@ -293,6 +295,16 @@ private fun SheetControls(state: UiState, viewModel: PrintViewModel) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            AssistChip(
+                onClick = { viewModel.rotateSelectedPhoto(-1) },
+                enabled = state.selectedPhoto != null,
+                label = { Text("Putar kiri") },
+            )
+            AssistChip(
+                onClick = { viewModel.rotateSelectedPhoto(1) },
+                enabled = state.selectedPhoto != null,
+                label = { Text("Putar kanan") },
+            )
             AssistChip(
                 onClick = { viewModel.arrangeGrid(0) },
                 label = { Text("Susun otomatis") },

@@ -26,6 +26,7 @@ import com.escpr.usbprint.layout.arrangedInGrid
 import com.escpr.usbprint.layout.broughtToFront
 import com.escpr.usbprint.layout.computeSheetLayout
 import com.escpr.usbprint.layout.movedBy
+import com.escpr.usbprint.layout.rotatedBy
 import com.escpr.usbprint.layout.scaledBy
 import com.escpr.usbprint.layout.clampedTo
 import com.escpr.usbprint.layout.computePageLayout
@@ -132,6 +133,7 @@ data class UiState(
                     rect = photo.item.rect,
                     image = photo.preview,
                     selected = photo.id == selectedPhotoId,
+                    rotationDegrees = photo.item.rotationDegrees,
                 )
             }
         } else {
@@ -603,6 +605,24 @@ class PrintViewModel @JvmOverloads constructor(
                     selectedPhotoId = hit.id,
                 )
             }
+        }
+    }
+
+    /**
+     * Memutar foto terpilih seperempat putaran.
+     *
+     * Kalau belum ada yang dipilih, yang diputar adalah foto paling atas --
+     * sama seperti perlakuan gestur, supaya tombolnya tidak terasa mati.
+     */
+    fun rotateSelectedPhoto(quarterTurns: Int) {
+        _state.update { state ->
+            val id = state.selectedPhotoId ?: state.photos.lastOrNull()?.id ?: return@update state
+            state.copy(
+                selectedPhotoId = id,
+                photos = state.photos.map { photo ->
+                    if (photo.id != id) photo else photo.copy(item = photo.item.rotatedBy(quarterTurns))
+                },
+            )
         }
     }
 

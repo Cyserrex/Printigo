@@ -76,8 +76,12 @@ class SheetPageSource(
             val targetHeight = (targetWidth / photo.item.aspect).roundToInt().coerceAtLeast(1)
 
             // Tidak ada gunanya menguraikan lebih besar dari ukurannya di kertas.
-            val drawWidth = (photo.item.rect.width * pxPerMm).roundToInt().coerceAtLeast(1)
-            val drawHeight = (photo.item.rect.height * pxPerMm).roundToInt().coerceAtLeast(1)
+            // Untuk foto yang diputar seperempat, sisi gambar aslinya tertukar
+            // terhadap kotaknya di kertas.
+            val boxWidth = (photo.item.rect.width * pxPerMm).roundToInt().coerceAtLeast(1)
+            val boxHeight = (photo.item.rect.height * pxPerMm).roundToInt().coerceAtLeast(1)
+            val drawWidth = if (photo.item.isQuarterTurned) boxHeight else boxWidth
+            val drawHeight = if (photo.item.isQuarterTurned) boxWidth else boxHeight
 
             decode(photo, minOf(targetWidth, drawWidth), minOf(targetHeight, drawHeight))
                 ?.let { bitmaps[photo.item.id] = it }
@@ -123,12 +127,30 @@ class SheetPageSource(
             // Milimeter di kertas -> piksel di dalam area cetak.
             val left = (rect.left - printableMm.left) * pxPerMm
             val top = (rect.top - printableMm.top) * pxPerMm
-            canvas.drawBitmap(
-                source,
-                null,
-                RectF(left, top, left + rect.width * pxPerMm, top + rect.height * pxPerMm),
-                paint,
-            )
+            val width = rect.width * pxPerMm
+            val height = rect.height * pxPerMm
+            val centerX = left + width / 2f
+            val centerY = top + height / 2f
+
+            // rect sudah merupakan kotak SETELAH diputar. Gambar aslinya dilukis
+            // ke kotak sebelum putaran -- sisi ditukar untuk 90 dan 270 derajat --
+            // lalu seluruhnya diputar terhadap pusat yang sama.
+            val unrotated = if (photo.item.isQuarterTurned) {
+                RectF(
+                    centerX - height / 2f, centerY - width / 2f,
+                    centerX + height / 2f, centerY + width / 2f,
+                )
+            } else {
+                RectF(left, top, left + width, top + height)
+            }
+
+            val turned = photo.item.rotationDegrees != 0
+            if (turned) {
+                canvas.save()
+                canvas.rotate(photo.item.rotationDegrees.toFloat(), centerX, centerY)
+            }
+            canvas.drawBitmap(source, null, unrotated, paint)
+            if (turned) canvas.restore()
         }
     }
 

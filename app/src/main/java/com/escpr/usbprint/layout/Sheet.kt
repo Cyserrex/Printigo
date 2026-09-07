@@ -15,10 +15,45 @@ import kotlin.math.sqrt
  */
 data class SheetItem(
     val id: Long,
-    /** Lebar dibagi tinggi foto aslinya. Rasio ini selalu dijaga. */
+    /** Lebar dibagi tinggi foto aslinya, sebelum diputar. */
     val aspect: Float,
+    /** Kotak foto di atas kertas, sudah termasuk hasil putaran. */
     val rect: RectMm,
-)
+    /** Kelipatan 90 derajat: 0, 90, 180, atau 270. */
+    val rotationDegrees: Int = 0,
+) {
+    /**
+     * Rasio foto setelah diputar.
+     *
+     * Putaran 90 dan 270 derajat menukar sisi panjang dan pendek, jadi inilah
+     * rasio yang berlaku untuk menyusun dan mengukur -- bukan [aspect].
+     */
+    val displayAspect: Float
+        get() = if (rotationDegrees % 180 == 0) aspect else 1f / aspect
+
+    /** True kalau foto sedang berdiri tegak lurus dari orientasi aslinya. */
+    val isQuarterTurned: Boolean get() = rotationDegrees % 180 != 0
+}
+
+/**
+ * Memutar foto seperempat putaran, searah jarum jam untuk [quarterTurns] positif.
+ *
+ * Kotaknya ikut ditukar sisi terhadap pusatnya sendiri, sehingga foto tetap
+ * berada di tempat yang sama dan hanya berubah orientasi. Pusat dipakai sebagai
+ * poros, bukan sudut kiri-atas, supaya foto tidak melompat saat diputar.
+ */
+fun SheetItem.rotatedBy(quarterTurns: Int): SheetItem {
+    if (quarterTurns == 0) return this
+    val turns = ((rotationDegrees / 90) + quarterTurns).mod(4)
+    val swap = quarterTurns.mod(2) != 0
+    val newRect = if (!swap) rect else RectMm(
+        left = rect.centerX - rect.height / 2f,
+        top = rect.centerY - rect.width / 2f,
+        width = rect.height,
+        height = rect.width,
+    )
+    return copy(rotationDegrees = turns * 90, rect = newRect)
+}
 
 /** Seberapa jauh sebuah foto keluar dari area cetak, per sisi. */
 data class Overflow(
@@ -139,13 +174,18 @@ fun arrangeInGrid(
     }
 }
 
-/** Menyusun ulang seluruh foto ke kisi, mempertahankan urutan dan id. */
+/**
+ * Menyusun ulang seluruh foto ke kisi, mempertahankan urutan, id, dan putaran.
+ *
+ * Yang dipakai adalah rasio setelah diputar: foto yang sudah diputar 90 derajat
+ * harus disusun sebagai foto tegak, bukan sebagai foto mendatar.
+ */
 fun List<SheetItem>.arrangedInGrid(
     printable: RectMm,
     columns: Int = 0,
     gapMm: Float = DEFAULT_GAP_MM,
 ): List<SheetItem> {
-    val rects = arrangeInGrid(map { it.aspect }, printable, columns, gapMm)
+    val rects = arrangeInGrid(map { it.displayAspect }, printable, columns, gapMm)
     return mapIndexed { index, item -> item.copy(rect = rects[index]) }
 }
 

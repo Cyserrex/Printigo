@@ -254,6 +254,32 @@ class PrintScreenTest {
     }
 
     @Test
+    fun `tombol putar mengubah orientasi foto terpilih di editor`() {
+        val viewModel = launch()
+        addSamplePhoto(viewModel)
+        viewModel.openLayoutEditor()
+        compose.waitForIdle()
+
+        val sebelum = viewModel.state.value.selectedPhoto!!.item
+        assertEquals(0, sebelum.rotationDegrees)
+        assertTrue("contoh harus mendatar", sebelum.rect.width > sebelum.rect.height)
+
+        compose.onNodeWithText("Putar kanan").performClick()
+        compose.waitForIdle()
+
+        val sesudah = viewModel.state.value.selectedPhoto!!.item
+        assertEquals(90, sesudah.rotationDegrees)
+        assertTrue("setelah diputar harus tegak", sesudah.rect.height > sesudah.rect.width)
+        // Berputar di tempat, bukan berpindah.
+        assertEquals(sebelum.rect.centerX, sesudah.rect.centerX, 0.01f)
+        assertEquals(sebelum.rect.centerY, sesudah.rect.centerY, 0.01f)
+
+        compose.onNodeWithText("Putar kiri").performClick()
+        compose.waitForIdle()
+        assertEquals(0, viewModel.state.value.selectedPhoto!!.item.rotationDegrees)
+    }
+
+    @Test
     fun `menekan chip ukuran kertas mengubah pengaturan`() {
         val viewModel = launch()
 

@@ -10,6 +10,7 @@ import com.escpr.usbprint.layout.arrangedInGrid
 import com.escpr.usbprint.layout.broughtToFront
 import com.escpr.usbprint.layout.computeSheetLayout
 import com.escpr.usbprint.layout.movedBy
+import com.escpr.usbprint.layout.rotatedBy
 import com.escpr.usbprint.layout.scaledBy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -165,6 +166,100 @@ class SheetTest {
             "sisi terpanjang ${item.rect.width} jauh melewati kertas",
             item.rect.width <= a4.heightMm * 3f + 0.01f
         )
+    }
+
+    // ------------------------------------------------------------ putaran
+
+    @Test
+    fun `putaran seperempat menukar sisi dan mempertahankan pusat`() {
+        val item = SheetItem(1, 3f / 2f, RectMm(50f, 60f, 90f, 60f))
+        val diputar = item.rotatedBy(1)
+
+        assertEquals(90, diputar.rotationDegrees)
+        assertEquals("lebar harus jadi tinggi lama", 60f, diputar.rect.width, 0.001f)
+        assertEquals("tinggi harus jadi lebar lama", 90f, diputar.rect.height, 0.001f)
+        // Foto berputar di tempat, tidak melompat.
+        assertEquals(item.rect.centerX, diputar.rect.centerX, 0.001f)
+        assertEquals(item.rect.centerY, diputar.rect.centerY, 0.001f)
+    }
+
+    @Test
+    fun `rasio tampil ikut terbalik saat diputar seperempat`() {
+        val item = SheetItem(1, 3f / 2f, RectMm(0f, 0f, 90f, 60f))
+        assertEquals(3f / 2f, item.displayAspect, 0.001f)
+        assertEquals(2f / 3f, item.rotatedBy(1).displayAspect, 0.001f)
+        // Setengah putaran tidak menukar sisi.
+        assertEquals(3f / 2f, item.rotatedBy(2).displayAspect, 0.001f)
+    }
+
+    @Test
+    fun `setengah putaran tidak mengubah bentuk kotak`() {
+        val item = SheetItem(1, 2f, RectMm(30f, 40f, 80f, 40f))
+        val diputar = item.rotatedBy(2)
+
+        assertEquals(180, diputar.rotationDegrees)
+        assertEquals(item.rect, diputar.rect)
+    }
+
+    @Test
+    fun `empat kali putaran kembali seperti semula`() {
+        val item = SheetItem(1, 4f / 3f, RectMm(25f, 35f, 120f, 90f))
+        var berputar = item
+        repeat(4) { berputar = berputar.rotatedBy(1) }
+
+        assertEquals(0, berputar.rotationDegrees)
+        assertEquals(item.rect.width, berputar.rect.width, 0.001f)
+        assertEquals(item.rect.height, berputar.rect.height, 0.001f)
+        assertEquals(item.rect.left, berputar.rect.left, 0.001f)
+        assertEquals(item.rect.top, berputar.rect.top, 0.001f)
+    }
+
+    @Test
+    fun `putar kiri adalah kebalikan putar kanan`() {
+        val item = SheetItem(1, 16f / 9f, RectMm(20f, 20f, 160f, 90f))
+        val bolakBalik = item.rotatedBy(1).rotatedBy(-1)
+
+        assertEquals(item.rotationDegrees, bolakBalik.rotationDegrees)
+        assertEquals(item.rect.width, bolakBalik.rect.width, 0.001f)
+        assertEquals(item.rect.height, bolakBalik.rect.height, 0.001f)
+    }
+
+    @Test
+    fun `putar kiri dari nol menghasilkan 270 derajat`() {
+        val item = SheetItem(1, 1.5f, RectMm(0f, 0f, 60f, 40f))
+        assertEquals(270, item.rotatedBy(-1).rotationDegrees)
+    }
+
+    @Test
+    fun `penyusunan memakai rasio setelah diputar`() {
+        // Foto mendatar yang diputar tegak harus disusun sebagai foto tegak.
+        val mendatar = SheetItem(1, 2f, RectMm(0f, 0f, 10f, 5f))
+        val tegak = mendatar.rotatedBy(1)
+        val printable = sheet(emptyList()).printable
+
+        val hasil = listOf(tegak).arrangedInGrid(printable).single()
+        assertTrue(
+            "hasil susunan harus lebih tinggi daripada lebar, dapat " +
+                "${hasil.rect.width}x${hasil.rect.height}",
+            hasil.rect.height > hasil.rect.width
+        )
+        assertEquals(0.5f, hasil.rect.width / hasil.rect.height, 0.01f)
+    }
+
+    @Test
+    fun `pemotongan dihitung dari kotak setelah diputar`() {
+        // Foto mendatar ini muat; setelah diputar jadi tinggi dan keluar bawah.
+        val item = SheetItem(1, 3f, RectMm(20f, 260f, 150f, 50f))
+        assertTrue("sebelum diputar sudah keluar", sheet(listOf(item)).hasOverflow)
+
+        val muat = SheetItem(2, 3f, RectMm(20f, 100f, 150f, 50f))
+        assertFalse(sheet(listOf(muat)).hasOverflow)
+        // Setelah diputar tingginya jadi 150 mm, pusatnya tetap di y = 125 mm,
+        // jadi tepi atasnya naik ke 50 mm dan masih di dalam area cetak.
+        val diputar = muat.rotatedBy(1)
+        assertEquals(50f, diputar.rect.top, 0.01f)
+        assertEquals(200f, diputar.rect.bottom, 0.01f)
+        assertFalse(sheet(listOf(diputar)).hasOverflow)
     }
 
     // ---------------------------------------------------------- pemotongan

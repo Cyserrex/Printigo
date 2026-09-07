@@ -114,6 +114,15 @@ class ScreenshotTest {
         compose.waitForIdle()
         capture("11-lembar-dua-kolom")
 
+        // Dua foto mendatar diputar tegak: kisi menyusunnya sebagai foto tegak.
+        viewModel.state.value.photos.take(2).forEach { photo ->
+            viewModel.selectPhotoAt(photo.item.rect.centerX, photo.item.rect.centerY)
+            viewModel.rotateSelectedPhoto(1)
+        }
+        viewModel.arrangeGrid(3)
+        compose.waitForIdle()
+        capture("13-lembar-diputar")
+
         // Satu foto digeser keluar area cetak.
         val target = viewModel.state.value.photos.first()
         viewModel.selectPhotoAt(target.item.rect.centerX, target.item.rect.centerY)
