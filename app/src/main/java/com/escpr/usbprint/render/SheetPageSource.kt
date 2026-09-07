@@ -27,20 +27,28 @@ data class SheetPhoto(
  * foto di dalamnya menurut posisi milimeternya. Rasio kotak tujuan sama dengan
  * rasio area cetak, jadi jalur cetak yang sudah ada tidak perlu tahu apa-apa
  * tentang mode lembar.
+ *
+ * [pages] berisi satu daftar foto per lembar. Foto diuraikan saat lembarnya
+ * dibuka dan dilepas saat lembar berikutnya dibuka, jadi memori yang terpakai
+ * ditentukan oleh lembar terpadat, bukan oleh seluruh pekerjaan.
  */
 class SheetPageSource(
-    private val photos: List<SheetPhoto>,
+    private val pages: List<List<SheetPhoto>>,
     private val printableMm: RectMm,
 ) : PageSource {
 
-    override val pageCount: Int = 1
+    override val pageCount: Int = pages.size.coerceAtLeast(1)
+
+    private var photos: List<SheetPhoto> = pages.firstOrNull().orEmpty()
 
     private val destination = RectF()
     private var pxPerMm = 1f
     private val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.DITHER_FLAG)
     private val bitmaps = HashMap<Long, Bitmap>()
 
-    override fun openPage(index: Int) = Unit
+    override fun openPage(index: Int) {
+        photos = pages.getOrNull(index).orEmpty()
+    }
 
     override fun contentAspect(): Float = printableMm.width / printableMm.height
 

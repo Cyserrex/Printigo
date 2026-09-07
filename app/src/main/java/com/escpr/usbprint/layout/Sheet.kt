@@ -21,6 +21,16 @@ data class SheetItem(
     val rect: RectMm,
     /** Kelipatan 90 derajat: 0, 90, 180, atau 270. */
     val rotationDegrees: Int = 0,
+    /**
+     * Lembar keberapa foto ini berada, dimulai dari nol.
+     *
+     * Disimpan sebagai nilai tersendiri, bukan disimpulkan dari urutan daftar,
+     * karena urutan daftar juga menentukan siapa menutupi siapa. Menaikkan
+     * sebuah foto ke tumpukan paling atas mengubah urutannya; kalau lembar
+     * ikut disimpulkan dari urutan, foto itu akan melompat ke lembar lain
+     * hanya karena disentuh.
+     */
+    val page: Int = 0,
 ) {
     /**
      * Rasio foto setelah diputar.
@@ -173,6 +183,39 @@ fun arrangeInGrid(
         )
     }
 }
+
+/**
+ * Membagi foto ke beberapa lembar lalu menyusun tiap lembar sendiri-sendiri.
+ *
+ * [perSheet] nol atau kurang berarti semuanya tetap pada satu lembar. Tanpa
+ * pembagian ini, dua puluh foto pada satu A4 masing-masing hanya sebesar
+ * perangko: tersusun rapi, tapi tidak ada gunanya dicetak.
+ *
+ * Tiap lembar disusun terhadap area cetak yang sama, jadi lembar kedua
+ * berbentuk sama dengan lembar pertama walau isinya lebih sedikit.
+ */
+fun List<SheetItem>.arrangedInGridPaged(
+    printable: RectMm,
+    perSheet: Int,
+    columns: Int = 0,
+    gapMm: Float = DEFAULT_GAP_MM,
+): List<SheetItem> {
+    if (isEmpty()) return this
+    val chunk = if (perSheet <= 0) size else perSheet
+    return chunked(chunk).flatMapIndexed { page, group ->
+        group.arrangedInGrid(printable, columns, gapMm).map { it.copy(page = page) }
+    }
+}
+
+/**
+ * Mengelompokkan foto per lembar, terurut, tanpa lembar kosong.
+ *
+ * Lembar yang seluruh isinya dihapus hilang dengan sendirinya, jadi tidak ada
+ * kertas polos yang ikut keluar hanya karena nomor lembarnya masih tersisa.
+ */
+fun <T> List<T>.groupedBySheet(pageOf: (T) -> Int): List<List<T>> =
+    if (isEmpty()) emptyList()
+    else groupBy(pageOf).toSortedMap().values.toList()
 
 /**
  * Menyusun ulang seluruh foto ke kisi, mempertahankan urutan, id, dan putaran.

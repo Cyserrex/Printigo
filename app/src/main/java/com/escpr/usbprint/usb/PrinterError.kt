@@ -44,6 +44,15 @@ enum class PrinterErrorKind {
      */
     UNSUPPORTED_FORMAT,
 
+    /**
+     * Printer melaporkan dirinya belum siap sebelum data dikirim.
+     *
+     * Dipisahkan dari [TRANSFER_FAILED] karena belum ada satu byte pun yang
+     * terkirim: tidak ada kertas terbuang, dan pengguna cukup membereskan
+     * printernya lalu menekan Cetak lagi.
+     */
+    PRINTER_NOT_READY,
+
     /** Kehabisan memori saat merender halaman. */
     OUT_OF_MEMORY,
 

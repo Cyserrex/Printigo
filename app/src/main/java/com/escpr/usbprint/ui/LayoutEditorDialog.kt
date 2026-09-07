@@ -287,13 +287,48 @@ private fun OverflowNotice(message: String) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SheetControls(state: UiState, viewModel: PrintViewModel) {
+    val sheets = state.sheetPages.size
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
-            state.photos.size.toString() + " foto di lembar ini" +
+            state.currentSheetPhotos.size.toString() + " foto di lembar ini" +
+                (if (sheets > 1) " - lembar " + (state.currentSheet + 1) + " dari " + sheets else "") +
                 (if (state.selectedPhoto != null) " - satu terpilih" else ""),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+
+        // Berpindah lembar hanya masuk akal kalau memang ada lebih dari satu.
+        if (sheets > 1) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextButton(
+                    onClick = { viewModel.showSheet(state.currentSheet - 1) },
+                    enabled = state.currentSheet > 0,
+                ) { Text("< Lembar sebelumnya") }
+                Spacer(Modifier.weight(1f))
+                TextButton(
+                    onClick = { viewModel.showSheet(state.currentSheet + 1) },
+                    enabled = state.currentSheet < sheets - 1,
+                ) { Text("Lembar berikutnya >") }
+            }
+        }
+
+        // Berapa foto per lembar. "Semua" mempertahankan perilaku lama: satu
+        // lembar, sepadat apa pun. Nilai lain membagi foto ke beberapa lembar.
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Per lembar", style = MaterialTheme.typography.bodyMedium)
+            Spacer(Modifier.width(8.dp))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf(0, 1, 2, 4, 6, 9).forEach { perSheet ->
+                    val selected = state.photosPerSheet == perSheet
+                    AssistChip(
+                        onClick = { viewModel.setPhotosPerSheet(perSheet) },
+                        enabled = !selected,
+                        label = { Text(if (perSheet == 0) "Semua" else perSheet.toString()) },
+                    )
+                }
+            }
+        }
+
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             AssistChip(
                 onClick = { viewModel.rotateSelectedPhoto(-1) },

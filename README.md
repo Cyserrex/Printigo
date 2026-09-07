@@ -47,10 +47,15 @@ untuk mengujinya, jadi batas antara "terbukti" dan "belum" dijaga ketat.
 | ViewModel bisa dibuat lewat factory bawaan seperti `by viewModels()` | 2 uji |
 | Ukuran kertas di editor tidak berubah saat isi kontrol berubah | 3 uji stabilitas |
 | Penempatan manual, pemotongan, dan pembatas geseran | 15 uji tata letak |
+| Pilihan halaman PDF: rentang terbalik, di luar batas, dokumen kosong | 8 uji |
+| Penguraian status `@BDC ST2`, termasuk balasan terpotong di segala panjang | 10 uji |
+| Pengaturan yang diingat: salinan tidak ikut, nilai asing kembali ke bawaan | 6 uji |
+| Foto tumpah ke lembar berikutnya tanpa berpindah lembar saat disentuh | 9 uji |
+| APK rilis hasil R8 masih memuat yang dicari lewat refleksi | `tools/check_release_dex.ps1` membongkar DEX-nya |
 | Tampilan benar-benar tergambar | tangkapan layar dari komposisi Compose di JVM |
 | APK terkompilasi, tertandatangani, zipalign, manifes benar | `apksigner`, `zipalign`, `aapt2` |
 
-**95 unit test**, semuanya lolos: `gradlew test`.
+**128 unit test**, semuanya lolos: `gradlew test`.
 
 ### Belum terbukti
 
@@ -59,6 +64,18 @@ dialog izin USB, dan bulk transfer. Pengujian di atas menempuh jalur Windows →
 spooler → port USB, bukan jalur OTG dari HP.
 
 Jadi yang terbukti adalah **datanya**, bukan **pengantarannya**.
+
+**Pemetaan kode kesalahan printer.** Struktur balasan `@BDC ST2` diuraikan dan
+diuji, tetapi arti tiap kode diambil dari driver ESC/P-R terbuka dan belum
+dicocokkan dengan L3110 sungguhan. Karena itu kode yang tidak dikenali
+dilaporkan apa adanya, dan balasan yang tidak dipahami tidak pernah
+menghalangi pencetakan: salah menghalangi lebih merugikan daripada meneruskan
+lalu gagal seperti sebelumnya.
+
+**Perilaku APK yang sudah dikecilkan R8 di HP.** Isi DEX-nya diperiksa, tapi
+aplikasinya sendiri belum pernah dijalankan dalam bentuk terkecilkan. Kalau
+ada yang aneh pada versi rilis, varian debug (`gradlew assembleDebug`) tidak
+memakai R8 dan bisa dipakai sebagai pembanding.
 
 **Perilaku terhadap bilah sistem.** Robolectric tidak mengantarkan window inset
 ke Compose: inset yang dikirim terbaca nol, sehingga uji apa pun tentang jarak
@@ -116,6 +133,10 @@ Berguna untuk memisahkan masalah data dari masalah kabel.
 - Cetak **gambar** (JPEG/PNG/WebP, rotasi EXIF dihormati) dan **PDF** banyak halaman
 - **Banyak foto dalam satu lembar**: tambahkan sekaligus, susun otomatis ke
   kisi 1-4 kolom, atau atur sendiri posisi dan ukuran tiap foto
+- **Tumpah ke lembar berikutnya**: pilih 1, 2, 4, 6, atau 9 foto per lembar dan
+  sisanya pindah ke kertas berikutnya, bukan dipadatkan sampai sebesar perangko
+- **Pilih halaman PDF**: semua, halaman yang sedang dilihat, atau rentang
+  tertentu, dengan jumlah lembar yang akan keluar disebutkan sebelum mencetak
 - Sentuh sebuah foto untuk memilihnya; geser dan cubit hanya mengenai yang
   terpilih, dan yang dipilih naik ke tumpukan paling atas
 - **Putar 90 derajat** ke kiri atau kanan per foto, berputar di tempat tanpa
@@ -135,6 +156,15 @@ Berguna untuk memisahkan masalah data dari masalah kabel.
 - Kualitas draft / normal / tinggi, berwarna atau hitam putih
 - Jenis media: kertas biasa, matte, kertas foto, foto glossy
 - Salinan 1–20
+- **Pengaturan diingat** antar-sesi -- kecuali jumlah salinan, yang sengaja
+  selalu kembali ke satu
+- **Diperiksa sebelum mengirim**: kalau printer melaporkan kertas habis, tutup
+  terbuka, atau macet, pekerjaan dibatalkan sebelum satu byte pun terkirim
+- **Pembatalan menutup pekerjaan dengan rapi** di printer, bukan meninggalkannya
+  menunggu data yang tidak akan datang
+- **Layar tidak mati saat mencetak**
+- **Bisa dipakai dengan TalkBack**: slider batas cetak menyebut angka
+  milimeternya, tombol tambah/kurang menyebut fungsinya
 - **Daftar periksa sambungan** yang menuntun sampai siap cetak
 - **Pesan kegagalan berbahasa manusia** dengan satu tombol tindakan
 - Pemeriksaan dukungan ESC/P-R lewat IEEE-1284 Device ID
@@ -335,6 +365,18 @@ python tools/make_prn.py keluar.prn --image foto.jpg --dpi 720   # butuh Pillow
 
 `tools/parity/` membandingkan keluaran encoder Kotlin dan Python byte per byte.
 
+### Memeriksa APK rilis
+
+```
+powershell -File tools\check_release_dex.ps1
+```
+
+Membongkar DEX di dalam APK rilis dan memastikan hal-hal yang dicari lewat
+refleksi masih ada di sana: konstruktor `PrintViewModel(Application)`, dan nama
+enum yang disimpan `SettingsStore` sebagai teks. R8 membuang apa yang tampaknya
+tidak dipakai, dan hilangnya hal semacam itu baru ketahuan saat aplikasi dibuka
+di HP -- bukan saat dibangun.
+
 ### Ikon aplikasi
 
 ```bash
@@ -369,17 +411,17 @@ yang meleset lebih buruk daripada penolakan yang jujur.
   dari dalam aplikasi.
 - Tidak ada rotasi 90 derajat. Dokumen lanskap bisa diperbesar dan digeser
   sendiri, tapi tidak bisa diputar agar memenuhi kertas potret.
-- Tidak ada pemilihan rentang halaman PDF — selalu semua halaman.
 - Tanpa borderless, tanpa dupleks (L3110 memang tidak punya), tanpa pemindai.
 - Slider margin memakai satu nilai untuk keempat sisi; margin per sisi hanya
   bisa diatur dengan menggeser gambar di pratinjau.
 - Penempatan berlaku sama untuk semua halaman PDF dalam satu pekerjaan cetak.
-- Lembar foto selalu satu halaman; foto yang tidak muat tidak tumpah ke lembar
-  berikutnya.
 - Putaran hanya kelipatan 90 derajat; sudut bebas belum didukung.
 - Halaman PDF tidak bisa diputar, hanya foto pada lembar.
-- Membatalkan cetak menghentikan pengiriman, tapi halaman yang sudah terlanjur
-  masuk ke printer tetap akan keluar.
+- Membatalkan cetak menutup pekerjaan dengan rapi, tapi halaman yang sudah
+  terlanjur masuk ke printer tetap akan keluar.
+- Pekerjaan cetak berhenti kalau aplikasi ditutup. Layar ditahan tetap menyala
+  selama mencetak, tapi itu bukan foreground service.
+- Arti kode kesalahan printer belum diverifikasi pada L3110 sungguhan.
 
 ---
 
@@ -387,7 +429,8 @@ yang meleset lebih buruk daripada penolakan yang jujur.
 
 | Versi | Isi |
 |---|---|
-| **2.0** | Berkas Word, Excel, PowerPoint, OpenDocument, dan RTF dikenali dan ditolak dengan penjelasan yang benar beserta jalan keluarnya, bukan dilaporkan sebagai "gagal membuka gambar" |
+| **2.1** | Pilih halaman PDF yang dicetak; foto tumpah ke lembar berikutnya dengan jumlah per lembar yang bisa dipilih; status printer diperiksa sebelum mengirim; pembatalan menutup pekerjaan dengan rapi; pengaturan diingat antar-sesi; layar tidak mati saat mencetak; label untuk TalkBack; R8 dinyalakan (APK 7,0 MB menjadi 1,5 MB) dengan isi DEX-nya diperiksa |
+| 2.0 | Berkas Word, Excel, PowerPoint, OpenDocument, dan RTF dikenali dan ditolak dengan penjelasan yang benar beserta jalan keluarnya, bukan dilaporkan sebagai "gagal membuka gambar" |
 | 1.9 | Foto di editor bisa diputar 90 derajat ke kiri atau kanan. Kotaknya ikut menukar sisi terhadap pusatnya sendiri, dan penyusunan kisi memakai rasio setelah diputar |
 | 1.8 | Ukuran kertas di editor tidak lagi berubah-ubah. Sebelumnya kertas mengambil sisa ruang, jadi munculnya peringatan terpotong atau melipatnya baris margin membuat kertas menyusut, gambar melompat, dan geseran terputus di tengah jalan |
 | 1.7 | Tombol Simpan .prn dan Cetak tidak lagi tertutup bilah navigasi sistem: bilah bawah kini menerima inset navigasi, begitu pula kontrol di editor tata letak |

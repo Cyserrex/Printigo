@@ -95,6 +95,13 @@ fun adviceFor(kind: PrinterErrorKind): FailureAdvice = when (kind) {
         OutcomeAction.PICK_FILE,
     )
 
+    PrinterErrorKind.PRINTER_NOT_READY -> FailureAdvice(
+        "Printer belum siap",
+        "Beresi printernya dulu, lalu coba lagi. Tidak ada kertas yang terbuang " +
+            "karena pengiriman belum dimulai.",
+        OutcomeAction.RETRY,
+    )
+
     PrinterErrorKind.OUT_OF_MEMORY -> FailureAdvice(
         "Memori HP tidak cukup",
         "Turunkan resolusi, atau tutup aplikasi lain lalu coba lagi.",

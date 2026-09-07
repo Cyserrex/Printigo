@@ -23,6 +23,8 @@ import com.escpr.usbprint.layout.RectMm
 import com.escpr.usbprint.layout.SheetItem
 import com.escpr.usbprint.layout.SheetLayout
 import com.escpr.usbprint.layout.arrangedInGrid
+import com.escpr.usbprint.layout.arrangedInGridPaged
+import com.escpr.usbprint.layout.groupedBySheet
 import com.escpr.usbprint.layout.broughtToFront
 import com.escpr.usbprint.layout.computeSheetLayout
 import com.escpr.usbprint.layout.movedBy
@@ -30,7 +32,10 @@ import com.escpr.usbprint.layout.rotatedBy
 import com.escpr.usbprint.layout.scaledBy
 import com.escpr.usbprint.layout.clampedTo
 import com.escpr.usbprint.layout.computePageLayout
+import com.escpr.usbprint.print.PageSelection
+import com.escpr.usbprint.print.PageSelectionMode
 import com.escpr.usbprint.print.PrintTask
+import com.escpr.usbprint.print.resolvePages
 import com.escpr.usbprint.render.ImagePageSource
 import com.escpr.usbprint.render.PageSource
 import com.escpr.usbprint.render.PdfPageSource
@@ -38,8 +43,10 @@ import com.escpr.usbprint.render.PreviewRenderer
 import com.escpr.usbprint.render.SheetPageSource
 import com.escpr.usbprint.render.SheetPhoto
 import com.escpr.usbprint.usb.PrinterErrorKind
+import com.escpr.usbprint.usb.parsePrinterStatus
 import com.escpr.usbprint.usb.UsbPrinter
 import com.escpr.usbprint.usb.classifyFailure
+import com.escpr.usbprint.util.SettingsStore
 import com.escpr.usbprint.util.StreamSink
 import com.escpr.usbprint.util.copyToCache
 import com.escpr.usbprint.util.DocumentKind
@@ -107,19 +114,42 @@ data class UiState(
     /** Foto-foto yang disusun dalam satu lembar. Kosong berarti mode dokumen. */
     val photos: List<PhotoOnSheet> = emptyList(),
     val selectedPhotoId: Long? = null,
+    /** Halaman PDF mana yang dicetak. Tidak berlaku untuk lembar foto. */
+    val pageSelection: PageSelection = PageSelection(),
+    /** Banyaknya foto per lembar. Nol berarti semuanya pada satu lembar. */
+    val photosPerSheet: Int = 0,
+    /** Lembar foto yang sedang ditampilkan di pratinjau. */
+    val sheetPage: Int = 0,
 ) {
+    /** Indeks halaman yang akan dicetak, sudah diselesaikan dari pilihan. */
+    val pagesToPrint: List<Int>
+        get() = if (sheetMode) List(sheetPages.size) { it }
+        else resolvePages(pageSelection, previewPage, document?.pageCount ?: 0)
+
     /**
      * Gambar disusun sebagai lembar; PDF tetap lewat jalur dokumen karena
      * halamannya punya ukuran sendiri dan tidak bisa ditumpuk sembarangan.
      */
     val sheetMode: Boolean get() = photos.isNotEmpty()
 
+    /** Foto dikelompokkan per lembar, terurut, tanpa lembar kosong. */
+    val sheetPages: List<List<PhotoOnSheet>>
+        get() = photos.groupedBySheet { it.item.page }
+
+    /** Lembar yang sedang dilihat, sudah dijaga agar tidak melewati batas. */
+    val currentSheet: Int
+        get() = sheetPage.coerceIn(0, (sheetPages.size - 1).coerceAtLeast(0))
+
+    /** Foto pada lembar yang sedang dilihat; itulah yang bisa diatur. */
+    val currentSheetPhotos: List<PhotoOnSheet>
+        get() = sheetPages.getOrNull(currentSheet).orEmpty()
+
     val sheetLayout: SheetLayout
         get() = computeSheetLayout(
             paperWidthMm = settings.paper.widthMm,
             paperHeightMm = settings.paper.heightMm,
             marginMm = settings.marginMm,
-            items = photos.map { it.item },
+            items = currentSheetPhotos.map { it.item },
         )
 
     /** Area cetak yang berlaku, dari model mana pun yang sedang dipakai. */
@@ -129,7 +159,7 @@ data class UiState(
     /** Isi yang digambar pratinjau, seragam untuk kedua mode. */
     val previewItems: List<PreviewItem>
         get() = if (sheetMode) {
-            photos.map { photo ->
+            currentSheetPhotos.map { photo ->
                 PreviewItem(
                     id = photo.id,
                     rect = photo.item.rect,
@@ -204,6 +234,7 @@ class PrintViewModel @JvmOverloads constructor(
 ) : AndroidViewModel(app) {
 
     private val usbManager = app.getSystemService(Context.USB_SERVICE) as UsbManager
+    private val settingsStore = SettingsStore(app)
 
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state.asStateFlow()
@@ -256,7 +287,9 @@ class PrintViewModel @JvmOverloads constructor(
         )
 
         val usbHost = app.packageManager.hasSystemFeature(PackageManager.FEATURE_USB_HOST)
-        _state.update { it.copy(hasUsbHost = usbHost) }
+        // Pengaturan terakhir dipulihkan supaya pengguna yang selalu mencetak
+        // hitam-putih draft tidak perlu mengatur ulang lima chip tiap kali.
+        _state.update { it.copy(hasUsbHost = usbHost, settings = settingsStore.load()) }
         if (!usbHost) log("HP ini tidak mendukung USB Host (OTG).")
 
         refreshDevices()
@@ -416,6 +449,7 @@ class PrintViewModel @JvmOverloads constructor(
                         layoutEditorOpen = false,
                         photos = emptyList(),
                         selectedPhotoId = null,
+                        pageSelection = PageSelection(),
                     )
                 }
                 log("Dipilih: ${document.name} (${document.pageCount} halaman)")
@@ -467,8 +501,16 @@ class PrintViewModel @JvmOverloads constructor(
         }
     }
 
+    fun updatePageSelection(transform: (PageSelection) -> PageSelection) {
+        _state.update { it.copy(pageSelection = transform(it.pageSelection)) }
+    }
+
     fun updateSettings(transform: (PrintSettings) -> PrintSettings) {
-        _state.update { it.copy(settings = transform(it.settings)) }
+        _state.update { state ->
+            val next = transform(state.settings)
+            settingsStore.save(next)
+            state.copy(settings = next)
+        }
     }
 
     /**
@@ -581,14 +623,19 @@ class PrintViewModel @JvmOverloads constructor(
                     state.settings.marginMm,
                     combined.map { it.item },
                 ).printable
-                val arranged = combined.map { it.item }.arrangedInGrid(printable)
+                val arranged = combined.map { it.item }
+                    .arrangedInGridPaged(printable, state.photosPerSheet)
+                val laid = combined.mapIndexed { index, photo ->
+                    photo.copy(item = arranged[index])
+                }
                 state.copy(
                     document = null,
                     previewImage = null,
-                    photos = combined.mapIndexed { index, photo ->
-                        photo.copy(item = arranged[index])
-                    },
+                    photos = laid,
                     selectedPhotoId = added.last().id,
+                    // Pindah ke lembar tempat foto baru mendarat, kalau tidak
+                    // pengguna melihat lembar lama dan mengira fotonya hilang.
+                    sheetPage = laid.last().item.page,
                     layoutEditorOpen = false,
                 )
             }
@@ -601,12 +648,41 @@ class PrintViewModel @JvmOverloads constructor(
         _state.update { state ->
             if (state.photos.isEmpty()) return@update state
             val arranged = state.photos.map { it.item }
-                .arrangedInGrid(state.sheetLayout.printable, columns)
+                .arrangedInGridPaged(state.sheetLayout.printable, state.photosPerSheet, columns)
             state.copy(
                 photos = state.photos.mapIndexed { index, photo ->
                     photo.copy(item = arranged[index])
                 }
             )
+        }
+    }
+
+    /**
+     * Mengubah banyaknya foto per lembar, lalu menyusun ulang semuanya.
+     *
+     * Penyusunan ulang tidak bisa dihindari: nilai baru menentukan foto mana
+     * berada di lembar mana, dan posisi lama pada lembar lama sudah tidak
+     * berarti apa-apa di lembar barunya.
+     */
+    fun setPhotosPerSheet(perSheet: Int) {
+        _state.update { state ->
+            val value = perSheet.coerceIn(0, 64)
+            if (value == state.photosPerSheet) return@update state
+            val arranged = state.photos.map { it.item }
+                .arrangedInGridPaged(state.sheetLayout.printable, value)
+            state.copy(
+                photosPerSheet = value,
+                photos = state.photos.mapIndexed { index, photo ->
+                    photo.copy(item = arranged[index])
+                },
+                sheetPage = 0,
+            )
+        }
+    }
+
+    fun showSheet(page: Int) {
+        _state.update { state ->
+            state.copy(sheetPage = page.coerceIn(0, (state.sheetPages.size - 1).coerceAtLeast(0)))
         }
     }
 
@@ -651,13 +727,23 @@ class PrintViewModel @JvmOverloads constructor(
         _state.update { state ->
             val id = state.selectedPhotoId ?: return@update state
             val remaining = state.photos.filterNot { it.id == id }
-            state.copy(photos = remaining, selectedPhotoId = remaining.lastOrNull()?.id)
+            val sheets = remaining.groupedBySheet { it.item.page }.size
+            state.copy(
+                photos = remaining,
+                selectedPhotoId = remaining.lastOrNull()?.id,
+                sheetPage = state.sheetPage.coerceIn(0, (sheets - 1).coerceAtLeast(0)),
+            )
         }
     }
 
     fun clearPhotos() {
         _state.update {
-            it.copy(photos = emptyList(), selectedPhotoId = null, layoutEditorOpen = false)
+            it.copy(
+                photos = emptyList(),
+                selectedPhotoId = null,
+                sheetPage = 0,
+                layoutEditorOpen = false,
+            )
         }
     }
 
@@ -678,8 +764,7 @@ class PrintViewModel @JvmOverloads constructor(
         if (!current.hasContent) return
         val device = current.selectedDevice ?: return
 
-        val pages = if (current.sheetMode) 1 else (current.document?.pageCount ?: 1)
-        val sheets = pages * current.settings.copies.coerceAtLeast(1)
+        val sheets = current.pagesToPrint.size * current.settings.copies.coerceAtLeast(1)
 
         printJob = viewModelScope.launch(ioDispatcher) {
             _state.update {
@@ -688,23 +773,41 @@ class PrintViewModel @JvmOverloads constructor(
             val started = System.currentTimeMillis()
             try {
                 UsbPrinter.open(usbManager, device).use { printer ->
+                    // Diperiksa sebelum byte pertama dikirim. Tanpa ini, kertas
+                    // habis baru ketahuan setelah separuh halaman terlanjur
+                    // terkirim dan transfer gagal di tengah jalan.
+                    val before = parsePrinterStatus(printer.readStatus(700))
+                    if (before.raw.isNotBlank()) log("Status printer: " + before.raw)
+                    if (before.blocksPrinting) {
+                        _state.update {
+                            it.copy(
+                                outcome = PrintOutcome.Failed(
+                                    PrinterErrorKind.PRINTER_NOT_READY,
+                                    before.message ?: "Printer belum siap",
+                                )
+                            )
+                        }
+                        log("Dibatalkan sebelum mengirim: " + (before.message ?: "printer belum siap"))
+                        return@use
+                    }
+
                     val sink = printer.sink()
                     pageSource(current).use { source ->
                         val (width, height) = current.printableSize
                         log("Mencetak pada $width x $height piksel...")
                         PrintTask.run(
                             sink, source, current.settings,
-                            if (current.sheetMode) ContentPlacement.Fit else current.placement
+                            if (current.sheetMode) ContentPlacement.Fit else current.placement,
+                            current.pagesToPrint,
                         ) { progress ->
                             _state.update { it.copy(progress = progress.fraction) }
                         }
                     }
                     sink.close()
 
-                    val status = printer.readStatus(500)
-                    if (status.isNotEmpty()) {
-                        log("Status printer: ${String(status, Charsets.US_ASCII).trim()}")
-                    }
+                    val after = parsePrinterStatus(printer.readStatus(500))
+                    after.message?.let { log("Printer: " + it) }
+                    if (after.raw.isNotBlank()) log("Status akhir: " + after.raw)
                 }
                 val seconds = (System.currentTimeMillis() - started) / 1000.0
                 log("Selesai dalam %.1f detik.".format(seconds))
@@ -799,7 +902,9 @@ class PrintViewModel @JvmOverloads constructor(
         withContext(ioDispatcher) {
             if (state.sheetMode) {
                 SheetPageSource(
-                    photos = state.photos.map { SheetPhoto(it.item, it.file) },
+                    pages = state.sheetPages.map { sheet ->
+                        sheet.map { SheetPhoto(it.item, it.file) }
+                    },
                     printableMm = state.sheetLayout.printable,
                 )
             } else {

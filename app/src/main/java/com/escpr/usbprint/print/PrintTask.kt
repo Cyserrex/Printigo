@@ -11,6 +11,7 @@ import com.escpr.usbprint.layout.ContentPlacement
 import com.escpr.usbprint.layout.computePageLayout
 import com.escpr.usbprint.layout.contentRectInPrintablePx
 import com.escpr.usbprint.render.PageSource
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ensureActive
 import kotlin.coroutines.coroutineContext
 
@@ -45,6 +46,8 @@ object PrintTask {
         source: PageSource,
         settings: PrintSettings,
         placement: ContentPlacement = ContentPlacement.Fit,
+        /** Indeks halaman yang dicetak; null berarti seluruh halaman. */
+        pages: List<Int>? = null,
         onProgress: (PrintProgress) -> Unit = {}
     ) {
         val job = EscpRJob(sink, settings)
@@ -53,7 +56,11 @@ object PrintTask {
         val height = geometry.printableHeight
 
         val copies = settings.copies.coerceAtLeast(1)
-        val totalPages = source.pageCount * copies
+        val selected = pages
+            ?.filter { it in 0 until source.pageCount }
+            ?.takeIf { it.isNotEmpty() }
+            ?: (0 until source.pageCount).toList()
+        val totalPages = selected.size * copies
 
         val bandLines = (BAND_BUDGET_BYTES / (width * 4))
             .coerceIn(MIN_BAND_LINES, MAX_BAND_LINES)
@@ -62,10 +69,14 @@ object PrintTask {
         val line = ByteArray(width * 3)
         val mono = settings.colorMode == ColorMode.MONO
 
+        // Dipakai saat pembatalan: kalau sebuah halaman sudah dibuka, ia harus
+        // ditutup lebih dulu sebelum job diakhiri.
+        var pageOpen = false
+
         try {
             var pageCounter = 0
             for (copy in 0 until copies) {
-                for (index in 0 until source.pageCount) {
+                for (index in selected) {
                     coroutineContext.ensureActive()
                     pageCounter++
 
@@ -84,6 +95,7 @@ object PrintTask {
                     source.setDestination(RectF(box[0], box[1], box[2], box[3]))
 
                     job.startPage(pageCounter)
+                    pageOpen = true
 
                     var y = 0
                     while (y < height) {
@@ -105,9 +117,20 @@ object PrintTask {
 
                     source.closePage()
                     job.endPage(totalPages - pageCounter)
+                    pageOpen = false
                 }
             }
             job.finish()
+        } catch (cancellation: CancellationException) {
+            // Membatalkan coroutine saja meninggalkan printer di tengah perintah
+            // dsnd: ia akan terus menunggu data yang tidak pernah datang, dan
+            // pekerjaan berikutnya bisa ikut kacau. Jadi job tetap ditutup rapi
+            // pada sambungan yang sama sebelum pembatalan diteruskan.
+            runCatching {
+                if (pageOpen) job.endPage(0)
+                job.finish()
+            }
+            throw cancellation
         } finally {
             band.recycle()
         }

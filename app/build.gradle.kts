@@ -26,8 +26,8 @@ android {
         targetSdk = 35
         // Dinaikkan tiap kali APK diserahkan. versionCode harus naik agar
         // Android mau memasang sebagai pembaruan; versionName yang dibaca orang.
-        versionCode = 11
-        versionName = "2.0"
+        versionCode = 12
+        versionName = "2.1"
     }
 
     signingConfigs {
@@ -49,11 +49,12 @@ android {
 
     buildTypes {
         release {
-            // Pengecilan kode sengaja dimatikan dulu. R8 bisa membuang hal yang
-            // ternyata dipakai saat berjalan, dan aplikasi ini belum pernah
-            // dijalankan di HP -- jadi rilis pertama dibuat seidentik mungkin
-            // dengan varian yang sudah diuji. Bisa dinyalakan setelah terbukti.
-            isMinifyEnabled = false
+            // R8 dinyalakan setelah aplikasi terbukti jalan di HP. Yang dicari
+            // lewat refleksi -- terutama konstruktor ViewModel -- dijaga oleh
+            // proguard-rules.pro, dan keberadaannya di dalam DEX hasil rilis
+            // diperiksa oleh tools/check_release_dex.ps1, bukan diandaikan.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

@@ -1,9 +1,11 @@
 ﻿package com.escpr.usbprint.ui
 
+import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -61,12 +63,17 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -80,6 +87,7 @@ import com.escpr.usbprint.escpr.MediaType
 import com.escpr.usbprint.escpr.PaperSize
 import com.escpr.usbprint.escpr.Quality
 import com.escpr.usbprint.layout.PageLayout
+import com.escpr.usbprint.print.PageSelectionMode
 import com.escpr.usbprint.ui.theme.AppTheme
 import kotlin.math.roundToInt
 
@@ -134,6 +142,17 @@ internal fun PrintScreen(viewModel: PrintViewModel) {
     val savePrn = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/octet-stream")
     ) { uri -> uri?.let(viewModel::exportPrn) }
+
+    // Pekerjaan cetak berjalan di viewModelScope milik layar ini. Kalau layar
+    // terkunci, Android bisa menghentikan prosesnya di tengah jalan dan kertas
+    // tinggal separuh tercetak. Menahan layar tetap menyala menutup penyebab
+    // yang paling sering, walau bukan penggantinya foreground service.
+    val view = LocalView.current
+    DisposableEffect(state.busy) {
+        val window = (view.context as? Activity)?.window
+        if (state.busy) window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        onDispose { window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) }
+    }
 
     Scaffold(
         topBar = {
@@ -278,6 +297,10 @@ private fun PreviewSection(
                 OverflowWarning(state)
             }
 
+            if (document != null && document.pageCount > 1) {
+                PageSelectionRow(state, viewModel, document.pageCount)
+            }
+
             // Navigasi halaman hanya berguna untuk PDF banyak halaman.
             if (document != null && document.pageCount > 1) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -334,6 +357,79 @@ private fun PreviewSection(
                 )
             }
         }
+    }
+}
+
+/**
+ * Memilih halaman PDF mana yang dicetak.
+ *
+ * Tanpa ini, satu halaman dari PDF empat puluh halaman berarti mencetak
+ * keempat puluhnya. Itu pemborosan yang terjadi setiap kali, bukan sesekali.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun PageSelectionRow(state: UiState, viewModel: PrintViewModel, pageCount: Int) {
+    val selection = state.pageSelection
+    val enabled = !state.busy
+
+    Column(
+        Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = selection.mode == PageSelectionMode.ALL,
+                onClick = { viewModel.updatePageSelection { it.copy(mode = PageSelectionMode.ALL) } },
+                enabled = enabled,
+                label = { Text("Semua " + pageCount + " halaman") },
+            )
+            FilterChip(
+                selected = selection.mode == PageSelectionMode.CURRENT,
+                onClick = {
+                    viewModel.updatePageSelection { it.copy(mode = PageSelectionMode.CURRENT) }
+                },
+                enabled = enabled,
+                label = { Text("Halaman ini") },
+            )
+            FilterChip(
+                selected = selection.mode == PageSelectionMode.RANGE,
+                onClick = {
+                    viewModel.updatePageSelection {
+                        it.copy(
+                            mode = PageSelectionMode.RANGE,
+                            fromPage = it.fromPage.coerceIn(1, pageCount),
+                            toPage = it.toPage.coerceIn(1, pageCount),
+                        )
+                    }
+                },
+                enabled = enabled,
+                label = { Text("Rentang") },
+            )
+        }
+
+        if (selection.mode == PageSelectionMode.RANGE) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Dari", style = MaterialTheme.typography.bodySmall)
+                Spacer(Modifier.width(6.dp))
+                Stepper(selection.fromPage, 1..pageCount, enabled) { value ->
+                    viewModel.updatePageSelection { it.copy(fromPage = value) }
+                }
+                Spacer(Modifier.width(12.dp))
+                Text("sampai", style = MaterialTheme.typography.bodySmall)
+                Spacer(Modifier.width(6.dp))
+                Stepper(selection.toPage, 1..pageCount, enabled) { value ->
+                    viewModel.updatePageSelection { it.copy(toPage = value) }
+                }
+            }
+        }
+
+        val count = state.pagesToPrint.size
+        Text(
+            count.toString() + " halaman akan dicetak",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -410,7 +506,13 @@ private fun PaperSection(state: UiState, viewModel: PrintViewModel) {
             },
             valueRange = 0f..20f,
             steps = 39,
-            enabled = enabled
+            enabled = enabled,
+            // Tanpa ini pembaca layar hanya menyebut "penggeser 15 persen",
+            // angka yang tidak berarti apa-apa bagi pengguna.
+            modifier = Modifier.semantics {
+                contentDescription = "Batas cetak"
+                stateDescription = fmtMm(settings.marginMm) + " milimeter"
+            }
         )
         Text(
             "Epson L3110 tidak bisa mencetak tanpa batas. Margin di bawah 3 mm " +
@@ -804,7 +906,8 @@ private fun Stepper(value: Int, range: IntRange, enabled: Boolean, onChange: (In
         AssistChip(
             onClick = { onChange((value - 1).coerceIn(range)) },
             enabled = enabled && value > range.first,
-            label = { Text("-") }
+            label = { Text("-") },
+            modifier = Modifier.semantics { contentDescription = "Kurangi" }
         )
         Text(
             "$value",
@@ -814,7 +917,8 @@ private fun Stepper(value: Int, range: IntRange, enabled: Boolean, onChange: (In
         AssistChip(
             onClick = { onChange((value + 1).coerceIn(range)) },
             enabled = enabled && value < range.last,
-            label = { Text("+") }
+            label = { Text("+") },
+            modifier = Modifier.semantics { contentDescription = "Tambah" }
         )
     }
 }
