@@ -29,6 +29,15 @@ if (-not $Keystore) {
         Select-Object -First 1
     if (-not $line) { throw "storeFile tidak ada di keystore.properties" }
     $Keystore = ($line.Line -split '=', 2)[1].Trim()
+
+    # Gradle menyelesaikan file() relatif terhadap folder modul app/, bukan akar
+    # repositori -- itu sebabnya keystore.properties memuat "../keystore/...".
+    # Jalur yang relatif diselesaikan dengan cara yang sama supaya skrip ini
+    # menemukan berkas yang sama dengan yang dipakai build.
+    if (-not [System.IO.Path]::IsPathRooted($Keystore)) {
+        $dariApp = Join-Path "app" $Keystore
+        if (Test-Path $dariApp) { $Keystore = $dariApp }
+    }
 }
 
 if (-not (Test-Path $Keystore)) { throw "Kunci tidak ditemukan: $Keystore" }

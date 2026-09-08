@@ -89,10 +89,14 @@ jobs:
           fi
           mkdir -p keystore
           echo "$KEYSTORE_BASE64" | base64 -d > keystore/printigo.jks
+          # Jalurnya ditulis dengan "../" karena Gradle menyelesaikan file()
+          # relatif terhadap folder modul app/, bukan akar repositori. Tanpa
+          # itu build mencari app/keystore/printigo.jks dan gagal.
+          #
           # Ditulis lewat berkas, bukan lewat baris perintah, supaya kata
           # sandinya tidak pernah muncul di daftar proses maupun di log.
           {
-            echo "storeFile=keystore/printigo.jks"
+            echo "storeFile=../keystore/printigo.jks"
             echo "storePassword=$KEYSTORE_PASSWORD"
             echo "keyAlias=$KEY_ALIAS"
             echo "keyPassword=$KEY_PASSWORD"
