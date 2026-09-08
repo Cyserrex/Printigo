@@ -70,7 +70,13 @@ object EscpR {
     fun hardwareDevice(platform: Int = 4): ByteArray =
         remoteCmd("HD", byteArrayOf(0x03, platform.toByte()))
 
-    /** dst=1 src=0 adalah rear feeder, satu-satunya jalur kertas di L3110. */
+    /**
+     * dst=1 src=0 adalah rear feeder.
+     *
+     * Dipatok karena printer yang jadi acuan hanya punya satu jalur kertas.
+     * Model dengan baki depan atau baki kedua butuh nilai lain, dan itu berarti
+     * jalur kertas harus jadi pilihan -- bukan sekadar mengganti angka di sini.
+     */
     fun paperPath(dst: Int = 1, src: Int = 0): ByteArray =
         remoteCmd("PP", byteArrayOf(dst.toByte(), src.toByte()))
 

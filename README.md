@@ -1,8 +1,12 @@
-# Printigo — cetak ke Epson L3110 dari Android
+# Printigo — cetak ke printer Epson lewat USB dari Android
 
-Aplikasi Android untuk mencetak **gambar dan PDF** langsung ke Epson L3110 lewat
-kabel USB (USB-C di HP → USB-B di printer). Tanpa WiFi, tanpa komputer, tanpa
-server cetak.
+Aplikasi Android untuk mencetak **gambar dan PDF** langsung ke printer Epson
+lewat kabel USB (USB-C di HP → USB-B di printer). Tanpa WiFi, tanpa komputer,
+tanpa server cetak.
+
+Dibangun dan dibuktikan pada **Epson L3110**. Printer Epson lain yang berbahasa
+ESC/P-R memakai jalur yang sama persis, tetapi belum diuji — lihat
+[Status](#status-apa-yang-terbukti-apa-yang-belum).
 
 <p align="center">
   <img src="docs/screenshots/10-lembar-enam-foto.png" width="30%" alt="Enam foto dalam satu lembar">
@@ -14,8 +18,8 @@ server cetak.
 
 ## Kenapa harus dibuat sendiri
 
-L3110 hanya punya port USB, dan dia **tidak mengerti PDF, PostScript, maupun
-PCL**. Satu-satunya bahasa yang dia pahami adalah **ESC/P-R**, format raster
+Printer seperti L3110 hanya punya port USB, dan **tidak mengerti PDF,
+PostScript, maupun PCL**. Satu-satunya bahasa yang dia pahami adalah **ESC/P-R**, format raster
 milik Epson. Jadi tidak ada jalan pintas berupa "kirim berkas PDF ke printer".
 Alurnya harus:
 
@@ -181,10 +185,10 @@ Berguna untuk memisahkan masalah data dari masalah kabel.
 - **Bisa dipakai dengan TalkBack**: slider batas cetak menyebut angka
   milimeternya, tombol tambah/kurang menyebut fungsinya
 - **Sisa tinta** dibaca dari printer. Hanya membaca; angkanya perkiraan printer
-  sendiri karena L3110 tidak punya sensor di dalam tangkinya
+  sendiri karena printer tangki tinta tidak punya sensor di dalam tangkinya
 - **Cek nozzle dan pembersihan head** langsung dari HP, dengan persetujuan
-  lebih dulu karena keduanya memakai kertas atau tinta. L3110 tidak punya menu,
-  jadi tanpa ini pemiliknya tidak punya cara membersihkan head tanpa komputer
+  lebih dulu karena keduanya memakai kertas atau tinta. Printer tanpa panel
+  bermenu tidak punya cara lain membersihkan head tanpa komputer
 - **Terima banyak foto sekaligus** dari tombol Bagikan di Galeri, dan bisa
   dibuka langsung dari pengelola berkas lewat "Buka dengan"
 - **Salinan lama dibersihkan sendiri** dari cache setelah tujuh hari, atau lebih
@@ -413,6 +417,7 @@ dari printer, encoder-nya benar dan sisa masalah pasti ada di sisi Android.
 ```bash
 python tools/testpage_light.py uji.prn --paper A4 --dpi 300
 powershell -File tools/send_raw.ps1 -Printer "EPSON L3110 Series" -File uji.prn
+# Ganti -Printer dengan nama printer Anda seperti yang tampil di Windows.
 ```
 
 `send_raw.ps1` memakai winspool dengan datatype `RAW`, jadi byte-nya sampai ke
@@ -475,7 +480,7 @@ yang meleset lebih buruk daripada penolakan yang jujur.
   dari dalam aplikasi.
 - Tidak ada rotasi 90 derajat. Dokumen lanskap bisa diperbesar dan digeser
   sendiri, tapi tidak bisa diputar agar memenuhi kertas potret.
-- Tanpa borderless, tanpa dupleks (L3110 memang tidak punya), tanpa pemindai.
+- Tanpa borderless, tanpa dupleks, tanpa pemindai.
 - Slider margin memakai satu nilai untuk keempat sisi; margin per sisi hanya
   bisa diatur dengan menggeser gambar di pratinjau.
 - Penempatan berlaku sama untuk semua halaman PDF dalam satu pekerjaan cetak.

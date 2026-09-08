@@ -36,7 +36,7 @@ class InkLevelTest {
         }.toByteArray()
 
     @Test
-    fun `empat tangki L3110 terbaca dengan namanya`() {
+    fun `empat tangki terbaca dengan namanya`() {
         val status = parsePrinterStatus(
             reply(0x0F to inkBlock(0x00 to 80, 0x01 to 60, 0x02 to 40, 0x03 to 20))
         )

@@ -4,9 +4,10 @@
     <usb-device vendor-id="1208" />
 
     <!-- Perangkat apa pun yang mengaku sebagai printer di level device.
-         Printer multifungsi seperti L3110 biasanya memakai class 0 di level
-         device dan class 7 di level interface, jadi filter di atas yang
-         sebenarnya bekerja untuk L3110. Dua baris ini untuk printer lain. -->
+         Printer multifungsi umumnya memakai class 0 di level device dan class 7
+         di level interface, jadi untuk printer semacam itu filter vendor di
+         ataslah yang bekerja. Dua baris ini untuk printer yang menyatakan
+         dirinya printer sejak di level device. -->
     <usb-device class="7" subclass="1" protocol="1" />
     <usb-device class="7" subclass="1" protocol="2" />
 </resources>

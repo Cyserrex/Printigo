@@ -810,8 +810,9 @@ class PrintViewModel @JvmOverloads constructor(
      * Membaca sisa tinta dari printer.
      *
      * Hanya membaca: tidak ada satu pun byte yang mengubah keadaan printer.
-     * Angkanya perkiraan printer sendiri -- L3110 tidak punya sensor di dalam
-     * tangki dan hanya menghitung tetes sejak terakhir kali di-reset.
+     * Angkanya perkiraan printer sendiri -- printer tangki tinta tidak punya
+     * sensor di dalam tangki dan hanya menghitung tetes sejak terakhir kali
+     * di-reset.
      */
     fun refreshInk() {
         val current = _state.value

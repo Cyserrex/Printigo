@@ -247,9 +247,9 @@ internal fun PrintScreen(viewModel: PrintViewModel) {
 /**
  * Cek nozzle dan pembersihan head.
  *
- * L3110 tidak punya layar maupun menu, jadi tanpa komputer pemiliknya tidak
- * punya cara sama sekali membersihkan head yang mampet. Dua tombol ini menutup
- * lubang itu.
+ * Printer tanpa panel bermenu -- L3110 salah satunya -- tidak menyediakan cara
+ * membersihkan head yang mampet tanpa komputer. Dua tombol ini menutup lubang
+ * itu.
  *
  * Ditaruh paling bawah dan tidak menonjol dengan sengaja: ini bukan yang
  * dikerjakan orang setiap hari, dan pembersihan head memakai tinta.
@@ -298,7 +298,7 @@ private fun MaintenanceSection(state: UiState, viewModel: PrintViewModel) {
                 }
                 Text(
                     "Perintah ini mengikuti driver Epson terbuka dan belum " +
-                        "diuji pada L3110. Kalau printer tidak bereaksi sama " +
+                        "diuji pada printer sungguhan. Kalau printer tidak bereaksi sama " +
                         "sekali, bentuk perintahnya perlu disesuaikan.",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -311,9 +311,9 @@ private fun MaintenanceSection(state: UiState, viewModel: PrintViewModel) {
 /**
  * Sisa tinta, dibaca dari printer.
  *
- * Hanya membaca. Angkanya perkiraan printer sendiri: L3110 tidak punya sensor
- * di dalam tangki dan hanya menghitung berapa tetes yang sudah disemprotkan
- * sejak terakhir kali diberi tahu bahwa tangkinya penuh. Itu disebutkan di
+ * Hanya membaca. Angkanya perkiraan printer sendiri: printer tangki tinta tidak
+ * punya sensor di dalam tangki dan hanya menghitung berapa tetes yang sudah
+ * disemprotkan sejak terakhir kali diberi tahu bahwa tangkinya penuh. Itu disebutkan di
  * layar, bukan disembunyikan -- pengguna yang baru mengisi tangki perlu tahu
  * kenapa angkanya masih rendah.
  */
@@ -707,7 +707,7 @@ private fun PaperSection(state: UiState, viewModel: PrintViewModel) {
             }
         )
         Text(
-            "Epson L3110 tidak bisa mencetak tanpa batas. Margin di bawah 3 mm " +
+            "Printer ini tidak bisa mencetak tanpa batas. Margin di bawah 3 mm " +
                 "berisiko terpotong di tepi kertas.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant

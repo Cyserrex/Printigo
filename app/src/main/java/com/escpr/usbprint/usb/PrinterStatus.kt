@@ -31,9 +31,10 @@ enum class PrinterFault {
 /**
  * Sisa satu warna tinta, seperti yang dilaporkan printer.
  *
- * [percent] adalah perkiraan printer sendiri, bukan hasil pengukuran: L3110
- * tidak punya sensor di dalam tangkinya dan hanya menghitung berapa tetes yang
- * sudah disemprotkan sejak terakhir kali diberi tahu bahwa tangkinya penuh.
+ * [percent] adalah perkiraan printer sendiri, bukan hasil pengukuran: printer
+ * tangki tinta tidak punya sensor di dalamnya dan hanya menghitung berapa tetes
+ * yang sudah disemprotkan sejak terakhir kali diberi tahu bahwa tangkinya
+ * penuh.
  * Jadi angka ini bisa meleset jauh kalau tangki diisi tanpa proses reset --
  * dan itu bukan kesalahan pembacaan.
  */
