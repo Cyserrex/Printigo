@@ -189,10 +189,17 @@ internal fun PrintScreen(viewModel: PrintViewModel) {
                 title = {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("USB Printer OTG", fontWeight = FontWeight.SemiBold)
+                        // Subjudul menambahkan yang tidak disebut di tempat
+                        // lain. Nama printer sudah tampil di kartu sambungan,
+                        // dan "ESC/P-R" -- nama bahasa raster Epson -- hanya
+                        // berarti bagi yang menulis kodenya. Yang berguna bagi
+                        // pengguna justru alasan aplikasi ini ada, ditambah
+                        // nomor versi untuk melaporkan masalah.
                         Text(
-                            "Epson ESC/P-R  -  v${BuildConfig.VERSION_NAME}",
+                            "Tanpa WiFi, tanpa komputer  ·  v${BuildConfig.VERSION_NAME}",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
                         )
                     }
                 },
