@@ -51,7 +51,7 @@ untuk mengujinya, jadi batas antara "terbukti" dan "belum" dijaga ketat.
 | Penguraian status `@BDC ST2`, termasuk balasan terpotong di segala panjang | 10 uji |
 | Pengaturan yang diingat: salinan tidak ikut, nilai asing kembali ke bawaan | 6 uji |
 | Foto tumpah ke lembar berikutnya tanpa berpindah lembar saat disentuh | 9 uji |
-| APK rilis hasil R8 masih memuat yang dicari lewat refleksi | `tools/check_release_dex.ps1` membongkar DEX-nya |
+| APK rilis hasil R8 masih memuat yang dicari lewat refleksi | `tools/check_release_dex.py` membongkar DEX-nya |
 | Byte perintah perawatan dipatok dan tidak bergeser diam-diam | 9 uji |
 | Pembersih cache tidak pernah menghapus berkas yang sedang dipakai | 11 uji |
 | Penguraian sisa tinta: kode asing, entri rusak, balasan terpotong | 10 uji |
@@ -357,7 +357,7 @@ adalah menghapus dulu aplikasi yang terpasang.
 
 Sejak 2.1 pengecilan kode R8 dinyalakan, dan APK turun dari 7,0 MB ke 1,5 MB.
 Yang dicari lewat refleksi dijaga `app/proguard-rules.pro`, dan keberadaannya di
-dalam DEX hasil rilis diperiksa `tools/check_release_dex.ps1` -- bukan
+dalam DEX hasil rilis diperiksa `tools/check_release_dex.py` -- bukan
 diandaikan.
 
 ### Rilis otomatis lewat GitHub Actions
@@ -431,8 +431,8 @@ python tools/make_prn.py keluar.prn --image foto.jpg --dpi 720   # butuh Pillow
 
 ### Memeriksa APK rilis
 
-```
-powershell -File tools\check_release_dex.ps1
+```bash
+python tools/check_release_dex.py
 ```
 
 Membongkar DEX di dalam APK rilis dan memastikan hal-hal yang dicari lewat

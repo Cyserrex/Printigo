@@ -52,7 +52,7 @@ android {
             // R8 dinyalakan setelah aplikasi terbukti jalan di HP. Yang dicari
             // lewat refleksi -- terutama konstruktor ViewModel -- dijaga oleh
             // proguard-rules.pro, dan keberadaannya di dalam DEX hasil rilis
-            // diperiksa oleh tools/check_release_dex.ps1, bukan diandaikan.
+            // diperiksa oleh tools/check_release_dex.py, bukan diandaikan.
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

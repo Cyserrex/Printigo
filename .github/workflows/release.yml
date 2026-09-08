@@ -126,6 +126,13 @@ jobs:
           "$APKSIGNER" verify --print-certs "$APK"
           echo "APK=$APK" >> "$GITHUB_ENV"
 
+      # R8 membuang apa yang tampaknya tidak dipakai, dan yang dicari lewat
+      # refleksi tidak terlihat olehnya. Sampai v2.3 pemeriksaan ini hanya ada
+      # sebagai skrip di komputer -- artinya rilis yang lahir di sini tidak
+      # pernah diperiksa sama sekali.
+      - name: Periksa isi DEX rilis
+        run: python3 tools/check_release_dex.py "$APK"
+
       - name: Buang kunci dari runner
         if: always()
         run: rm -f keystore.properties keystore/printigo.jks
