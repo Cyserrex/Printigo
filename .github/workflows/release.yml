@@ -155,8 +155,18 @@ jobs:
             # Rilis sudah ada -- misalnya karena workflow dijalankan ulang.
             # Menggagalkan seluruh pekerjaan hanya karena itu tidak menolong
             # siapa pun; yang dibutuhkan cuma APK-nya diperbarui.
-            echo "Rilis $TAG sudah ada, berkasnya diperbarui."
+            echo "Rilis $TAG sudah ada, berkas dan catatannya diperbarui."
             KELUARAN=$(gh release upload "$TAG" "$APK" --clobber --repo "$GITHUB_REPOSITORY" 2>&1)
+
+            # Catatan rilisnya ikut disegarkan. Tanpa ini, catatan tetap milik
+            # build yang lama sementara APK-nya sudah diganti -- pembaca
+            # mendapat cerita tentang berkas yang bukan yang ia unduh. Kalau
+            # gagal, itu tidak sepadan untuk menggagalkan rilis yang APK-nya
+            # sudah benar.
+            CATATAN=$(gh api --method POST               "repos/$GITHUB_REPOSITORY/releases/generate-notes"               -f tag_name="$TAG" --jq .body 2>/dev/null)
+            if [ -n "$CATATAN" ]; then
+              gh release edit "$TAG" --repo "$GITHUB_REPOSITORY"                 --title "Printigo $VERSI" --notes "$CATATAN" >/dev/null 2>&1                 || echo "Catatan rilis gagal disegarkan; APK tetap terpasang."
+            fi
           else
             KELUARAN=$(gh release create "$TAG" "$APK"               --repo "$GITHUB_REPOSITORY"               --title "Printigo $VERSI"               --generate-notes 2>&1)
           fi
