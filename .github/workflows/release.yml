@@ -1,0 +1,127 @@
+name: Rilis APK
+
+# Rilis dibuat dari tag, bukan dari tiap push ke main.
+#
+# Alasannya sederhana: tidak setiap perubahan layak dipasang orang. Tag adalah
+# pernyataan sadar bahwa versi ini sudah siap, dan nomornya tercatat di satu
+# tempat yang sama dengan versionName di build.gradle.kts.
+#
+#   git tag v2.3
+#   git push origin v2.3
+#
+# Bisa juga dijalankan manual dari tab Actions kalau perlu membangun ulang.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag yang mau dirilis, misalnya v2.3"
+        required: true
+
+permissions:
+  # Dibutuhkan untuk membuat Release dan mengunggah APK-nya. Tidak lebih dari
+  # itu: workflow ini tidak perlu menyentuh apa pun selain rilis.
+  contents: write
+
+jobs:
+  rilis:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Ambil kode
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Siapkan JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Siapkan Android SDK
+        run: |
+          set -e
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+            "platforms;android-35" "build-tools;35.0.0" > /dev/null
+
+      # Nomor di tag dan nomor di dalam APK harus sama. Kalau tidak, orang
+      # mengunduh "v2.3" lalu aplikasinya menyebut dirinya 2.2 -- dan laporan
+      # bug jadi tidak bisa dipercaya lagi.
+      - name: Cocokkan tag dengan versionName
+        id: versi
+        run: |
+          set -e
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          VERSI="${TAG#v}"
+          DI_GRADLE=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)
+          echo "Tag: $VERSI, build.gradle.kts: $DI_GRADLE"
+          if [ "$VERSI" != "$DI_GRADLE" ]; then
+            echo "::error::Tag $TAG tidak cocok dengan versionName $DI_GRADLE di app/build.gradle.kts"
+            exit 1
+          fi
+          echo "versi=$VERSI" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      # Uji dijalankan sebelum menandatangani. Tidak ada gunanya menerbitkan APK
+      # yang bahkan tidak lolos ujinya sendiri.
+      - name: Jalankan unit test
+        run: |
+          chmod +x gradlew
+          ./gradlew testDebugUnitTest --console=plain
+
+      - name: Siapkan kunci penandatanganan
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -e
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::Secret KEYSTORE_BASE64 belum diisi. Lihat README bagian Rilis otomatis."
+            exit 1
+          fi
+          mkdir -p keystore
+          echo "$KEYSTORE_BASE64" | base64 -d > keystore/printigo.jks
+          # Ditulis lewat berkas, bukan lewat baris perintah, supaya kata
+          # sandinya tidak pernah muncul di daftar proses maupun di log.
+          {
+            echo "storeFile=keystore/printigo.jks"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > keystore.properties
+
+      - name: Bangun APK rilis
+        run: ./gradlew assembleRelease --console=plain
+
+      # Penandatanganan diperiksa, bukan diandaikan. APK yang tidak
+      # tertandatangani tetap terbangun tanpa galat, dan baru ketahuan gagal
+      # saat orang mencoba memasangnya.
+      - name: Pastikan APK benar-benar tertandatangani
+        run: |
+          set -e
+          APK=$(ls app/build/outputs/apk/release/*.apk | head -1)
+          APKSIGNER=$(ls "$ANDROID_SDK_ROOT"/build-tools/*/apksigner | sort -V | tail -1)
+          "$APKSIGNER" verify --print-certs "$APK"
+          echo "APK=$APK" >> "$GITHUB_ENV"
+
+      - name: Buang kunci dari runner
+        if: always()
+        run: rm -f keystore.properties keystore/printigo.jks
+
+      - name: Terbitkan Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          gh release create "${{ steps.versi.outputs.tag }}" "$APK" \
+            --title "Printigo ${{ steps.versi.outputs.versi }}" \
+            --generate-notes \
+            --verify-tag
