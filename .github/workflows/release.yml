@@ -140,9 +140,30 @@ jobs:
       - name: Terbitkan Release
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.versi.outputs.tag }}
+          VERSI: ${{ steps.versi.outputs.versi }}
         run: |
-          set -e
-          gh release create "${{ steps.versi.outputs.tag }}" "$APK" \
-            --title "Printigo ${{ steps.versi.outputs.versi }}" \
-            --generate-notes \
-            --verify-tag
+          # Pesan galat gh sengaja ditangkap dan diterbitkan sebagai anotasi.
+          # Log langkah hanya bisa dibaca dengan autentikasi, sedangkan anotasi
+          # terbaca dari luar -- dan kegagalan yang tidak bisa dibaca hanya bisa
+          # ditebak-tebak.
+          set +e
+          echo "Repo: $GITHUB_REPOSITORY, tag: $TAG, berkas: $APK"
+          ls -l "$APK"
+
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            # Rilis sudah ada -- misalnya karena workflow dijalankan ulang.
+            # Menggagalkan seluruh pekerjaan hanya karena itu tidak menolong
+            # siapa pun; yang dibutuhkan cuma APK-nya diperbarui.
+            echo "Rilis $TAG sudah ada, berkasnya diperbarui."
+            KELUARAN=$(gh release upload "$TAG" "$APK" --clobber --repo "$GITHUB_REPOSITORY" 2>&1)
+          else
+            KELUARAN=$(gh release create "$TAG" "$APK"               --repo "$GITHUB_REPOSITORY"               --title "Printigo $VERSI"               --generate-notes 2>&1)
+          fi
+          KODE=$?
+          echo "$KELUARAN"
+          if [ $KODE -ne 0 ]; then
+            echo "::error::Gagal menerbitkan rilis: $KELUARAN"
+            exit 1
+          fi
+          echo "Rilis $TAG terbit."
