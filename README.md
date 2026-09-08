@@ -355,9 +355,49 @@ bisa dirakit, hanya saja hasilnya tidak tertandatangani dan tidak bisa dipasang.
 ditandatangani kunci yang sama. Kalau kunci hilang, satu-satunya cara memperbarui
 adalah menghapus dulu aplikasi yang terpasang.
 
-Pengecilan kode R8 sengaja dimatikan sampai aplikasi terbukti jalan di HP: R8
-bisa membuang sesuatu yang ternyata dipakai saat berjalan, dan rilis pertama
-dibuat seidentik mungkin dengan varian yang diuji.
+Sejak 2.1 pengecilan kode R8 dinyalakan, dan APK turun dari 7,0 MB ke 1,5 MB.
+Yang dicari lewat refleksi dijaga `app/proguard-rules.pro`, dan keberadaannya di
+dalam DEX hasil rilis diperiksa `tools/check_release_dex.ps1` -- bukan
+diandaikan.
+
+### Rilis otomatis lewat GitHub Actions
+
+Menandai versi baru sudah cukup; APK-nya dibangun, diuji, ditandatangani, dan
+diterbitkan sendiri oleh [.github/workflows/release.yml](.github/workflows/release.yml):
+
+```bash
+git tag v2.3
+git push origin v2.3
+```
+
+Workflow menolak berjalan kalau nomor di tag tidak sama dengan `versionName` di
+`app/build.gradle.kts`. Itu bukan kerewelan: tanpa pemeriksaan itu orang bisa
+mengunduh "v2.3" lalu aplikasinya menyebut dirinya 2.2, dan laporan bug jadi
+tidak bisa dipercaya. Unit test dijalankan sebelum penandatanganan, dan APK
+hasilnya diperiksa `apksigner` sebelum diterbitkan -- APK tanpa tanda tangan
+tetap terbangun tanpa galat dan baru ketahuan gagal saat orang memasangnya.
+
+**Empat secret harus diisi sekali** di Settings > Secrets and variables >
+Actions:
+
+| Secret | Isinya |
+|---|---|
+| `KEYSTORE_BASE64` | Berkas `.jks` dalam base64 |
+| `KEYSTORE_PASSWORD` | `storePassword` dari `keystore.properties` |
+| `KEY_ALIAS` | `keyAlias` |
+| `KEY_PASSWORD` | `keyPassword` |
+
+Untuk yang pertama:
+
+```bash
+powershell -File tools\keystore_base64.ps1
+```
+
+Skrip itu menulis hasilnya ke berkas di dalam `keystore/` -- yang sudah masuk
+`.gitignore` -- dan **tidak menampilkannya di layar**. Isinya kunci
+penandatanganan aplikasi Anda: siapa pun yang memilikinya bisa membuat
+"pembaruan Printigo" palsu yang dipasang mulus di HP Anda. Tempelkan hanya ke
+kolom secret di GitHub, lalu hapus berkasnya.
 
 ---
 
