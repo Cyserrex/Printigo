@@ -41,7 +41,8 @@ untuk mengujinya, jadi batas antara "terbukti" dan "belum" dijaga ketat.
 | Pemeriksaan | Cara |
 |---|---|
 | **Bentuk perintah cocok dengan driver Epson resmi** | dibaca dari berkas driver L3110 di Windows: `NC 02 00 00 00` ada, `NC 01 00 00` tidak ada sama sekali; `JS 04 00 00 00 00` dan `JE 01 00 00` persis sama dengan yang dihasilkan kode ini |
-| **Cek nozzle berjalan tuntas dari HP, kertas keluar sendiri** | Epson L3110, Printigo 2.15 -- pola tercetak dan kertas keluar tanpa campur tangan |
+| **Cek nozzle berjalan tuntas dari HP, kertas keluar sendiri** | Epson L3110 -- pola tercetak dan kertas keluar tanpa campur tangan |
+| **Urutan cek nozzle sama persis dengan driver Epson resmi** | rekaman USBPcap saat tombol Nozzle Check ditekan di driver; 132 byte, dibandingkan byte per byte |
 | Bentuk perintah perawatan yang benar | `NC 02 00 00 00`; bentuk klasik `NC 01 00 00` tidak direspons sama sekali |
 | **Form feed mengeluarkan kertas yang tertahan** | dicoba di perangkat setelah dua dugaan lain gugur |
 | **Balasan status bentuk teks `@BDC ST` diuraikan** | byte sungguhan dari L3110 dipakai langsung sebagai data uji |
@@ -69,7 +70,7 @@ untuk mengujinya, jadi batas antara "terbukti" dan "belum" dijaga ketat.
 | Tampilan benar-benar tergambar | tangkapan layar dari komposisi Compose di JVM |
 | APK terkompilasi, tertandatangani, zipalign, manifes benar | `apksigner`, `zipalign`, `aapt2` |
 
-**183 unit test**, semuanya lolos: `gradlew test`.
+**187 unit test**, semuanya lolos: `gradlew test`.
 
 ### Belum terbukti
 
@@ -91,22 +92,6 @@ perangkat mana pun** -- L3110 tidak melaporkan sisa tinta sama sekali, jadi
 tidak ada yang bisa diuji dengannya. Kode warna yang tidak dikenali ditampilkan
 sebagai "Warna N", bukan diberi nama tebakan: menyebut cyan sebagai magenta
 membuat orang mengisi tangki yang salah.
-
-**Kenapa printer menahan kertas setelah cek nozzle.** Gejalanya sudah tertutup
-sejak 2.15 -- kertas keluar sendiri -- tetapi **sebabnya tetap tidak diketahui**,
-dan itu dua hal yang berbeda.
-
-Empat dugaan dicoba di perangkat dan semuanya gugur: menahan sambungan sampai
-printer melapor siap, membuang akhiran `ESC @`, membungkus dengan `JS`/`JE`
-seperti jalur cetak, dan menyamakan bentuk perintah dengan driver resmi. Yang
-bekerja hanya form feed yang dikirim **setelah** polanya tercetak, sebagai
-pengiriman tersendiri. Aplikasi kini melakukannya sendiri.
-
-Satu perbedaan yang belum ditelusuri dan layak dicoba lebih dulu kalau ada yang
-melanjutkan: tabel di driver memuat `PP 03 00 00 01 FE`, sedangkan jalur cetak
-di sini memakai `PP 03 00 00 01 00`. Jalur kertas adalah kandidat yang masuk
-akal. Cara yang benar untuk memastikannya bukan menebak yang kelima, melainkan
-merekam apa yang benar-benar dikirim driver saat Nozzle Check ditekan.
 
 **Bunyi printer yang berlanjut beberapa saat setelah kertas keluar.** Terdengar
 pada perangkat, sebabnya belum ditelusuri. Kertasnya sudah keluar dan tidak ada
@@ -537,7 +522,8 @@ yang meleset lebih buruk daripada penolakan yang jujur.
 
 | Versi | Isi |
 |---|---|
-| **2.16** | Panel sisa tinta jadi panel status printer, karena printer tangki memang tidak punya sensor tinta -- dikonfirmasi Status Monitor Epson sendiri yang juga hanya menyuruh melihat tangkinya; permintaan status kembali ke parameter yang benar-benar dijawab L3110 |
+| **2.17** | Urutan cek nozzle disalin dari rekaman USB driver Epson resmi dan sama persis 132 byte -- sebab kertas tertahan akhirnya diketahui: `JE` harus datang **sesudah** form feed, dalam blok REMOTE1 tersendiri, bukan sebelumnya |
+| 2.16 | Panel sisa tinta jadi panel status printer, karena printer tangki memang tidak punya sensor tinta -- dikonfirmasi Status Monitor Epson sendiri yang juga hanya menyuruh melihat tangkinya; permintaan status kembali ke parameter yang benar-benar dijawab L3110 |
 | 2.15 | Penantian printer tidak lagi bergantung pada balasan yang bisa diurai -- perubahan bentuk permintaan status di 2.13 membuatnya berjalan sampai batas penuh, sehingga pengeluaran kertas di 2.14 tidak pernah sempat terkirim; balasan status dicatat utuh dan terbaca |
 | 2.14 | Kertas dikeluarkan sendiri sesudah cek nozzle selesai, sebagai pengiriman tersendiri -- menirukan urutan yang memang terbukti bekerja, setelah empat dugaan tentang sebabnya gugur berturut-turut |
 | 2.13 | Bentuk perintah perawatan dan permintaan status disamakan dengan driver Epson resmi setelah berkas drivernya dibaca; penantian printer bisa dihentikan; dua bug pelacakan pekerjaan diperbaiki |

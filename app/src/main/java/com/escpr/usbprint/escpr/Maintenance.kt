@@ -51,21 +51,13 @@ object Maintenance {
     /**
      * Dua bentuk perintah REMOTE1 yang beredar di printer Epson.
      *
-     * [CLASSIC] tanpa parameter, seperti escputil. [EXTENDED] dengan satu byte
-     * parameter, dipakai sebagian model yang lebih baru. Dipisah supaya kalau
-     * L3110 ternyata butuh yang satunya, perubahannya satu nilai -- bukan
-     * membongkar ulang urutan byte.
+     * [CLASSIC] tanpa parameter, [EXTENDED] dengan satu byte parameter.
+     * Dipisah supaya model yang menolak yang satu bisa mencoba yang lain.
      */
     enum class Variant { CLASSIC, EXTENDED }
 
     /**
-     * Bentuk yang dipakai driver Epson resmi.
-     *
-     * Dibaca langsung dari berkas driver L3110 yang terpasang di Windows:
-     * `NC 02 00 00 00` ada, sedangkan `NC 01 00 00` tidak ada sama sekali.
-     * Cocok dengan hasil di perangkat -- bentuk klasik tidak direspons, bentuk
-     * ini mencetak polanya. Dua sumber bebas yang menunjuk ke jawaban yang
-     * sama, jadi inilah yang jadi bawaan.
+     * Bentuk yang dipakai driver Epson resmi, terbaca dari rekaman USB-nya.
      */
     val DEFAULT_VARIANT = Variant.EXTENDED
 
@@ -78,42 +70,41 @@ object Maintenance {
     /**
      * Mencetak pola cek nozzle.
      *
-     * Satu lembar kertas dipakai. Polanya digambar printer sendiri, jadi tidak
-     * ada gambar yang dikirim dari HP.
+     * Urutannya disalin dari rekaman lalu lintas USB driver Epson resmi,
+     * bukan disusun sendiri. Satu lembar kertas dipakai; polanya digambar
+     * printer dari memorinya sendiri.
      */
     fun nozzleCheck(variant: Variant = DEFAULT_VARIANT): ByteArray =
-        wrap(command("NC", NOZZLE_PATTERN, variant))
+        wrapJob(command("NC", NOZZLE_PATTERN, variant), keluarkanKertas = true)
 
     /**
      * Menjalankan pembersihan head.
      *
-     * Tidak memakai kertas, tapi **memakai tinta**. Printer akan berbunyi dan
-     * sibuk sekitar setengah menit hingga dua menit; selama itu ia tidak akan
-     * menerima pekerjaan cetak.
+     * Memakai tinta, tidak memakai kertas. Strukturnya mengikuti cek nozzle
+     * yang terekam, tanpa form feed -- **itu kesimpulan, bukan rekaman**:
+     * yang direkam baru cek nozzle.
      */
     fun headCleaning(variant: Variant = DEFAULT_VARIANT): ByteArray =
-        wrap(command("CH", CLEAN_ALL, variant))
+        wrapJob(command("CH", CLEAN_ALL, variant), keluarkanKertas = false)
 
     /**
      * Meminta printer mengirimkan laporan statusnya.
      *
-     * Tanpa ini, membaca dari printer hanya menangkap apa yang kebetulan
-     * tersisa di antrian -- biasanya tidak ada apa-apa, atau sisa balasan dari
-     * pekerjaan sebelumnya. Perintah `ST` menyuruh printer menyusun laporan
-     * baru, dan laporan itulah yang memuat sisa tinta.
-     *
-     * Parameternya `01`, bukan `00` yang dipakai driver Epson resmi.
-     *
-     * Itu penyimpangan yang disengaja dan berdasar. Pada L3110 sungguhan,
-     * parameter `01` dijawab dengan `@BDC ST` yang bisa diurai, sedangkan `00`
-     * berkali-kali tidak dijawab sama sekali. Kesetiaan pada driver berguna
-     * justru sampai bukti dari perangkat membantahnya -- dan di sini bukti itu
-     * ada. Sisa tinta tidak muncul pada keduanya, karena printer tangki
-     * memang tidak punya sensor untuk dilaporkan.
-     *
-     * Tidak memakai kertas maupun tinta, dan tidak menggerakkan apa pun.
+     * Parameternya `01`, bukan `00` yang dipakai driver: pada L3110 sungguhan
+     * `01` dijawab `@BDC ST` yang bisa diurai sedangkan `00` berkali-kali tidak
+     * dijawab sama sekali. Bukti dari perangkat mengalahkan kesetiaan pada
+     * driver. Tidak membuka pekerjaan -- bertanya tidak boleh menggerakkan
+     * kertas.
      */
     fun statusRequest(): ByteArray = wrapQuery(EscpR.remoteCmd("ST", byteArrayOf(0x01)))
+
+    /**
+     * Mengeluarkan kertas yang tertahan di dalam printer.
+     *
+     * Form feed sendirian, tanpa pembungkus pekerjaan. Tetap disediakan sebagai
+     * tombol karena kertas bisa tertahan oleh sebab apa pun.
+     */
+    fun ejectPage(): ByteArray = EscpR.EXIT_PACKET_MODE + byteArrayOf(FORM_FEED)
 
     private fun command(name: String, parameter: Int, variant: Variant): ByteArray =
         when (variant) {
@@ -122,23 +113,41 @@ object Maintenance {
         }
 
     /**
-     * Membungkus satu perintah REMOTE1 menjadi pekerjaan yang berdiri sendiri.
+     * Membungkus perintah perawatan persis seperti driver Epson.
      *
-     * Reset dikirim dua kali sebelum masuk remote mode. Itu bukan kelebihan:
-     * kalau printer sedang tertinggal di tengah keadaan dari pekerjaan
-     * sebelumnya, reset pertama yang membereskannya dan reset kedua yang
-     * benar-benar terbaca sebagai reset.
+     * Strukturnya tidak disusun sendiri melainkan disalin dari rekaman USB.
+     * Tiga blok REMOTE1 terpisah, bukan satu -- dan `JE` datang paling akhir,
+     * **sesudah** form feed, didahului dua reset. Itulah yang selama ini
+     * terlewat: empat susunan buatan sendiri semuanya meninggalkan kertas
+     * tertahan, karena semuanya menutup pekerjaan sebelum kertas diperintahkan
+     * keluar.
      */
-    private fun wrap(command: ByteArray): ByteArray =
-        wrapQuery(EscpR.jobStart() + command + EscpR.loadDefaults() + EscpR.jobEnd())
+    private fun wrapJob(command: ByteArray, keluarkanKertas: Boolean): ByteArray =
+        EscpR.EXIT_PACKET_MODE +
+            EscpR.INIT_PRINTER +
+            EscpR.INIT_PRINTER +
+            EscpR.ENTER_REMOTE_MODE +
+            EscpR.timeInit() +
+            EscpR.jobStart() +
+            command +
+            EscpR.EXIT_REMOTE_MODE +
+            byteArrayOf(0x0D, 0x0A, 0x0D, 0x0A) +
+            EscpR.ENTER_REMOTE_MODE +
+            EscpR.remoteCmd("VI", byteArrayOf(0x00)) +
+            LOAD_DEFAULTS_KOSONG +
+            EscpR.EXIT_REMOTE_MODE +
+            (if (keluarkanKertas) byteArrayOf(FORM_FEED) else ByteArray(0)) +
+            EscpR.INIT_PRINTER +
+            EscpR.INIT_PRINTER +
+            EscpR.ENTER_REMOTE_MODE +
+            EscpR.jobEnd() +
+            EscpR.EXIT_REMOTE_MODE
 
     /**
      * Membungkus perintah yang hanya bertanya, tanpa membuka pekerjaan.
      *
-     * Membaca status bukan mencetak. Membungkusnya dengan `JS` dan `JE` berarti
-     * setiap kali sisa tinta diperiksa, printer membuka lalu menutup sebuah
-     * pekerjaan -- dan pekerjaan yang ditutup adalah persis yang memicu
-     * penanganan kertas. Menanyakan sesuatu tidak boleh menggerakkan apa pun.
+     * Penutup pekerjaan itulah yang memicu penanganan kertas, jadi pertanyaan
+     * tidak boleh memakainya.
      */
     private fun wrapQuery(command: ByteArray): ByteArray =
         EscpR.EXIT_PACKET_MODE +
@@ -149,14 +158,12 @@ object Maintenance {
             EscpR.EXIT_REMOTE_MODE
 
     /**
-     * Mengeluarkan kertas yang tertahan di dalam printer.
+     * `LD` versi driver: panjang nol, tanpa byte respons sama sekali.
      *
-     * Form feed adalah perintah ESC/P paling tua dan paling sederhana: majukan
-     * kertas sampai keluar. Disediakan sebagai tombol tersendiri karena kertas
-     * bisa tertahan oleh sebab apa pun, dan satu-satunya jalan keluar sebelum
-     * ini adalah mematikan printer.
+     * Berbeda dari [EscpR.loadDefaults] yang menghasilkan `LD 01 00 00`.
+     * Terekam apa adanya sebagai `4C 44 00 00`, jadi ditulis apa adanya.
      */
-    fun ejectPage(): ByteArray = EscpR.EXIT_PACKET_MODE + byteArrayOf(FORM_FEED)
+    private val LOAD_DEFAULTS_KOSONG = byteArrayOf(0x4C, 0x44, 0x00, 0x00)
 
     /** ESC/P: majukan kertas ke halaman berikutnya. */
     private const val FORM_FEED: Byte = 0x0C

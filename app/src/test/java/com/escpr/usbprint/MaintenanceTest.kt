@@ -9,28 +9,20 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Byte perintah perawatan dipatok persis.
+ * Sifat-sifat perintah perawatan.
  *
- * Tidak ada satu pun uji di sini yang membuktikan printer akan menurut -- itu
- * hanya bisa dibuktikan oleh printernya. Yang dijaga uji ini adalah bahwa byte
- * yang keluar tidak berubah diam-diam. Kalau nanti terbukti L3110 butuh bentuk
- * yang lain, uji ini yang harus ikut diubah dengan sadar, bukan angka yang
- * bergeser tanpa ada yang tahu.
+ * Byte persisnya dijaga [DriverCaptureTest], yang membandingkannya dengan
+ * rekaman USB driver Epson sungguhan. Yang diuji di sini sifat yang tetap
+ * berlaku apa pun bentuk urutannya: tidak membawa data halaman, tidak
+ * membengkak, dan pertanyaan tidak membuka pekerjaan.
+ *
+ * Pemisahan itu disengaja. Byte persis hanya layak dipatok di satu tempat;
+ * kalau dua uji mematok hal yang sama, yang satu pasti tertinggal.
  */
 class MaintenanceTest {
 
     private fun hex(bytes: ByteArray) = bytes.joinToString(" ") { "%02X".format(it) }
 
-    @Test
-    fun `cek nozzle memakai urutan yang dipatok`() {
-        val bytes = Maintenance.nozzleCheck(Maintenance.Variant.CLASSIC)
-        assertEquals(
-            "00 00 00 1B 01 40 45 4A 4C 20 31 32 38 34 2E 34 0A 40 45 4A 4C 20 20 20 20 20 0A " +
-                "1B 40 1B 40 1B 28 52 08 00 00 52 45 4D 4F 54 45 31 " +
-                "4A 53 04 00 00 00 00 00 4E 43 01 00 00 4C 44 01 00 00 4A 45 01 00 00 1B 00 00 00",
-            hex(bytes),
-        )
-    }
 
     @Test
     fun `bawaan memakai bentuk yang dipakai driver Epson`() {
@@ -42,14 +34,6 @@ class MaintenanceTest {
         assertTrue(hex(Maintenance.headCleaning()).contains("43 48 02 00 00 00"))
     }
 
-    @Test
-    fun `pembersihan head hanya berbeda pada dua huruf perintahnya`() {
-        val nozzle = hex(Maintenance.nozzleCheck())
-        val clean = hex(Maintenance.headCleaning())
-        // 4E 43 = "NC", 43 48 = "CH". Selebihnya harus identik: kalau ada beda
-        // lain, salah satu urutannya sudah tergeser.
-        assertEquals(nozzle.replace("4E 43", "43 48"), clean)
-    }
 
     @Test
     fun `perintah perawatan dibungkus pembuka dan penutup pekerjaan`() {
@@ -149,7 +133,10 @@ class MaintenanceTest {
         // Puluhan byte, bukan ribuan: kalau tiba-tiba membengkak, ada data
         // halaman yang ikut masuk tanpa sengaja.
         MaintenanceTask.entries.forEach { task ->
-            assertTrue(task.name, task.bytes().size < 100)
+            // Batasnya disesuaikan dengan urutan driver yang terekam: 132 byte
+            // untuk cek nozzle. Yang dijaga tetap sama -- puluhan byte, bukan
+            // ribuan, supaya data halaman yang ikut masuk langsung ketahuan.
+            assertTrue(task.name, task.bytes().size < 200)
         }
     }
 

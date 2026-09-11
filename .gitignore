@@ -19,3 +19,9 @@ keystore/
 *.apk
 *.aab
 *.prn
+
+# Rekaman lalu lintas USB. Berguna saat menelusuri, tapi tidak layak masuk repo
+# publik: sebuah rekaman USB bisa memuat jauh lebih banyak daripada yang
+# diniatkan. Byte yang penting sudah dipatok di DriverCaptureTest.
+*.pcap
+*.pcapng

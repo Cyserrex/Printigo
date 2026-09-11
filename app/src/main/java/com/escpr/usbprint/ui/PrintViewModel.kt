@@ -993,21 +993,6 @@ class PrintViewModel @JvmOverloads constructor(
                             (if (akhir != null && !akhir.confident) " (balasan tidak dikenali)" else "")
                     )
 
-                    // Kertas dikeluarkan SESUDAH printer melapor selesai, sebagai
-                    // pengiriman tersendiri -- bukan disambung ke buffer yang sama.
-                    //
-                    // Bedanya bukan gaya. Yang terbukti bekerja pada printer
-                    // sungguhan adalah menekan tombol Keluarkan kertas setelah
-                    // polanya tercetak; form feed yang disambung ke buffer
-                    // perintah belum pernah terbukti, dan bisa saja diproses
-                    // printer sebelum polanya selesai. Ini menirukan persis
-                    // urutan yang sudah terbukti, hanya tanpa perlu ditekan.
-                    if (task.usesPaper && currentCoroutineContext().isActive) {
-                        val keluar = MaintenanceTask.EJECT.bytes()
-                        sink.write(keluar, 0, keluar.size)
-                        sink.flush()
-                        log("Kertas dikeluarkan menyusul.")
-                    }
                 }
                 _state.update { it.copy(outcome = PrintOutcome.MaintenanceSent(task)) }
                 log(task.label + " selesai dikirim.")
