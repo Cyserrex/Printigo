@@ -90,13 +90,19 @@ object Maintenance {
     /**
      * Meminta printer mengirimkan laporan statusnya.
      *
-     * Parameternya `01`, bukan `00` yang dipakai driver: pada L3110 sungguhan
-     * `01` dijawab `@BDC ST` yang bisa diurai sedangkan `00` berkali-kali tidak
-     * dijawab sama sekali. Bukti dari perangkat mengalahkan kesetiaan pada
-     * driver. Tidak membuka pekerjaan -- bertanya tidak boleh menggerakkan
-     * kertas.
+     * Bentuknya disalin dari rekaman USB driver Epson: `OT 02 00 01 01` lalu
+     * `ST 01 00 01`. Itu bukan bentuk yang selama ini dipakai aplikasi ini.
+     *
+     * Bedanya menentukan. Bentuk lama (`ST 02 00 00 01`) dijawab printer dengan
+     * teks pendek `@BDC ST` yang hanya memuat status, tanpa tinta sama sekali.
+     * Bentuk driver dijawab dengan balasan biner `@BDC ST2` sepanjang 204 byte
+     * yang memuat blok tinta, nomor seri, dan banyak lagi. Selama berhari-hari
+     * aplikasi ini menyimpulkan "printer tidak melaporkan tinta" padahal yang
+     * terjadi adalah kita menanyakannya dengan cara yang salah.
+     *
+     * Tidak membuka pekerjaan -- bertanya tidak boleh menggerakkan kertas.
      */
-    fun statusRequest(): ByteArray = wrapQuery(EscpR.remoteCmd("ST", byteArrayOf(0x01)))
+    fun statusRequest(): ByteArray = wrapQuery(OT_QUERY + ST_QUERY)
 
     /**
      * Mengeluarkan kertas yang tertahan di dalam printer.
@@ -164,6 +170,18 @@ object Maintenance {
      * Terekam apa adanya sebagai `4C 44 00 00`, jadi ditulis apa adanya.
      */
     private val LOAD_DEFAULTS_KOSONG = byteArrayOf(0x4C, 0x44, 0x00, 0x00)
+
+    /**
+     * Dua perintah yang mendahului pembacaan status, apa adanya dari rekaman.
+     *
+     * Keduanya berpanjang tidak lazim -- `ST` hanya satu byte isi tanpa byte
+     * respons terpisah -- jadi tidak bisa dirakit lewat [EscpR.remoteCmd] dan
+     * ditulis sebagai byte langsung. Apa yang dilakukan `OT` belum diketahui;
+     * ia disertakan karena driver menyertakannya, dan meniru persis sudah
+     * terbukti lebih baik daripada menyusun sendiri.
+     */
+    private val OT_QUERY = byteArrayOf(0x4F, 0x54, 0x02, 0x00, 0x01, 0x01)
+    private val ST_QUERY = byteArrayOf(0x53, 0x54, 0x01, 0x00, 0x01)
 
     /** ESC/P: majukan kertas ke halaman berikutnya. */
     private const val FORM_FEED: Byte = 0x0C

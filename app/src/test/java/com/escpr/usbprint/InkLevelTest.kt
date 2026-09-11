@@ -143,10 +143,11 @@ class InkLevelTest {
     @Test
     fun `permintaan status memakai urutan yang dipatok`() {
         val hex = Maintenance.statusRequest().joinToString(" ") { "%02X".format(it) }
-        // Parameter 01, bukan 00 yang dipakai driver. Penyimpangan yang
-        // disengaja: pada L3110 sungguhan parameter 01 dijawab dengan @BDC ST
-        // yang bisa diurai, sedangkan 00 berkali-kali tidak dijawab sama sekali.
-        // Bukti dari perangkat mengalahkan kesetiaan pada driver.
-        assertTrue(hex, hex.contains("52 45 4D 4F 54 45 31 53 54 02 00 00 01 1B 00 00 00"))
+        // Disalin dari rekaman USB driver Epson: OT lalu ST, dan ST berbentuk
+        // 01 00 01 -- satu byte isi tanpa byte respons terpisah. Bentuk lama
+        // (ST 02 00 00 01) dijawab teks pendek tanpa tinta; bentuk ini dijawab
+        // balasan biner 204 byte yang memuat blok tinta.
+        assertTrue(hex, hex.contains(
+            "52 45 4D 4F 54 45 31 4F 54 02 00 01 01 53 54 01 00 01 1B 00 00 00"))
     }
 }

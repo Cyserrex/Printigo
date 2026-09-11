@@ -89,6 +89,12 @@ dilaporkan apa adanya, dan balasan yang tidak dipahami tidak pernah
 menghalangi pencetakan: salah menghalangi lebih merugikan daripada meneruskan
 lalu gagal seperti sebelumnya.
 
+**Apakah bentuk permintaan status yang baru benar-benar menghasilkan balasan
+biner di aplikasi.** Rekaman menunjukkan driver memakai `OT 02 00 01 01` lalu
+`ST 01 00 01` dan dijawab 204 byte berisi blok tinta, sedangkan bentuk lama
+hanya dijawab teks pendek. Sejak 2.19 aplikasi memakai bentuk driver, tetapi
+**belum dicoba di perangkat**.
+
 **Angka sisa tinta yang benar-benar terukur.** Penguraiannya kini terbukti dari
 balasan L3110 sungguhan, tetapi printer itu mengirim nilai tetap 105 untuk
 keempat tangkinya -- penanda "tidak punya sensor". Jadi jalur untuk angka yang
@@ -549,7 +555,8 @@ yang meleset lebih buruk daripada penolakan yang jujur.
 
 | Versi | Isi |
 |---|---|
-| **2.18** | Blok tinta diuraikan dengan benar setelah balasan L3110 direkam: kode warna ada di byte kedua, dan nilai 105 berarti "tidak terukur" -- bukan data rusak yang layak dibuang seperti dugaan sebelumnya |
+| **2.19** | Permintaan status disalin dari rekaman driver (`OT` lalu `ST 01 00 01`) -- bentuk lama hanya dijawab teks pendek tanpa tinta, dan itu sebab sebenarnya kenapa blok tinta tidak pernah sampai |
+| 2.18 | Blok tinta diuraikan dengan benar setelah balasan L3110 direkam: kode warna ada di byte kedua, dan nilai 105 berarti "tidak terukur" -- bukan data rusak yang layak dibuang seperti dugaan sebelumnya |
 | 2.17 | Urutan cek nozzle disalin dari rekaman USB driver Epson resmi dan sama persis 132 byte -- sebab kertas tertahan akhirnya diketahui: `JE` harus datang **sesudah** form feed, dalam blok REMOTE1 tersendiri, bukan sebelumnya |
 | 2.16 | Panel sisa tinta jadi panel status printer, karena printer tangki memang tidak punya sensor tinta -- dikonfirmasi Status Monitor Epson sendiri yang juga hanya menyuruh melihat tangkinya; permintaan status kembali ke parameter yang benar-benar dijawab L3110 |
 | 2.15 | Penantian printer tidak lagi bergantung pada balasan yang bisa diurai -- perubahan bentuk permintaan status di 2.13 membuatnya berjalan sampai batas penuh, sehingga pengeluaran kertas di 2.14 tidak pernah sempat terkirim; balasan status dicatat utuh dan terbaca |
