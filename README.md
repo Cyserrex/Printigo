@@ -43,6 +43,7 @@ untuk mengujinya, jadi batas antara "terbukti" dan "belum" dijaga ketat.
 | **Bentuk perintah cocok dengan driver Epson resmi** | dibaca dari berkas driver L3110 di Windows: `NC 02 00 00 00` ada, `NC 01 00 00` tidak ada sama sekali; `JS 04 00 00 00 00` dan `JE 01 00 00` persis sama dengan yang dihasilkan kode ini |
 | **Cek nozzle berjalan tuntas dari HP, kertas keluar sendiri** | Epson L3110 -- pola tercetak dan kertas keluar tanpa campur tangan |
 | **Urutan cek nozzle sama persis dengan driver Epson resmi** | rekaman USBPcap saat tombol Nozzle Check ditekan di driver; 132 byte, dibandingkan byte per byte |
+| **Driver Windows mencetak dengan ESC/P2, bukan ESC/P-R** | rekaman USBPcap satu halaman cetak: `ESC ( G`, `ESC ( U`, `ESC ( C`, `ESC ( S`, `ESC ( D`, `ESC U`, `ESC i` -- tidak ada satu pun `setj`, `setq`, atau `dsnd` |
 | Bentuk perintah perawatan yang benar | `NC 02 00 00 00`; bentuk klasik `NC 01 00 00` tidak direspons sama sekali |
 | **Form feed mengeluarkan kertas yang tertahan** | dicoba di perangkat setelah dua dugaan lain gugur |
 | **Balasan status bentuk teks `@BDC ST` diuraikan** | byte sungguhan dari L3110 dipakai langsung sebagai data uji |
@@ -215,6 +216,30 @@ Berguna untuk memisahkan masalah data dari masalah kabel.
 - **Pesan kegagalan berbahasa manusia** dengan satu tombol tindakan
 - Pemeriksaan dukungan ESC/P-R lewat IEEE-1284 Device ID
 - Ekspor `.prn` untuk diagnosis
+
+---
+
+## Dua bahasa, dan kenapa aplikasi ini memilih yang lain
+
+Rekaman USB satu halaman cetak dari driver Windows menunjukkan sesuatu yang tak
+terduga: **driver resmi tidak memakai ESC/P-R sama sekali.** Ia mencetak dengan
+**ESC/P2** -- `ESC ( G`, `ESC ( U`, `ESC ( C`, `ESC ( S`, `ESC ( D`, `ESC U`,
+`ESC i` -- dan tidak ada satu pun `setj`, `setq`, maupun `dsnd` di seluruh
+alirannya.
+
+L3110 memang mengerti keduanya; Device ID-nya mencantumkan `ESCPL2` dan
+`ESCPR1` sekaligus. Aplikasi ini memilih ESC/P-R karena jauh lebih sederhana:
+satu perintah raster dengan koordinat dan panjang, alih-alih seperangkat
+perintah penempatan ESC/P2 yang harus dijaga konsistensinya.
+
+Konsekuensinya jujur disebut di sini: **rekaman itu tidak bisa memvalidasi
+`setj`, `setq`, maupun `dsnd` kita**, karena driver tidak pernah mengirimkannya.
+Jalur cetak aplikasi ini terbukti oleh kertas yang keluar benar, bukan oleh
+kecocokan dengan driver.
+
+Satu hal yang justru terkonfirmasi: driver mengakhiri **pekerjaan cetak** pun
+dengan `0D 0C` lalu `LD`, `JE` -- form feed sebelum penutup pekerjaan, persis
+pola yang ditemukan pada cek nozzle. Kebiasaan itu konsisten di kedua jalur.
 
 ---
 
