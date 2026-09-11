@@ -20,6 +20,14 @@ data class PrintSettings(
     val colorMode: ColorMode = ColorMode.COLOR,
     val mediaType: MediaType = MediaType.PLAIN,
     val marginMm: Float = 3f,
+    /**
+     * Dua arah mencetak saat kepala bergerak ke kiri maupun ke kanan, jadi
+     * kira-kira dua kali lebih cepat. Harganya: kalau penyetelan kepala meleset
+     * sedikit saja, jalur pergi dan jalur pulang tidak bertumpuk tepat dan
+     * hasilnya tampak berbayang. Satu arah membuang separuh kecepatan untuk
+     * menghilangkan sumber kesalahan itu sepenuhnya.
+     */
+    val direction: PrintDirection = PrintDirection.BIDIRECTIONAL,
     val compress: Boolean = true,
     val copies: Int = 1,
     val jobName: String = "AndroidUsbPrint"
@@ -85,7 +93,8 @@ class EscpRJob(
                 marginLeftPx = g.marginLeft,
                 printableWidthPx = g.printableWidth,
                 printableHeightPx = g.printableHeight,
-                dpi = settings.dpi
+                dpi = settings.dpi,
+                direction = settings.direction,
             )
         )
         return g
@@ -175,6 +184,21 @@ class EscpRJob(
     }
 
     companion object {
+        /**
+         * Perkiraan besar data yang dikirim untuk satu halaman.
+         *
+         * Dihitung dari ukuran mentah tanpa memperhitungkan pemadatan, dan itu
+         * disengaja. RLE memadatkan dokumen teks sampai seperseratus, tetapi
+         * foto **hampir tidak terpadatkan sama sekali** -- diukur 100 persen
+         * pada foto sungguhan. Perkiraan yang mengandalkan pemadatan akan
+         * menyenangkan di layar lalu meleset jauh persis pada pekerjaan yang
+         * paling lama: mencetak foto.
+         */
+        fun estimatedBytesPerPage(settings: PrintSettings): Long {
+            val g = computeGeometry(settings)
+            return g.printableWidth.toLong() * g.printableHeight * 3
+        }
+
         fun computeGeometry(settings: PrintSettings): PageGeometry {
             val dpi = settings.dpi.value
             val mmToPx = dpi / 25.4f

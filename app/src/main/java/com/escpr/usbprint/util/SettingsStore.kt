@@ -5,6 +5,7 @@ import com.escpr.usbprint.escpr.ColorMode
 import com.escpr.usbprint.escpr.Dpi
 import com.escpr.usbprint.escpr.MediaType
 import com.escpr.usbprint.escpr.PaperSize
+import com.escpr.usbprint.escpr.PrintDirection
 import com.escpr.usbprint.escpr.PrintSettings
 import com.escpr.usbprint.escpr.Quality
 
@@ -32,6 +33,7 @@ class SettingsStore(context: Context) {
             mediaType = read(KEY_MEDIA, MediaType.entries, default.mediaType),
             marginMm = prefs.getFloat(KEY_MARGIN, default.marginMm)
                 .coerceIn(0f, 20f),
+            direction = read(KEY_DIRECTION, PrintDirection.entries, default.direction),
         )
     }
 
@@ -43,6 +45,7 @@ class SettingsStore(context: Context) {
             .putString(KEY_COLOR, settings.colorMode.name)
             .putString(KEY_MEDIA, settings.mediaType.name)
             .putFloat(KEY_MARGIN, settings.marginMm)
+            .putString(KEY_DIRECTION, settings.direction.name)
             .apply()
     }
 
@@ -59,5 +62,6 @@ class SettingsStore(context: Context) {
         const val KEY_COLOR = "color"
         const val KEY_MEDIA = "media"
         const val KEY_MARGIN = "margin"
+        const val KEY_DIRECTION = "direction"
     }
 }

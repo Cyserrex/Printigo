@@ -86,9 +86,12 @@ import com.escpr.usbprint.escpr.ColorMode
 import com.escpr.usbprint.escpr.Dpi
 import com.escpr.usbprint.escpr.MaintenanceTask
 import com.escpr.usbprint.escpr.MediaType
+import com.escpr.usbprint.escpr.EscpRJob
 import com.escpr.usbprint.escpr.PaperSize
+import com.escpr.usbprint.escpr.PrintDirection
 import com.escpr.usbprint.escpr.Quality
 import com.escpr.usbprint.layout.PageLayout
+import com.escpr.usbprint.util.formatBytes
 import com.escpr.usbprint.print.PageSelectionMode
 import com.escpr.usbprint.ui.theme.AppTheme
 import kotlin.math.roundToInt
@@ -560,6 +563,31 @@ private fun PreviewSection(
 }
 
 /**
+ * Berapa besar data yang akan dikirim ke printer.
+ *
+ * Foto hampir tidak bisa dipadatkan -- diukur 100 persen pada foto sungguhan --
+ * jadi angka mentah inilah yang benar-benar melewati kabel. Tanpa disebutkan,
+ * pilihan 600 dpi tampak sama murahnya dengan 300 dpi padahal empat kali lebih
+ * banyak, dan orang baru menyadarinya setelah menunggu dua menit di depan
+ * printer.
+ */
+@Composable
+private fun DataSizeNote(state: UiState) {
+    val lembar = state.pagesToPrint.size.coerceAtLeast(1) *
+        state.settings.copies.coerceAtLeast(1)
+    val total = EscpRJob.estimatedBytesPerPage(state.settings) * lembar
+
+    Text(
+        "Sekitar " + formatBytes(total) + " dikirim ke printer" +
+            (if (lembar > 1) " untuk $lembar lembar" else "") +
+            ". Foto hampir tidak bisa dipadatkan; menurunkan resolusi adalah " +
+            "cara paling langsung mempercepat.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+/**
  * Memilih halaman PDF mana yang dicetak.
  *
  * Tanpa ini, satu halaman dari PDF empat puluh halaman berarti mencetak
@@ -744,6 +772,33 @@ private fun OutputSection(state: UiState, viewModel: PrintViewModel) {
         ChipRow(Dpi.entries, settings.dpi, { it.label }, enabled) { value ->
             viewModel.updateSettings { it.copy(dpi = value) }
         }
+
+        // Besar data disebutkan karena inilah yang menentukan lamanya
+        // mencetak, dan selisih antar-resolusi jauh lebih besar daripada yang
+        // diduga orang: 300 dpi mengirim seperempat dari 600 dpi.
+        DataSizeNote(state)
+
+        Label("Arah cetak")
+        ChipRow(
+            PrintDirection.entries,
+            settings.direction,
+            { arah ->
+                if (arah == PrintDirection.BIDIRECTIONAL) "Dua arah (cepat)"
+                else "Satu arah (lebih rapi)"
+            },
+            enabled,
+        ) { arah -> viewModel.updateSettings { it.copy(direction = arah) } }
+
+        Text(
+            if (settings.direction == PrintDirection.BIDIRECTIONAL)
+                "Kepala mencetak saat bergerak ke kiri maupun ke kanan. " +
+                    "Kalau hasilnya tampak berbayang, coba satu arah."
+            else
+                "Kepala hanya mencetak satu arah. Kira-kira dua kali lebih " +
+                    "lama, tapi tidak bisa meleset antara jalur pergi dan pulang.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
 
         Label("Jenis kertas")
         ChipRow(MediaType.entries, settings.mediaType, { it.label }, enabled) { value ->

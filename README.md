@@ -40,6 +40,7 @@ untuk mengujinya, jadi batas antara "terbukti" dan "belum" dijaga ketat.
 
 | Pemeriksaan | Cara |
 |---|---|
+| **Mencetak dari HP lewat kabel USB OTG, foto keluar di kertas** | Epson L3110, Printigo 2.3 -- jalur USB Android akhirnya terbukti, bukan lagi hanya jalur datanya |
 | **Halaman uji tercetak benar di Epson L3110 sungguhan** | `tools/testpage_light.py` dikirim apa adanya lewat `tools/send_raw.ps1` (winspool, datatype RAW, tanpa melewati driver Epson) |
 | Printer memang keluarga ESC/P-R | Registry Windows melaporkan compatible ID `1284_CID_EpsonRGB` |
 | Panjang tiap perintah cocok dengan driver resmi Epson | `setj`=22, `setq`=9, `endp`=1, `sttp`/`endj`=0 byte data |
@@ -66,11 +67,12 @@ untuk mengujinya, jadi batas antara "terbukti" dan "belum" dijaga ketat.
 
 ### Belum terbukti
 
-**Lapisan transport USB di Android** (`usb/UsbPrinter.kt`) — penemuan perangkat,
-dialog izin USB, dan bulk transfer. Pengujian di atas menempuh jalur Windows →
-spooler → port USB, bukan jalur OTG dari HP.
-
-Jadi yang terbukti adalah **datanya**, bukan **pengantarannya**.
+**Mutu cetak pada berbagai setelan.** Cetakan pertama dari HP berhasil keluar,
+tetapi pada 600 dpi + kualitas Tinggi + jenis kertas Matte hasilnya berbayang
+dan bergaris mendatar. Sebabnya belum dipastikan -- dugaan terkuat kelebihan
+tinta untuk kertas biasa, disusul penyetelan kepala pada cetak dua arah. Yang
+sudah pasti: satu lembar A4 pada 600 dpi mengirim sekitar 100 MB, karena foto
+praktis tidak bisa dipadatkan.
 
 **Pemetaan kode kesalahan printer.** Struktur balasan `@BDC ST2` diuraikan dan
 diuji, tetapi arti tiap kode diambil dari driver ESC/P-R terbuka dan belum
@@ -184,6 +186,10 @@ Berguna untuk memisahkan masalah data dari masalah kabel.
 - **Layar tidak mati saat mencetak**
 - **Bisa dipakai dengan TalkBack**: slider batas cetak menyebut angka
   milimeternya, tombol tambah/kurang menyebut fungsinya
+- **Arah cetak** bisa dipilih: dua arah lebih cepat, satu arah menghilangkan
+  kemungkinan jalur pergi dan pulang tidak bertumpuk tepat
+- **Besar data disebutkan sebelum mencetak**, karena itulah yang menentukan
+  lamanya menunggu -- dan 300 dpi mengirim seperempat dari 600 dpi
 - **Sisa tinta** dibaca dari printer. Hanya membaca; angkanya perkiraan printer
   sendiri karena printer tangki tinta tidak punya sensor di dalam tangkinya
 - **Cek nozzle dan pembersihan head** langsung dari HP, dengan persetujuan
@@ -503,7 +509,8 @@ yang meleset lebih buruk daripada penolakan yang jujur.
 
 | Versi | Isi |
 |---|---|
-| **2.3** | Sisa tinta dibaca dan ditampilkan di kartu Perawatan, dengan permintaan status yang eksplisit ke printer; bilah bawah tidak lagi menampilkan kemajuan cetak palsu saat aplikasi hanya sedang berbicara dengan printer |
+| **2.4** | Arah cetak bisa dipilih (dua arah atau satu arah); perkiraan besar data ditampilkan sebelum mencetak karena foto praktis tidak bisa dipadatkan dan itulah yang menentukan lamanya |
+| 2.3 | Sisa tinta dibaca dan ditampilkan di kartu Perawatan, dengan permintaan status yang eksplisit ke printer; bilah bawah tidak lagi menampilkan kemajuan cetak palsu saat aplikasi hanya sedang berbicara dengan printer |
 | 2.2 | Cek nozzle dan pembersihan head dari dalam aplikasi; menerima banyak foto sekaligus lewat Bagikan dan bisa dibuka dari pengelola berkas; salinan lama di cache dibersihkan sendiri; satu salinan memori penuh dihapus dari jalur transfer USB |
 | 2.1 | Pilih halaman PDF yang dicetak; foto tumpah ke lembar berikutnya dengan jumlah per lembar yang bisa dipilih; status printer diperiksa sebelum mengirim; pembatalan menutup pekerjaan dengan rapi; pengaturan diingat antar-sesi; layar tidak mati saat mencetak; label untuk TalkBack; R8 dinyalakan (APK 7,0 MB menjadi 1,5 MB) dengan isi DEX-nya diperiksa |
 | 2.0 | Berkas Word, Excel, PowerPoint, OpenDocument, dan RTF dikenali dan ditolak dengan penjelasan yang benar beserta jalan keluarnya, bukan dilaporkan sebagai "gagal membuka gambar" |
