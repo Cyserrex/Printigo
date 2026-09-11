@@ -122,7 +122,11 @@ data class PrinterStatus(
 fun parsePrinterStatus(reply: ByteArray): PrinterStatus {
     val text = String(reply, Charsets.ISO_8859_1)
     val raw = text.take(120).replace(Regex("[\\x00-\\x1F]"), ".")
-    val hex = reply.take(160).joinToString(" ") { "%02X".format(it) }
+    // Dipotong jauh lebih longgar daripada sebelumnya. Balasan dari L3110
+    // ternyata ratusan byte dan berstruktur -- di dalamnya ada nomor seri
+    // printer -- sedangkan potongan 160 byte membuang justru kepalanya, yang
+    // menentukan bentuk balasannya.
+    val hex = reply.take(512).joinToString(" ") { "%02X".format(it) }
 
     val header = "@BDC ST2"
     val headerAt = text.indexOf(header)

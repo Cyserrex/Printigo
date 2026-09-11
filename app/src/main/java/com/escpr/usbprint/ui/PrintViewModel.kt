@@ -882,7 +882,17 @@ class PrintViewModel @JvmOverloads constructor(
 
                     val status = parsePrinterStatus(readStatusReply(printer))
                     if (status.raw.isNotBlank()) log("Status: " + status.raw)
-                    if (status.hex.isNotBlank()) log("Heksa: " + status.hex)
+                    // Dicatat berbaris-baris pendek, bukan satu baris panjang.
+                    // Balasannya ratusan byte, dan satu baris panjang di kartu
+                    // catatan tidak bisa dibaca dari tangkapan layar -- padahal
+                    // kepala balasan itulah yang menentukan bentuknya.
+                    if (status.hex.isNotBlank()) {
+                        val byteList = status.hex.split(" ")
+                        log("Balasan " + byteList.size + " byte:")
+                        byteList.chunked(24).forEachIndexed { index, bagian ->
+                            log("  [" + (index * 24) + "] " + bagian.joinToString(" "))
+                        }
+                    }
                     _state.update { it.copy(inks = status.inks, inkChecked = true) }
 
                     if (status.inks.isEmpty()) {
@@ -970,7 +980,8 @@ class PrintViewModel @JvmOverloads constructor(
                     val detik = (System.currentTimeMillis() - mulaiTunggu) / 1000
                     log(
                         "Ditunggu " + detik + " detik, printer melapor: " +
-                            (akhir?.state?.name?.lowercase() ?: "tidak menjawab")
+                            (akhir?.state?.name?.lowercase() ?: "tidak menjawab") +
+                            (if (akhir != null && !akhir.confident) " (balasan tidak dikenali)" else "")
                     )
 
                     // Kertas dikeluarkan SESUDAH printer melapor selesai, sebagai
@@ -1014,8 +1025,16 @@ class PrintViewModel @JvmOverloads constructor(
      * status dibungkus ESC @ yang akan mereset printer kalau tiba di tengah
      * pekerjaan, dan yang ingin dihindari justru itu.
      *
-     * Mengembalikan null kalau printer tidak pernah melapor siap sampai batas
-     * waktu -- yang bukan berarti gagal, hanya berarti tidak terdengar.
+     * Selesainya tidak boleh bergantung pada balasan yang bisa diurai. Balasan
+     * printer berbeda bentuk antar-model dan antar-perintah, dan begitu satu
+     * bentuk tidak dikenali, penantian berjalan sampai batas penuh -- yang
+     * berarti pengeluaran kertas baru dikirim dua setengah menit kemudian.
+     * Itu persis yang terjadi pada 2.13: bentuk balasan berubah, dan langkah
+     * sesudahnya ikut tertahan.
+     *
+     * Karena itu tanda selesai yang utama adalah **printer berhenti bicara**
+     * setelah jeda terendah terlampaui. Status yang terurai dipakai kalau ada,
+     * tapi tidak pernah menjadi syarat.
      */
     private suspend fun waitUntilIdle(printer: UsbPrinter): PrinterStatus? {
         val mulai = System.currentTimeMillis()
@@ -1034,15 +1053,21 @@ class PrintViewModel @JvmOverloads constructor(
             // pengguna terkunci sampai dua setengah menit tanpa jalan keluar
             // pada printer yang tidak pernah menjawab.
             if (!currentCoroutineContext().isActive) return terakhir
+
             val potongan = printer.readStatus(1000)
-            if (potongan.isNotEmpty()) {
-                val status = parsePrinterStatus(potongan)
-                terakhir = status
-                if (status.confident && status.state == PrinterState.IDLE &&
-                    System.currentTimeMillis() >= palingCepat
-                ) {
-                    return status
-                }
+            val lewatJeda = System.currentTimeMillis() >= palingCepat
+
+            if (potongan.isEmpty()) {
+                // Printer berhenti bicara dan jeda terendah sudah lewat:
+                // itulah tanda selesai yang berlaku untuk bentuk balasan apa pun.
+                if (lewatJeda) return terakhir
+                continue
+            }
+
+            val status = parsePrinterStatus(potongan)
+            terakhir = status
+            if (status.confident && status.state == PrinterState.IDLE && lewatJeda) {
+                return status
             }
         }
         return terakhir

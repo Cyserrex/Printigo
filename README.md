@@ -95,8 +95,9 @@ dicoba di perangkat dan **semuanya gugur**: menahan sambungan sampai printer
 melapor siap, membuang akhiran `ESC @`, membungkus dengan `JS`/`JE` seperti
 jalur cetak, dan menyamakan bentuk perintah dengan driver resmi. Yang terbukti
 bekerja hanya form feed yang dikirim **setelah** polanya tercetak. Sejak 2.14
-aplikasi mengirimkannya sendiri, jadi gejalanya tertutup -- tetapi sebabnya
-masih belum diketahui. Satu perbedaan yang belum ditelusuri: driver memuat
+aplikasi mengirimkannya sendiri; pada 2.14 langkah itu tertahan oleh regresi
+di penantian, diperbaiki di 2.15. Gejalanya tertutup -- sebabnya masih belum
+diketahui. Satu perbedaan yang belum ditelusuri: driver memuat
 `PP 03 00 00 01 FE` sedangkan jalur cetak di sini memakai `PP 03 00 00 01 00`.
 
 **Bunyi printer yang berlanjut beberapa saat setelah kertas keluar.** Terdengar
@@ -525,7 +526,8 @@ yang meleset lebih buruk daripada penolakan yang jujur.
 
 | Versi | Isi |
 |---|---|
-| **2.14** | Kertas dikeluarkan sendiri sesudah cek nozzle selesai, sebagai pengiriman tersendiri -- menirukan urutan yang memang terbukti bekerja, setelah empat dugaan tentang sebabnya gugur berturut-turut |
+| **2.15** | Penantian printer tidak lagi bergantung pada balasan yang bisa diurai -- perubahan bentuk permintaan status di 2.13 membuatnya berjalan sampai batas penuh, sehingga pengeluaran kertas di 2.14 tidak pernah sempat terkirim; balasan status dicatat utuh dan terbaca |
+| 2.14 | Kertas dikeluarkan sendiri sesudah cek nozzle selesai, sebagai pengiriman tersendiri -- menirukan urutan yang memang terbukti bekerja, setelah empat dugaan tentang sebabnya gugur berturut-turut |
 | 2.13 | Bentuk perintah perawatan dan permintaan status disamakan dengan driver Epson resmi setelah berkas drivernya dibaca; penantian printer bisa dihentikan; dua bug pelacakan pekerjaan diperbaiki |
 | 2.12 | Perintah perawatan dibungkus `JS` dan `JE` seperti jalur cetak -- itulah sebab kertas tertahan, bukan waktu tunggu, bukan `ESC @`, dan bukan form feed yang hilang; membaca status sengaja tidak ikut dibungkus, karena bertanya tidak boleh menggerakkan kertas |
 | 2.11 | Cek nozzle diakhiri form feed -- ternyata itu yang hilang, bukan waktu tunggu dan bukan `ESC @`; dua dugaan sebelumnya dicoba di perangkat dan gugur |
