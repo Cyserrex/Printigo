@@ -542,6 +542,9 @@ yang meleset lebih buruk daripada penolakan yang jujur.
 - Pekerjaan cetak berhenti kalau aplikasi ditutup. Layar ditahan tetap menyala
   selama mencetak, tapi itu bukan foreground service.
 - Arti kode kesalahan printer belum diverifikasi pada L3110 sungguhan.
+- Belum ada penyetelan kepala cetak dari HP. Protokolnya sudah direkam dan
+  ditulis di [docs/PROTOKOL-PENYETELAN-KEPALA.md](docs/PROTOKOL-PENYETELAN-KEPALA.md)
+  -- polanya digambar printer sendiri, jadi aplikasi cukup memicunya.
 - Belum ada reset level tinta maupun reset waste ink pad counter. Rencananya
   beserta alasan urutannya ada di
   [docs/RENCANA-PERAWATAN-TINTA.md](docs/RENCANA-PERAWATAN-TINTA.md).
