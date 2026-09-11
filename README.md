@@ -72,7 +72,7 @@ untuk mengujinya, jadi batas antara "terbukti" dan "belum" dijaga ketat.
 | Tampilan benar-benar tergambar | tangkapan layar dari komposisi Compose di JVM |
 | APK terkompilasi, tertandatangani, zipalign, manifes benar | `apksigner`, `zipalign`, `aapt2` |
 
-**195 unit test**, semuanya lolos: `gradlew test`.
+**194 unit test**, semuanya lolos: `gradlew test`.
 
 ### Belum terbukti
 
