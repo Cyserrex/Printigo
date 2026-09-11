@@ -214,8 +214,10 @@ Berguna untuk memisahkan masalah data dari masalah kabel.
   kemungkinan jalur pergi dan pulang tidak bertumpuk tepat
 - **Besar data disebutkan sebelum mencetak**, karena itulah yang menentukan
   lamanya menunggu -- dan 300 dpi mengirim seperempat dari 600 dpi
-- **Sisa tinta** dibaca dari printer. Hanya membaca; angkanya perkiraan printer
-  sendiri karena printer tangki tinta tidak punya sensor di dalam tangkinya
+- **Status printer** dibaca langsung: siap, sibuk, dijeda, atau ada masalah.
+  Sisa tinta ikut ditampilkan **kalau printernya melaporkannya** -- printer
+  tangki seperti L3110 tidak punya sensor di dalam tangkinya dan tidak pernah
+  melaporkan apa pun, sama seperti di aplikasi Epson di komputer
 - **Keluarkan kertas** yang tertahan tanpa mematikan printer
 - **Cek nozzle dan pembersihan head** langsung dari HP, dengan persetujuan
   lebih dulu karena keduanya memakai kertas atau tinta. Printer tanpa panel
@@ -525,8 +527,9 @@ yang meleset lebih buruk daripada penolakan yang jujur.
 - Belum ada reset level tinta maupun reset waste ink pad counter. Rencananya
   beserta alasan urutannya ada di
   [docs/RENCANA-PERAWATAN-TINTA.md](docs/RENCANA-PERAWATAN-TINTA.md).
-- Sisa tinta bisa dibaca, tapi belum pernah dicocokkan dengan printer sungguhan:
-  nomor blok dan kode warnanya berasal dari driver terbuka.
+- Sisa tinta tidak ditampilkan pada printer tangki seperti L3110, karena
+  printernya memang tidak punya sensor untuk melaporkannya. Aplikasi Epson di
+  komputer pun hanya menyuruh melihat tangkinya langsung.
 
 ---
 

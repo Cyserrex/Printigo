@@ -67,12 +67,12 @@ kemudian ketika angkanya ternyata meleset.
 **Syarat sebelum saya kerjakan:** aplikasi harus lebih dulu bisa **membaca**
 level tinta dari balasan status printer. Tanpa itu tidak ada cara memverifikasi
 reset berhasil, dan fitur yang tidak bisa diverifikasi tidak layak dikirim.
-**Sejak v2.3 syarat ini sudah terpenuhi di sisi kode.** `parsePrinterStatus` di
+Kodenya dibuat di v2.3 dan diuji pada perangkat di v2.15. **Jawabannya: L3110
+tidak pernah mengirim blok tinta sama sekali.** `parsePrinterStatus` di
 [PrinterStatus.kt](../app/src/main/java/com/escpr/usbprint/usb/PrinterStatus.kt)
-menguraikan blok tintanya, dan kartu Perawatan menampilkannya. Yang belum
-terbukti: apakah L3110 benar-benar mengirim blok itu, dan apakah kode warnanya
-sesuai dugaan. Keduanya hanya bisa dijawab dengan menekan tombol Periksa pada
-printer sungguhan.
+masih bisa menguraikannya untuk model berkartrid yang melaporkannya, tetapi
+pada printer tangki tidak ada yang bisa diuraikan -- dan itu bukan kekurangan
+yang bisa diperbaiki dengan kode.
 
 ### Urutan kerjanya
 
