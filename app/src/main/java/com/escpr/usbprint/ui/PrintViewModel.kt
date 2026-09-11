@@ -171,8 +171,10 @@ data class UiState(
      * berarti membangun ulang aplikasi.
      */
     val maintenanceVariant: Maintenance.Variant = Maintenance.DEFAULT_VARIANT,
-    /** Sisa tinta hasil pembacaan terakhir. */
+    /** Sisa tinta hasil pembacaan terakhir. Kosong pada printer tangki. */
     val inks: List<InkLevel> = emptyList(),
+    /** Keadaan printer hasil pembacaan terakhir; null berarti belum diperiksa. */
+    val printerState: PrinterState? = null,
     /**
      * Sudah pernah mencoba membaca sisa tinta sejak aplikasi dibuka.
      *
@@ -893,10 +895,17 @@ class PrintViewModel @JvmOverloads constructor(
                             log("  [" + (index * 24) + "] " + bagian.joinToString(" "))
                         }
                     }
-                    _state.update { it.copy(inks = status.inks, inkChecked = true) }
+                    _state.update {
+                        it.copy(
+                            inks = status.inks,
+                            inkChecked = true,
+                            printerState = if (status.confident) status.state else null,
+                        )
+                    }
 
+                    if (status.confident) log("Keadaan printer: " + status.state.name.lowercase())
                     if (status.inks.isEmpty()) {
-                        log("Printer tidak melaporkan sisa tinta.")
+                        log("Sisa tinta tidak dilaporkan printer ini.")
                     } else {
                         log(status.inks.joinToString(", ") { it.label + " " + it.percent + "%" })
                     }

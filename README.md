@@ -86,13 +86,11 @@ dilaporkan apa adanya, dan balasan yang tidak dipahami tidak pernah
 menghalangi pencetakan: salah menghalangi lebih merugikan daripada meneruskan
 lalu gagal seperti sebelumnya.
 
-**Sisa tinta.** Sejak 2.13 permintaan status memakai parameter `00` seperti
-driver, dan L3110 menjawabnya dengan balasan biner ratusan byte yang memuat
-nomor seri printer -- jauh lebih kaya daripada balasan teks sebelumnya. Isinya
-belum diuraikan. Nomor blok status dan bentuk entrinya diambil dari driver
-terbuka. Kode warna yang tidak dikenali ditampilkan sebagai "Warna N", bukan
-diberi nama tebakan -- menyebut cyan sebagai magenta membuat orang mengisi
-tangki yang salah.
+**Penguraian sisa tinta.** Kodenya ada, tetapi **belum pernah diuji pada
+perangkat mana pun** -- L3110 tidak melaporkan sisa tinta sama sekali, jadi
+tidak ada yang bisa diuji dengannya. Kode warna yang tidak dikenali ditampilkan
+sebagai "Warna N", bukan diberi nama tebakan: menyebut cyan sebagai magenta
+membuat orang mengisi tangki yang salah.
 
 **Kenapa printer menahan kertas setelah cek nozzle.** Gejalanya sudah tertutup
 sejak 2.15 -- kertas keluar sendiri -- tetapi **sebabnya tetap tidak diketahui**,
@@ -536,7 +534,8 @@ yang meleset lebih buruk daripada penolakan yang jujur.
 
 | Versi | Isi |
 |---|---|
-| **2.15** | Penantian printer tidak lagi bergantung pada balasan yang bisa diurai -- perubahan bentuk permintaan status di 2.13 membuatnya berjalan sampai batas penuh, sehingga pengeluaran kertas di 2.14 tidak pernah sempat terkirim; balasan status dicatat utuh dan terbaca |
+| **2.16** | Panel sisa tinta jadi panel status printer, karena printer tangki memang tidak punya sensor tinta -- dikonfirmasi Status Monitor Epson sendiri yang juga hanya menyuruh melihat tangkinya; permintaan status kembali ke parameter yang benar-benar dijawab L3110 |
+| 2.15 | Penantian printer tidak lagi bergantung pada balasan yang bisa diurai -- perubahan bentuk permintaan status di 2.13 membuatnya berjalan sampai batas penuh, sehingga pengeluaran kertas di 2.14 tidak pernah sempat terkirim; balasan status dicatat utuh dan terbaca |
 | 2.14 | Kertas dikeluarkan sendiri sesudah cek nozzle selesai, sebagai pengiriman tersendiri -- menirukan urutan yang memang terbukti bekerja, setelah empat dugaan tentang sebabnya gugur berturut-turut |
 | 2.13 | Bentuk perintah perawatan dan permintaan status disamakan dengan driver Epson resmi setelah berkas drivernya dibaca; penantian printer bisa dihentikan; dua bug pelacakan pekerjaan diperbaiki |
 | 2.12 | Perintah perawatan dibungkus `JS` dan `JE` seperti jalur cetak -- itulah sebab kertas tertahan, bukan waktu tunggu, bukan `ESC @`, dan bukan form feed yang hilang; membaca status sengaja tidak ikut dibungkus, karena bertanya tidak boleh menggerakkan kertas |

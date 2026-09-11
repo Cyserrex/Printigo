@@ -94,6 +94,7 @@ import com.escpr.usbprint.escpr.PrintPreset
 import com.escpr.usbprint.escpr.presetOf
 import com.escpr.usbprint.escpr.Quality
 import com.escpr.usbprint.layout.PageLayout
+import com.escpr.usbprint.usb.PrinterState
 import com.escpr.usbprint.util.formatBytes
 import com.escpr.usbprint.print.PageSelectionMode
 import com.escpr.usbprint.ui.theme.AppTheme
@@ -344,11 +345,19 @@ private fun MaintenanceSection(state: UiState, viewModel: PrintViewModel) {
 private fun InkPanel(state: UiState, viewModel: PrintViewModel) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Sisa tinta", style = MaterialTheme.typography.bodyMedium)
+            Text("Status printer", style = MaterialTheme.typography.bodyMedium)
             Spacer(Modifier.weight(1f))
             TextButton(onClick = viewModel::refreshInk, enabled = !state.busy) {
                 Text(if (state.inkChecked) "Periksa lagi" else "Periksa")
             }
+        }
+
+        if (state.printerState != null) {
+            Text(
+                "Printer melapor: " + keadaanPrinter(state.printerState),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+            )
         }
 
         when {
@@ -363,9 +372,16 @@ private fun InkPanel(state: UiState, viewModel: PrintViewModel) {
                 )
             }
 
+            // Bukan kegagalan membaca. Printer tangki seperti L3110 tidak punya
+            // sensor di dalam tangkinya sama sekali, dan Status Monitor bawaan
+            // Epson pun hanya menyuruh melihat tangkinya langsung. Mengatakannya
+            // begitu lebih menolong daripada menyarankan orang membaca catatan
+            // mentah untuk sesuatu yang memang tidak pernah ada.
             state.inkChecked -> Text(
-                "Printer tidak melaporkan sisa tinta. Lihat catatan di bawah " +
-                    "untuk balasan mentahnya.",
+                "Printer ini tidak melaporkan sisa tinta, dan itu wajar: printer " +
+                    "tangki tidak punya sensor di dalam tangkinya. Periksa " +
+                    "tangkinya langsung -- aplikasi Epson di komputer pun " +
+                    "menyarankan hal yang sama.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -377,6 +393,17 @@ private fun InkPanel(state: UiState, viewModel: PrintViewModel) {
             )
         }
     }
+}
+
+/** Nama keadaan printer dalam bahasa sehari-hari. */
+private fun keadaanPrinter(state: PrinterState): String = when (state) {
+    PrinterState.IDLE -> "siap"
+    PrinterState.PRINTING -> "sedang mencetak"
+    PrinterState.BUSY -> "sibuk"
+    PrinterState.PAUSED -> "dijeda"
+    PrinterState.CLEANING -> "membersihkan head"
+    PrinterState.ERROR -> "ada masalah"
+    PrinterState.UNKNOWN -> "keadaan tidak dikenali"
 }
 
 @Composable

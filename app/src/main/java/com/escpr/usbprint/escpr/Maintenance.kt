@@ -102,13 +102,18 @@ object Maintenance {
      * pekerjaan sebelumnya. Perintah `ST` menyuruh printer menyusun laporan
      * baru, dan laporan itulah yang memuat sisa tinta.
      *
-     * Parameternya `00`, mengikuti driver Epson resmi -- dibaca dari berkas
-     * drivernya sendiri. Sebelumnya `01`, yang memang dijawab printer tetapi
-     * balasannya tidak pernah memuat sisa tinta.
+     * Parameternya `01`, bukan `00` yang dipakai driver Epson resmi.
+     *
+     * Itu penyimpangan yang disengaja dan berdasar. Pada L3110 sungguhan,
+     * parameter `01` dijawab dengan `@BDC ST` yang bisa diurai, sedangkan `00`
+     * berkali-kali tidak dijawab sama sekali. Kesetiaan pada driver berguna
+     * justru sampai bukti dari perangkat membantahnya -- dan di sini bukti itu
+     * ada. Sisa tinta tidak muncul pada keduanya, karena printer tangki
+     * memang tidak punya sensor untuk dilaporkan.
      *
      * Tidak memakai kertas maupun tinta, dan tidak menggerakkan apa pun.
      */
-    fun statusRequest(): ByteArray = wrapQuery(EscpR.remoteCmd("ST", byteArrayOf(0x00)))
+    fun statusRequest(): ByteArray = wrapQuery(EscpR.remoteCmd("ST", byteArrayOf(0x01)))
 
     private fun command(name: String, parameter: Int, variant: Variant): ByteArray =
         when (variant) {

@@ -10,8 +10,11 @@ import org.junit.Test
 /**
  * Pembacaan sisa tinta.
  *
- * Nomor blok dan bentuk entrinya diambil dari driver terbuka dan belum
- * diverifikasi pada L3110. Uji di sini menjaga dua hal yang tetap benar apa pun
+ * Nomor blok dan bentuk entrinya diambil dari driver terbuka. **L3110 tidak
+ * melaporkan sisa tinta sama sekali** -- printer tangki tidak punya sensor di
+ * dalam tangkinya, dan Status Monitor bawaan Epson pun hanya menyuruh melihat
+ * tangkinya langsung. Jadi penguraian di sini untuk model berkartrid yang
+ * memang melaporkannya, dan belum pernah diverifikasi pada perangkat mana pun. Uji di sini menjaga dua hal yang tetap benar apa pun
  * hasil verifikasi nanti: penguraiannya tidak pernah melempar pada data yang
  * aneh, dan kode warna yang tidak dikenali tidak pernah diberi nama tebakan.
  */
@@ -125,8 +128,10 @@ class InkLevelTest {
     @Test
     fun `permintaan status memakai urutan yang dipatok`() {
         val hex = Maintenance.statusRequest().joinToString(" ") { "%02X".format(it) }
-        // Parameter 00, mengikuti driver Epson resmi -- terbaca dari berkas
-        // drivernya sendiri, dan itulah satu-satunya bentuk ST yang ada di sana.
-        assertTrue(hex, hex.contains("52 45 4D 4F 54 45 31 53 54 02 00 00 00 1B 00 00 00"))
+        // Parameter 01, bukan 00 yang dipakai driver. Penyimpangan yang
+        // disengaja: pada L3110 sungguhan parameter 01 dijawab dengan @BDC ST
+        // yang bisa diurai, sedangkan 00 berkali-kali tidak dijawab sama sekali.
+        // Bukti dari perangkat mengalahkan kesetiaan pada driver.
+        assertTrue(hex, hex.contains("52 45 4D 4F 54 45 31 53 54 02 00 00 01 1B 00 00 00"))
     }
 }

@@ -1,7 +1,14 @@
 # Rencana: reset level tinta dan waste ink pad counter
 
-Status: **langkah pertama sudah dikerjakan di v2.3** -- sisa tinta bisa dibaca
-dan ditampilkan. Sisanya masih rencana, menunggu hasil uji perangkat.
+Status: **Bagian 1 selesai dengan jawaban tidak.** Diuji pada L3110 sungguhan:
+printer ini **tidak melaporkan sisa tinta sama sekali**, dan itu bukan
+keterbatasan aplikasi. Status Monitor bawaan Epson pun tidak menampilkan angka
+-- hanya kode tinta dan kalimat "periksa sendiri tangki printernya".
+
+Konsekuensinya untuk dokumen ini: syarat yang ditetapkan Bagian 1 -- bahwa
+reset hanya layak dikerjakan setelah pembacaan terbukti -- **tidak akan pernah
+terpenuhi pada model ini**. Bagian 2 tentang waste ink pad counter tidak
+terpengaruh; ia tidak pernah bergantung pada pembacaan tinta.
 
 Dokumen ini sengaja panjang di bagian risiko dan pendek di bagian kode. Bukan
 karena kodenya sulit — justru sebaliknya, kodenya sedikit. Yang sulit adalah
@@ -69,14 +76,19 @@ printer sungguhan.
 
 ### Urutan kerjanya
 
-1. ~~Tampilkan sisa tinta di aplikasi (baca saja, tidak mengubah apa pun).~~
-   **Selesai di v2.3.**
-2. Cocokkan angkanya dengan yang dilaporkan Windows. Kalau cocok, pembacaan
-   terbukti. **Ini langkah Anda berikutnya.**
-3. Baru tambahkan tombol reset, dengan verifikasi: baca sebelum, reset, baca
-   sesudah, tampilkan keduanya.
+1. ~~Tampilkan sisa tinta di aplikasi.~~ **Selesai di v2.3.**
+2. ~~Cocokkan angkanya dengan yang dilaporkan Windows.~~ **Selesai, dan
+   jawabannya menutup seluruh bagian ini: keduanya sama-sama tidak melaporkan
+   apa pun.** Windows menyuruh melihat tangkinya langsung.
+3. ~~Tombol reset dengan verifikasi baca-sebelum dan baca-sesudah.~~
+   **Tidak bisa dikerjakan**, dan bukan karena sulit: tidak ada angka yang bisa
+   dibaca sebelum maupun sesudah, jadi tidak ada cara memastikan reset berhasil.
+   Fitur yang tidak bisa diverifikasi tidak layak dikirim -- itu syarat yang
+   ditetapkan di awal dokumen ini, dan syarat itu berlaku juga ketika
+   jawabannya mengecewakan.
 
-Langkah 1 dan 2 berguna sendiri walau langkah 3 tidak pernah dikerjakan.
+Yang tersisa untuk level tinta adalah prosedur tombol di printer, yang memang
+sudah ada dan tidak butuh aplikasi apa pun.
 
 ---
 
@@ -168,8 +180,8 @@ yang ditulis ke printer Anda — dan itu alasan yang sah.
 
 | | Kapan | Syarat |
 |---|---|---|
-| Baca sisa tinta | **Selesai (v2.3)** | Cocokkan angkanya dengan Windows |
-| Reset level tinta | Setelah pembacaan terbukti | Bandingkan dengan Windows |
+| Baca sisa tinta | **Selesai -- tidak didukung L3110** | Windows pun tidak melaporkannya |
+| Reset level tinta | **Ditutup** | Tidak ada angka untuk diverifikasi; pakai tombol di printer |
 | EEPROM: baca | Setelah semua di atas | Nomor seri cocok |
 | EEPROM: petakan | Setelah baca terbukti | Alamat naik dua kali berturut-turut |
 | EEPROM: tulis | Terakhir, dan tidak harus | Bantalan sudah dibereskan, salinan EEPROM tersimpan |
