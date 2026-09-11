@@ -72,7 +72,7 @@ untuk mengujinya, jadi batas antara "terbukti" dan "belum" dijaga ketat.
 | Tampilan benar-benar tergambar | tangkapan layar dari komposisi Compose di JVM |
 | APK terkompilasi, tertandatangani, zipalign, manifes benar | `apksigner`, `zipalign`, `aapt2` |
 
-**192 unit test**, semuanya lolos: `gradlew test`.
+**195 unit test**, semuanya lolos: `gradlew test`.
 
 ### Belum terbukti
 
@@ -596,7 +596,8 @@ yang meleset lebih buruk daripada penolakan yang jujur.
 
 | Versi | Isi |
 |---|---|
-| **2.20** | Simpan .prn pindah dari bilah bawah ke kartu Catatan -- ia alat penelusuran, bukan tindakan sehari-hari, dan menempati separuh ruang paling berharga di layar; sekalian tombolnya tidak lagi mati saat mode lembar foto |
+| **2.21** | Layar utama dirapikan: Kertas dan Hasil cetak digabung jadi satu kartu dengan baris ringkasan, sepuluh baris chip dilipat, lima paragraf penjelasan dipangkas, dan pratinjau diperbesar -- tinggi layarnya turun kira-kira separuh |
+| 2.20 | Simpan .prn pindah dari bilah bawah ke kartu Catatan -- ia alat penelusuran, bukan tindakan sehari-hari, dan menempati separuh ruang paling berharga di layar; sekalian tombolnya tidak lagi mati saat mode lembar foto |
 | 2.19 | Permintaan status disalin dari rekaman driver (`OT` lalu `ST 01 00 01`) -- bentuk lama hanya dijawab teks pendek tanpa tinta, dan itu sebab sebenarnya kenapa blok tinta tidak pernah sampai |
 | 2.18 | Blok tinta diuraikan dengan benar setelah balasan L3110 direkam: kode warna ada di byte kedua, dan nilai 105 berarti "tidak terukur" -- bukan data rusak yang layak dibuang seperti dugaan sebelumnya |
 | 2.17 | Urutan cek nozzle disalin dari rekaman USB driver Epson resmi dan sama persis 132 byte -- sebab kertas tertahan akhirnya diketahui: `JE` harus datang **sesudah** form feed, dalam blok REMOTE1 tersendiri, bukan sebelumnya |

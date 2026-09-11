@@ -245,8 +245,7 @@ internal fun PrintScreen(viewModel: PrintViewModel) {
                 onPick = { pickDocument.launch(arrayOf("image/*", "application/pdf")) },
                 onAddPhotos = { addPhotos.launch(arrayOf("image/*")) },
             )
-            PaperSection(state, viewModel)
-            OutputSection(state, viewModel)
+            PrintSettingsSection(state, viewModel)
             MaintenanceSection(state, viewModel)
             LogSection(state) { savePrn.launch(viewModel.suggestedFileName()) }
             Spacer(Modifier.height(8.dp))
@@ -504,14 +503,18 @@ private fun PreviewSection(
         )
     ) {
         Column(
-            Modifier.padding(16.dp),
+            // Sisi kiri-kanan dipersempit supaya kertasnya lebih lebar. Inilah
+            // satu-satunya bagian layar yang benar-benar dipandangi orang, dan
+            // sebelumnya ia dikelilingi ruang kosong yang lebih luas daripada
+            // kertasnya sendiri.
+            Modifier.padding(horizontal = 8.dp, vertical = 14.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Box(
                 Modifier
                     .fillMaxWidth()
-                    .height(300.dp)
+                    .height(380.dp)
                     .then(
                         if (document != null && !state.busy) {
                             Modifier.clickable(onClick = viewModel::openLayoutEditor)
@@ -641,11 +644,11 @@ private fun DataSizeNote(state: UiState) {
         state.settings.copies.coerceAtLeast(1)
     val total = EscpRJob.estimatedBytesPerPage(state.settings) * lembar
 
+    // Satu baris, bukan paragraf. Angkanya yang berguna; alasannya ada di
+    // README dan tidak perlu diulang di layar setiap kali.
     Text(
-        "Sekitar " + formatBytes(total) + " dikirim ke printer" +
-            (if (lembar > 1) " untuk $lembar lembar" else "") +
-            ". Foto hampir tidak bisa dipadatkan; menurunkan resolusi adalah " +
-            "cara paling langsung mempercepat.",
+        "~" + formatBytes(total) + " dikirim ke printer" +
+            (if (lembar > 1) " untuk $lembar lembar" else ""),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -765,85 +768,37 @@ private fun OverflowWarning(state: UiState) {
     }
 }
 
-// -------------------------------------------------------------- kertas
+// ------------------------------------------------------- setelan cetak
 
+/**
+ * Seluruh setelan cetak dalam satu kartu.
+ *
+ * Dulu terpisah jadi dua -- Kertas dan Hasil cetak -- dengan sepuluh baris chip
+ * dan lima paragraf penjelasan yang selalu terpampang. Digabung dan dilipat,
+ * karena hampir semuanya dipilih sekali lalu tidak disentuh lagi: ukuran
+ * kertas, margin, resolusi, jenis kertas, arah cetak.
+ *
+ * Yang tetap di permukaan hanya yang benar-benar berubah antar-pekerjaan --
+ * preset, warna, jumlah salinan -- ditambah satu baris ringkasan supaya
+ * setelan yang tersembunyi tidak pernah jadi kejutan.
+ */
 @Composable
-private fun PaperSection(state: UiState, viewModel: PrintViewModel) {
+private fun PrintSettingsSection(state: UiState, viewModel: PrintViewModel) {
     val settings = state.settings
     val enabled = !state.busy
-
-    SectionCard("Kertas") {
-        ChipRow(PaperSize.entries, settings.paper, { it.shortLabel }, enabled) { value ->
-            viewModel.updateSettings { it.copy(paper = value) }
-        }
-
-        Spacer(Modifier.height(4.dp))
-
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Margin", style = MaterialTheme.typography.bodyMedium)
-            Spacer(Modifier.weight(1f))
-            Text(
-                "${fmtMm(settings.marginMm)} mm",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
-        // Nilainya diteruskan langsung ke state, jadi pratinjau ikut bergerak
-        // selama slider digeser.
-        Slider(
-            value = settings.marginMm,
-            onValueChange = { value ->
-                viewModel.updateSettings { it.copy(marginMm = (value * 2).roundToInt() / 2f) }
-            },
-            valueRange = 0f..20f,
-            steps = 39,
-            enabled = enabled,
-            // Tanpa ini pembaca layar hanya menyebut "penggeser 15 persen",
-            // angka yang tidak berarti apa-apa bagi pengguna.
-            modifier = Modifier.semantics {
-                contentDescription = "Batas cetak"
-                stateDescription = fmtMm(settings.marginMm) + " milimeter"
-            }
-        )
-        Text(
-            "Printer ini tidak bisa mencetak tanpa batas. Margin di bawah 3 mm " +
-                "berisiko terpotong di tepi kertas.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-// ------------------------------------------------------------- keluaran
-
-@Composable
-private fun OutputSection(state: UiState, viewModel: PrintViewModel) {
-    val settings = state.settings
-    val enabled = !state.busy
-
-    // Preset menyatukan empat pilihan yang memang bergerak bersama. Yang
-    // tersisa di permukaan hanyalah keputusan tentang APA yang dicetak --
-    // warna dan jumlah salinan -- sedangkan BAGAIMANA mencetaknya cukup satu
-    // ketukan. Yang jarang dipakai tidak dihapus, hanya tidak lagi menuntut
-    // perhatian setiap kali layar dibuka.
-    var lanjutanTerbuka by remember { mutableStateOf(false) }
     val preset = presetOf(settings)
+    var lanjutanTerbuka by remember { mutableStateOf(false) }
 
-    SectionCard("Hasil cetak") {
-        // Tipenya disebut tegas karena preset boleh null -- "setelan campuran"
-        // adalah keadaan yang sah, bukan kesalahan, dan saat itu memang tidak
-        // ada chip yang menyala.
+    SectionCard("Setelan cetak") {
         ChipRow<PrintPreset?>(
             PrintPreset.entries,
             preset,
             { it?.label.orEmpty() },
             enabled,
-        ) { value -> value?.let { p -> viewModel.updateSettings { p.applyTo(it) } } }
+        ) { value -> value?.let { pilih -> viewModel.updateSettings { pilih.applyTo(it) } } }
 
         Text(
-            preset?.hint
-                ?: "Setelan campuran. Pilih salah satu di atas untuk kembali " +
-                "ke pasangan yang serasi.",
+            preset?.hint ?: "Setelan campuran. Pilih salah satu di atas untuk kembali.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -853,9 +808,28 @@ private fun OutputSection(state: UiState, viewModel: PrintViewModel) {
             viewModel.updateSettings { it.copy(colorMode = value) }
         }
 
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Salinan", style = MaterialTheme.typography.bodyMedium)
+            Spacer(Modifier.weight(1f))
+            Stepper(settings.copies, 1..20, enabled) { value ->
+                viewModel.updateSettings { it.copy(copies = value) }
+            }
+        }
+
+        HorizontalDivider()
+
+        // Ringkasan satu baris. Setelan yang dilipat tidak boleh jadi setelan
+        // yang tersembunyi -- orang harus tetap bisa melihat apa yang berlaku
+        // tanpa membuka apa pun.
+        Text(
+            settings.paper.shortLabel + "  ·  " + settings.dpi.label + "  ·  " +
+                settings.mediaType.label.lowercase() + "  ·  margin " +
+                fmtMm(settings.marginMm) + " mm",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         DataSizeNote(state)
 
-        Spacer(Modifier.height(4.dp))
         Row(
             Modifier
                 .fillMaxWidth()
@@ -872,6 +846,39 @@ private fun OutputSection(state: UiState, viewModel: PrintViewModel) {
         }
 
         if (lanjutanTerbuka) {
+            Label("Kertas")
+            ChipRow(PaperSize.entries, settings.paper, { it.shortLabel }, enabled) { value ->
+                viewModel.updateSettings { it.copy(paper = value) }
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Margin", style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.weight(1f))
+                Text(
+                    fmtMm(settings.marginMm) + " mm",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            Slider(
+                value = settings.marginMm,
+                onValueChange = { value ->
+                    viewModel.updateSettings { it.copy(marginMm = (value * 2).roundToInt() / 2f) }
+                },
+                valueRange = 0f..20f,
+                steps = 39,
+                enabled = enabled,
+                modifier = Modifier.semantics {
+                    contentDescription = "Batas cetak"
+                    stateDescription = fmtMm(settings.marginMm) + " milimeter"
+                },
+            )
+            Text(
+                "Di bawah 3 mm berisiko terpotong di tepi kertas.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
             Label("Kualitas")
             ChipRow(Quality.entries, settings.quality, { it.shortLabel }, enabled) { value ->
                 viewModel.updateSettings { it.copy(quality = value) }
@@ -886,12 +893,10 @@ private fun OutputSection(state: UiState, viewModel: PrintViewModel) {
             ChipRow(MediaType.entries, settings.mediaType, { it.label }, enabled) { value ->
                 viewModel.updateSettings { it.copy(mediaType = value) }
             }
-
             Text(
-                "Jenis kertas harus cocok dengan yang benar-benar dimuat. " +
-                    "Memilih Matte atau kertas foto sementara yang dipakai HVS " +
-                    "biasa membuat printer menyemprot tinta jauh lebih banyak " +
-                    "daripada yang bisa diserap, dan hasilnya berbayang.",
+                "Harus cocok dengan kertas yang benar-benar dimuat. Memilih " +
+                    "Matte atau kertas foto untuk HVS biasa membuat tinta " +
+                    "berlebih dan hasilnya berbayang.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -907,39 +912,17 @@ private fun OutputSection(state: UiState, viewModel: PrintViewModel) {
                 enabled,
             ) { arah -> viewModel.updateSettings { it.copy(direction = arah) } }
 
-            Text(
-                if (settings.direction == PrintDirection.BIDIRECTIONAL)
-                    "Kepala mencetak saat bergerak ke kiri maupun ke kanan. " +
-                        "Kalau hasilnya tampak berbayang, coba satu arah."
-                else
-                    "Kepala hanya mencetak satu arah. Kira-kira dua kali lebih " +
-                        "lama, tapi tidak bisa meleset antara jalur pergi dan pulang.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-
-        Spacer(Modifier.height(4.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                "Bawaan: berwarna, Normal, 300 dpi, kertas biasa",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f),
-            )
-            TextButton(onClick = viewModel::resetSettings, enabled = enabled) {
-                Text("Kembalikan")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "Bawaan: berwarna, Normal, 300 dpi, kertas biasa",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = viewModel::resetSettings, enabled = enabled) {
+                    Text("Kembalikan")
+                }
             }
-        }
-
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Salinan", style = MaterialTheme.typography.bodyMedium)
-            Spacer(Modifier.weight(1f))
-            Stepper(
-                value = settings.copies,
-                range = 1..20,
-                enabled = enabled
-            ) { value -> viewModel.updateSettings { it.copy(copies = value) } }
         }
     }
 }
@@ -1150,11 +1133,8 @@ private fun LogSection(state: UiState, onExport: () -> Unit) {
         if (state.hasContent) {
             HorizontalDivider()
             Text(
-                "Simpan data cetak sebagai berkas .prn untuk menelusuri masalah. " +
-                    "Isinya byte yang persis sama dengan yang dikirim ke printer, " +
-                    "jadi bisa dicetak dari komputer lewat tools/send_raw.ps1. " +
-                    "Kalau hasilnya benar dari komputer tapi salah dari HP, " +
-                    "masalahnya di jalur USB -- bukan di datanya.",
+                "Byte yang sama persis dengan yang dikirim ke printer, untuk " +
+                    "menelusuri masalah dari komputer.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

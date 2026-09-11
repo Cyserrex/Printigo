@@ -69,8 +69,10 @@ class PrintScreenTest {
     fun `layar utama tersusun tanpa gagal`() {
         launch()
         compose.onNodeWithText("USB Printer OTG").assertIsDisplayed()
-        compose.onNodeWithText("Kertas").assertIsDisplayed()
-        compose.onNodeWithText("Hasil cetak").assertIsDisplayed()
+        // Kertas dan Hasil cetak digabung jadi satu kartu; sepuluh baris chip
+        // yang dulu selalu terpampang sekarang dilipat di balik Setelan lanjutan.
+        compose.onNodeWithText("Setelan cetak").assertIsDisplayed()
+        compose.onNodeWithText("Setelan lanjutan").assertIsDisplayed()
     }
 
     @Test
@@ -310,6 +312,8 @@ class PrintScreenTest {
     fun `menekan chip ukuran kertas mengubah pengaturan`() {
         val viewModel = launch()
 
+        compose.onNodeWithText("Setelan lanjutan").performClick()
+        compose.waitForIdle()
         compose.onNodeWithText("A6").performClick()
         compose.waitForIdle()
 
@@ -319,12 +323,27 @@ class PrintScreenTest {
     @Test
     fun `nilai margin tampil dan ikut berubah`() {
         val viewModel = launch()
+        compose.onNodeWithText("Setelan lanjutan").performClick()
+        compose.waitForIdle()
         compose.onNodeWithText("3 mm").assertIsDisplayed()
 
         viewModel.updateSettings { it.copy(marginMm = 12f) }
         compose.waitForIdle()
 
         compose.onNodeWithText("12 mm").assertIsDisplayed()
+    }
+
+    @Test
+    fun `margin yang dilipat tetap terlihat di baris ringkasan`() {
+        // Melipat setelan tidak boleh berarti menyembunyikannya. Nilai yang
+        // berlaku harus tetap terbaca tanpa membuka apa pun, kalau tidak orang
+        // mencetak dengan setelan yang tidak ia sadari.
+        val viewModel = launch()
+        viewModel.updateSettings { it.copy(marginMm = 12f) }
+        compose.waitForIdle()
+
+        compose.onNodeWithText("A4  ·  300 dpi  ·  kertas biasa  ·  margin 12 mm")
+            .assertIsDisplayed()
     }
 
     /**
