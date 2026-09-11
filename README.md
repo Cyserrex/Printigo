@@ -40,7 +40,8 @@ untuk mengujinya, jadi batas antara "terbukti" dan "belum" dijaga ketat.
 
 | Pemeriksaan | Cara |
 |---|---|
-| **Cek nozzle dijalankan dari HP, polanya tercetak** | Epson L3110, bentuk perintah `EXTENDED` (`NC 02 00 00 00`); bentuk klasik tidak direspons |
+| **Cek nozzle dijalankan dari HP, polanya tercetak, kertas keluar** | Epson L3110, bentuk `EXTENDED` (`NC 02 00 00 00`); bentuk klasik tidak direspons, dan kertas baru keluar setelah form feed |
+| **Form feed mengeluarkan kertas yang tertahan** | dicoba di perangkat setelah dua dugaan lain gugur |
 | **Balasan status bentuk teks `@BDC ST` diuraikan** | byte sungguhan dari L3110 dipakai langsung sebagai data uji |
 | **Mencetak dari HP lewat kabel USB OTG, foto keluar di kertas** | Epson L3110, Printigo 2.3 -- jalur USB Android akhirnya terbukti, bukan lagi hanya jalur datanya |
 | **Halaman uji tercetak benar di Epson L3110 sungguhan** | `tools/testpage_light.py` dikirim apa adanya lewat `tools/send_raw.ps1` (winspool, datatype RAW, tanpa melewati driver Epson) |
@@ -66,7 +67,7 @@ untuk mengujinya, jadi batas antara "terbukti" dan "belum" dijaga ketat.
 | Tampilan benar-benar tergambar | tangkapan layar dari komposisi Compose di JVM |
 | APK terkompilasi, tertandatangani, zipalign, manifes benar | `apksigner`, `zipalign`, `aapt2` |
 
-**180 unit test**, semuanya lolos: `gradlew test`.
+**181 unit test**, semuanya lolos: `gradlew test`.
 
 ### Belum terbukti
 
@@ -88,12 +89,10 @@ terbuka. Kode warna yang tidak dikenali ditampilkan sebagai "Warna N", bukan
 diberi nama tebakan -- menyebut cyan sebagai magenta membuat orang mengisi
 tangki yang salah.
 
-**Kertas yang berhenti separuh keluar setelah cek nozzle.** Menahan sambungan
-sampai printer melapor siap **sudah dicoba dan tidak menolong** -- ditunggu 18
-detik, printer melapor idle, kertas tetap tertahan. Itu sendiri petunjuk:
-printer menganggap pekerjaannya selesai tanpa pernah mengeluarkan kertas. Sejak
-2.10 akhiran `ESC @` dibuang, karena reset yang tiba tepat sebelum kertas
-dikeluarkan adalah tersangka yang tersisa. **Belum dicoba** pada perangkat.
+**Bunyi printer yang berlanjut beberapa saat setelah kertas keluar.** Terdengar
+pada perangkat, sebabnya belum ditelusuri. Kertasnya sudah keluar dan tidak ada
+tanda kerusakan, jadi dugaan pertama adalah rutinitas memarkir kepala -- tapi
+itu belum diperiksa.
 
 **Perilaku APK yang sudah dikecilkan R8 di HP.** Isi DEX-nya diperiksa, tapi
 aplikasinya sendiri belum pernah dijalankan dalam bentuk terkecilkan. Kalau
@@ -516,7 +515,8 @@ yang meleset lebih buruk daripada penolakan yang jujur.
 
 | Versi | Isi |
 |---|---|
-| **2.10** | Akhiran `ESC @` dibuang dari perintah perawatan -- tersangka kertas yang berhenti separuh keluar; tombol Keluarkan kertas; kecepatan sambungan USB dilaporkan dari ukuran paket bulk, bukan disimpulkan dari laju |
+| **2.11** | Cek nozzle diakhiri form feed -- ternyata itu yang hilang, bukan waktu tunggu dan bukan `ESC @`; dua dugaan sebelumnya dicoba di perangkat dan gugur |
+| 2.10 | Akhiran `ESC @` dibuang dari perintah perawatan -- tersangka kertas yang berhenti separuh keluar; tombol Keluarkan kertas; kecepatan sambungan USB dilaporkan dari ukuran paket bulk, bukan disimpulkan dari laju |
 | 2.9 | Dua preset -- Cetak biasa dan Kualitas foto -- menggantikan empat baris chip yang memang bergerak bersama; sisanya pindah ke Setelan lanjutan |
 | 2.8 | Bawaan cetak jadi 300 dpi dan ada tombol mengembalikan seluruh setelan ke bawaan; jeda terendah sebelum jawaban "siap" printer dipercaya, karena tanpa itu penantian di 2.7 keluar seketika |
 | 2.7 | Balasan status bentuk teks `@BDC ST` diuraikan -- L3110 memakai itu, bukan blok biner `ST2`, jadi sisa tinta selalu kosong sebelumnya; sambungan ditahan sampai printer melapor siap setelah perintah perawatan |

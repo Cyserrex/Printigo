@@ -26,18 +26,28 @@ class MaintenanceTest {
         val bytes = Maintenance.nozzleCheck()
         assertEquals(
             "00 00 00 1B 01 40 45 4A 4C 20 31 32 38 34 2E 34 0A 40 45 4A 4C 20 20 20 20 20 0A " +
-                "1B 40 1B 40 1B 28 52 08 00 00 52 45 4D 4F 54 45 31 4E 43 01 00 00 1B 00 00 00",
+                "1B 40 1B 40 1B 28 52 08 00 00 52 45 4D 4F 54 45 31 4E 43 01 00 00 1B 00 00 00 0C",
             hex(bytes),
         )
     }
 
     @Test
-    fun `pembersihan head hanya berbeda pada dua huruf perintahnya`() {
+    fun `pembersihan head sama dengan cek nozzle kecuali perintah dan form feed`() {
         val nozzle = hex(Maintenance.nozzleCheck())
         val clean = hex(Maintenance.headCleaning())
-        // 4E 43 = "NC", 43 48 = "CH". Selebihnya harus identik: kalau ada beda
-        // lain, salah satu urutannya sudah tergeser.
-        assertEquals(nozzle.replace("4E 43", "43 48"), clean)
+        // 4E 43 = "NC", 43 48 = "CH". Bedanya yang sah tinggal dua: huruf
+        // perintahnya, dan form feed di akhir cek nozzle -- pembersihan head
+        // tidak memakai kertas, jadi tidak ada yang perlu dikeluarkan.
+        assertEquals(nozzle.removeSuffix(" 0C").replace("4E 43", "43 48"), clean)
+    }
+
+    @Test
+    fun `cek nozzle diakhiri form feed, pembersihan head tidak`() {
+        // Inilah yang ditemukan dari perangkat: printer mencetak polanya lalu
+        // menahan kertas sambil melapor idle. Menahan sambungan dan membuang
+        // ESC @ sama-sama tidak menolong; form feed yang mengeluarkannya.
+        assertTrue(hex(Maintenance.nozzleCheck()).endsWith("0C"))
+        assertFalse(hex(Maintenance.headCleaning()).endsWith("0C"))
     }
 
     @Test
@@ -56,7 +66,6 @@ class MaintenanceTest {
         listOf(MaintenanceTask.NOZZLE_CHECK, MaintenanceTask.HEAD_CLEANING).forEach { task ->
             val hex = hex(task.bytes())
             assertTrue(task.name + " masih diakhiri ESC @", !hex.endsWith("1B 40"))
-            assertTrue(task.name, hex.endsWith("1B 00 00 00"))
         }
     }
 

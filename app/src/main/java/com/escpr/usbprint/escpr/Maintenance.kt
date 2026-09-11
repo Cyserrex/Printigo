@@ -20,13 +20,20 @@ package com.escpr.usbprint.escpr
  * bentuk klasik, dan bentuk kedua tinggal mengganti [Variant]. Kalau printer
  * tidak bereaksi sama sekali, itu petunjuk pertama yang harus dicoba.
  *
- * Akhiran `ESC @` sengaja **tidak** disertakan. Pada L3110 sungguhan, pola cek
- * nozzle tercetak lengkap tetapi kertasnya berhenti separuh keluar sementara
- * printer melaporkan dirinya sudah idle -- ia menganggap pekerjaannya selesai
- * tanpa pernah mengeluarkan kertas. `ESC @` berarti "reset printer", dan reset
- * yang tiba tepat sebelum kertas dikeluarkan adalah tersangka yang paling
- * masuk akal. Membuangnya aman karena setiap pekerjaan -- cetak maupun
- * perawatan -- sudah diawali resetnya sendiri.
+ * ## Kenapa cek nozzle diakhiri form feed
+ *
+ * Pada L3110 sungguhan, pola cek nozzle tercetak lengkap tetapi kertasnya
+ * berhenti separuh keluar sementara printer melaporkan dirinya sudah idle --
+ * ia menganggap pekerjaannya selesai tanpa pernah mengeluarkan kertas.
+ *
+ * Dua dugaan dicoba dan gugur berurutan: menahan sambungan sampai printer
+ * melapor siap (ditunggu 18 detik, tetap tertahan), lalu membuang akhiran
+ * `ESC @` (tetap tertahan). Yang akhirnya mengeluarkan kertas adalah form feed
+ * yang dikirim terpisah. Jadi yang hilang memang perintah mengeluarkan
+ * kertasnya, bukan waktu dan bukan reset -- dan sekarang ia menjadi bagian
+ * dari urutan cek nozzle itu sendiri.
+ *
+ * Pembersihan head tidak memakai kertas, jadi tidak diakhiri form feed.
  *
  * Perintah ini tidak bisa merusak printer: keduanya operasi perawatan biasa
  * yang juga ada di panel printer bermenu. Yang perlu diingat hanya bahwa
@@ -57,7 +64,7 @@ object Maintenance {
      * ada gambar yang dikirim dari HP.
      */
     fun nozzleCheck(variant: Variant = Variant.CLASSIC): ByteArray =
-        wrap(command("NC", NOZZLE_PATTERN, variant))
+        wrap(command("NC", NOZZLE_PATTERN, variant)) + byteArrayOf(FORM_FEED)
 
     /**
      * Menjalankan pembersihan head.
@@ -123,6 +130,14 @@ enum class MaintenanceTask(
     /** Kalimat yang dilihat pengguna sebelum menyetujui. */
     val confirmation: String,
     val usesPaper: Boolean,
+    /**
+     * Apakah pilihan bentuk perintah berlaku untuk tugas ini.
+     *
+     * Form feed bukan perintah REMOTE1 dan tidak punya dua bentuk. Mencatatnya
+     * sebagai "(EXTENDED)" di catatan hanya akan membuat orang mengira
+     * pilihannya berpengaruh padahal tidak.
+     */
+    val usesVariant: Boolean = true,
 ) {
     NOZZLE_CHECK(
         label = "Cek nozzle",
@@ -142,6 +157,7 @@ enum class MaintenanceTask(
         confirmation = "Printer akan memajukan kertas sampai keluar. Dipakai " +
             "kalau ada kertas yang tertahan di dalam.",
         usesPaper = false,
+        usesVariant = false,
     );
 
     fun bytes(variant: Maintenance.Variant = Maintenance.Variant.CLASSIC): ByteArray =

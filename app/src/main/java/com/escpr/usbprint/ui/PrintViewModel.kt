@@ -943,8 +943,9 @@ class PrintViewModel @JvmOverloads constructor(
                     val sink = printer.sink()
                     val bytes = task.bytes(current.maintenanceVariant)
                     log(
-                        task.label + " (" + current.maintenanceVariant.name + "): " +
-                            bytes.joinToString(" ") { "%02X".format(it) }
+                        task.label +
+                            (if (task.usesVariant) " (" + current.maintenanceVariant.name + ")" else "") +
+                            ": " + bytes.joinToString(" ") { "%02X".format(it) }
                     )
                     sink.write(bytes, 0, bytes.size)
                     sink.flush()
