@@ -100,6 +100,15 @@ private const val STATUS_READ_TIMEOUT_MS = 400
  */
 private const val MAINTENANCE_WAIT_MS = 150_000L
 
+/**
+ * Jeda terendah sebelum jawaban "siap" dari printer boleh dipercaya.
+ *
+ * Printer menjawab idle pada detik yang sama perintah perawatan dikirim --
+ * ia memang belum mulai bergerak. Tanpa jeda ini, menunggu sampai siap sama
+ * saja dengan tidak menunggu sama sekali.
+ */
+private const val MAINTENANCE_MIN_HOLD_MS = 12_000L
+
 data class Document(
     val file: File,
     val name: String,
@@ -555,6 +564,23 @@ class PrintViewModel @JvmOverloads constructor(
         _state.update { it.copy(pageSelection = transform(it.pageSelection)) }
     }
 
+    /**
+     * Mengembalikan seluruh setelan cetak ke bawaan.
+     *
+     * Ada karena setelan diingat antar-sesi. Itu berguna sehari-hari, tapi
+     * berarti sekali seseorang menjelajah ke 600 dpi dan jenis kertas Matte,
+     * ia tinggal di sana selamanya -- termasuk ketika bawaan aplikasinya
+     * kemudian diperbaiki. Jumlah salinan sengaja ikut kembali ke satu.
+     */
+    fun resetSettings() {
+        _state.update { state ->
+            val bawaan = PrintSettings()
+            settingsStore.save(bawaan)
+            log("Setelan cetak dikembalikan ke bawaan.")
+            state.copy(settings = bawaan)
+        }
+    }
+
     fun updateSettings(transform: (PrintSettings) -> PrintSettings) {
         _state.update { state ->
             val next = transform(state.settings)
@@ -933,11 +959,12 @@ class PrintViewModel @JvmOverloads constructor(
                     // Selama menunggu tidak satu byte pun dikirim. Permintaan
                     // status memuat ESC @ yang akan mereset printer di tengah
                     // mencetak, jadi yang dilakukan hanya membaca.
+                    val mulaiTunggu = System.currentTimeMillis()
                     val akhir = waitUntilIdle(printer)
+                    val detik = (System.currentTimeMillis() - mulaiTunggu) / 1000
                     log(
-                        if (akhir == null) "Printer tidak melapor selesai dalam " +
-                            (MAINTENANCE_WAIT_MS / 1000) + " detik."
-                        else "Printer melapor: " + akhir.state.name.lowercase()
+                        "Ditunggu " + detik + " detik, printer melapor: " +
+                            (akhir?.state?.name?.lowercase() ?: "tidak menjawab")
                     )
                 }
                 _state.update { it.copy(outcome = PrintOutcome.MaintenanceSent(task)) }
@@ -969,14 +996,27 @@ class PrintViewModel @JvmOverloads constructor(
      * waktu -- yang bukan berarti gagal, hanya berarti tidak terdengar.
      */
     private fun waitUntilIdle(printer: UsbPrinter): PrinterStatus? {
-        val batas = System.currentTimeMillis() + MAINTENANCE_WAIT_MS
+        val mulai = System.currentTimeMillis()
+        // Jeda terendah sebelum jawaban "siap" boleh dipercaya. Tanpa ini
+        // penantiannya sia-sia: pada percobaan sungguhan printer menjawab
+        // idle pada detik yang sama perintahnya dikirim -- ia memang belum
+        // mulai bergerak. Sambungan lalu ditutup tepat saat printer menarik
+        // kertas, dan kertasnya berhenti separuh keluar.
+        val palingCepat = mulai + MAINTENANCE_MIN_HOLD_MS
+        val batas = mulai + MAINTENANCE_WAIT_MS
+
         var terakhir: PrinterStatus? = null
         while (System.currentTimeMillis() < batas) {
             val potongan = printer.readStatus(1000)
-            if (potongan.isEmpty()) continue
-            val status = parsePrinterStatus(potongan)
-            terakhir = status
-            if (status.confident && status.state == PrinterState.IDLE) return status
+            if (potongan.isNotEmpty()) {
+                val status = parsePrinterStatus(potongan)
+                terakhir = status
+                if (status.confident && status.state == PrinterState.IDLE &&
+                    System.currentTimeMillis() >= palingCepat
+                ) {
+                    return status
+                }
+            }
         }
         return terakhir
     }

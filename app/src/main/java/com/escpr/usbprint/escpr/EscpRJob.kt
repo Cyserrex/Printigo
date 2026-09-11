@@ -28,7 +28,15 @@ interface TimedSink {
 
 data class PrintSettings(
     val paper: PaperSize = PaperSize.A4,
-    val dpi: Dpi = Dpi.DPI360,
+    /**
+     * 300 dpi, bukan 360.
+     *
+     * Pada kertas HVS biasa keduanya tidak terbedakan mata -- seratnya
+     * menyebarkan tinta jauh lebih kasar daripada selisih itu -- sedangkan
+     * 300 dpi mengirim seperempat data dibanding 600 dpi. Bawaan seharusnya
+     * yang benar untuk keadaan paling umum, bukan yang paling tinggi angkanya.
+     */
+    val dpi: Dpi = Dpi.DPI300,
     val quality: Quality = Quality.NORMAL,
     val colorMode: ColorMode = ColorMode.COLOR,
     val mediaType: MediaType = MediaType.PLAIN,

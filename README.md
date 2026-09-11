@@ -88,10 +88,12 @@ terbuka. Kode warna yang tidak dikenali ditampilkan sebagai "Warna N", bukan
 diberi nama tebakan -- menyebut cyan sebagai magenta membuat orang mengisi
 tangki yang salah.
 
-**Kertas yang berhenti separuh keluar setelah cek nozzle.** Sambungan ditutup
-tepat setelah byte terakhir terkirim, dan printer menahan kertas sambil
-motornya terus berjalan. Sejak 2.7 sambungan ditahan sampai printer melapor
-siap; masuk akal, tetapi belum dicoba pada perangkat.
+**Kertas yang berhenti separuh keluar setelah cek nozzle.** Penantian yang
+ditambahkan di 2.7 ternyata tidak pernah berjalan: printer menjawab "siap" pada
+detik yang sama perintahnya dikirim, karena ia memang belum mulai bergerak.
+Sejak 2.8 ada jeda terendah sebelum jawaban itu dipercaya. Masih **belum
+dicoba** pada perangkat; kalau tetap tertahan, tersangka berikutnya adalah
+`ESC @` di akhir perintah perawatan.
 
 **Perilaku APK yang sudah dikecilkan R8 di HP.** Isi DEX-nya diperiksa, tapi
 aplikasinya sendiri belum pernah dijalankan dalam bentuk terkecilkan. Kalau
@@ -509,7 +511,8 @@ yang meleset lebih buruk daripada penolakan yang jujur.
 
 | Versi | Isi |
 |---|---|
-| **2.7** | Balasan status bentuk teks `@BDC ST` diuraikan -- L3110 memakai itu, bukan blok biner `ST2`, jadi sisa tinta selalu kosong sebelumnya; sambungan ditahan sampai printer melapor siap setelah perintah perawatan |
+| **2.8** | Bawaan cetak jadi 300 dpi dan ada tombol mengembalikan seluruh setelan ke bawaan; jeda terendah sebelum jawaban "siap" printer dipercaya, karena tanpa itu penantian di 2.7 keluar seketika |
+| 2.7 | Balasan status bentuk teks `@BDC ST` diuraikan -- L3110 memakai itu, bukan blok biner `ST2`, jadi sisa tinta selalu kosong sebelumnya; sambungan ditahan sampai printer melapor siap setelah perintah perawatan |
 | 2.6 | Waktu satu pekerjaan cetak dirinci jadi menggambar, mengolah, dan mengirim -- supaya "lambat" bisa ditindaklanjuti alih-alih ditebak |
 | 2.5 | Bentuk perintah perawatan bisa diganti dari layar, karena bentuk klasik ternyata tidak direspons L3110; balasan status dicatat dalam heksa supaya format blok tintanya bisa diuraikan, bukan ditebak |
 | 2.4 | Arah cetak bisa dipilih (dua arah atau satu arah); perkiraan besar data ditampilkan sebelum mencetak karena foto praktis tidak bisa dipadatkan dan itulah yang menentukan lamanya |

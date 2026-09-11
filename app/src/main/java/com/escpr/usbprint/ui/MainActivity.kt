@@ -818,6 +818,18 @@ private fun OutputSection(state: UiState, viewModel: PrintViewModel) {
 
         Spacer(Modifier.height(4.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "Bawaan: berwarna, Normal, 300 dpi, kertas biasa",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = viewModel::resetSettings, enabled = enabled) {
+                Text("Kembalikan")
+            }
+        }
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Salinan", style = MaterialTheme.typography.bodyMedium)
             Spacer(Modifier.weight(1f))
             Stepper(
