@@ -126,7 +126,11 @@ fun parsePrinterStatus(reply: ByteArray): PrinterStatus {
 
     val header = "@BDC ST2"
     val headerAt = text.indexOf(header)
-    if (headerAt < 0) return PrinterStatus(raw = raw, hex = hex)
+    if (headerAt < 0) {
+        // Sebagian printer -- L3110 salah satunya, terbukti dari perangkat --
+        // membalas dalam bentuk teks "@BDC ST" alih-alih blok biner ST2.
+        return parseTextStatus(text, raw, hex) ?: PrinterStatus(raw = raw, hex = hex)
+    }
 
     // Lewati judul dan akhiran barisnya.
     var index = headerAt + header.length
@@ -207,6 +211,56 @@ private fun parseInk(reply: ByteArray, payloadAt: Int, length: Int): List<InkLev
         at += entrySize
     }
     return levels
+}
+
+/**
+ * Menguraikan balasan status bentuk teks.
+ *
+ * Bentuknya: judul `@BDC ST`, akhiran baris, lalu pasangan `KUNCI:HEKSA;`
+ * berulang -- misalnya `ST:04;ER:00;`. Balasan sungguhan dari L3110:
+ *
+ *     40 42 44 43 20 53 54 0D 0A 53 54 3A 30 34 3B 0C
+ *     "@BDC ST
+ST:04;"
+ *
+ * Kode statusnya memakai penomoran yang sama dengan bentuk biner, jadi
+ * pemetaannya dipakai bersama alih-alih ditulis dua kali dan lalu menyimpang.
+ *
+ * Mengembalikan null kalau judulnya bukan ini sama sekali, supaya pemanggil
+ * bisa membedakan "bukan format ini" dari "format ini tapi kosong".
+ */
+private fun parseTextStatus(text: String, raw: String, hex: String): PrinterStatus? {
+    if (!text.contains("@BDC ST")) return null
+
+    var state = PrinterState.UNKNOWN
+    var fault = PrinterFault.NONE
+    var faultCode: Int? = null
+    var understood = false
+
+    Regex("([A-Z]{2,3}):([0-9A-Fa-f]{2});").findAll(text).forEach { m ->
+        val nilai = m.groupValues[2].toIntOrNull(16) ?: return@forEach
+        when (m.groupValues[1]) {
+            "ST" -> { state = mapState(nilai); understood = true }
+            // Nol di sini berarti TIDAK ada galat, kebalikan dari arti kode
+            // yang sama pada blok biner. Menyamakan keduanya akan membuat
+            // aplikasi menolak mencetak pada printer yang sehat -- kegagalan
+            // yang jauh lebih merugikan daripada tidak mengenali galat.
+            "ER" -> if (nilai != 0) {
+                faultCode = nilai
+                fault = mapFault(nilai)
+                understood = true
+            }
+        }
+    }
+
+    return PrinterStatus(
+        state = state,
+        fault = fault,
+        faultCode = faultCode,
+        confident = understood,
+        raw = raw,
+        hex = hex,
+    )
 }
 
 /** Blok status utama. */

@@ -46,6 +46,8 @@ import com.escpr.usbprint.render.SheetPageSource
 import com.escpr.usbprint.render.SheetPhoto
 import com.escpr.usbprint.usb.InkLevel
 import com.escpr.usbprint.usb.PrinterErrorKind
+import com.escpr.usbprint.usb.PrinterState
+import com.escpr.usbprint.usb.PrinterStatus
 import com.escpr.usbprint.usb.parsePrinterStatus
 import com.escpr.usbprint.usb.UsbPrinter
 import com.escpr.usbprint.usb.classifyFailure
@@ -88,6 +90,15 @@ enum class BusyReason { PRINTING, PRINTER_TALK }
 /** Sekitar tiga detik total: printer yang sibuk butuh waktu menyusun laporan. */
 private const val STATUS_READ_ATTEMPTS = 8
 private const val STATUS_READ_TIMEOUT_MS = 400
+
+/**
+ * Batas menunggu printer selesai mengerjakan perintah perawatan.
+ *
+ * Pembersihan head pada sebagian model berlangsung sampai dua menit, jadi
+ * batasnya dibuat longgar. Menunggu terlalu sebentar berarti sambungan ditutup
+ * di tengah pekerjaan, yang justru masalah yang ingin diperbaiki.
+ */
+private const val MAINTENANCE_WAIT_MS = 150_000L
 
 data class Document(
     val file: File,
@@ -911,9 +922,26 @@ class PrintViewModel @JvmOverloads constructor(
                     )
                     sink.write(bytes, 0, bytes.size)
                     sink.flush()
+
+                    // Sambungan sengaja ditahan sampai printer melaporkan
+                    // dirinya siap lagi. Menutupnya tepat setelah byte
+                    // terakhir terkirim membuat printer kehilangan host di
+                    // tengah pekerjaan -- dan pada percobaan sungguhan
+                    // kertasnya berhenti separuh keluar sementara motornya
+                    // terus berjalan.
+                    //
+                    // Selama menunggu tidak satu byte pun dikirim. Permintaan
+                    // status memuat ESC @ yang akan mereset printer di tengah
+                    // mencetak, jadi yang dilakukan hanya membaca.
+                    val akhir = waitUntilIdle(printer)
+                    log(
+                        if (akhir == null) "Printer tidak melapor selesai dalam " +
+                            (MAINTENANCE_WAIT_MS / 1000) + " detik."
+                        else "Printer melapor: " + akhir.state.name.lowercase()
+                    )
                 }
                 _state.update { it.copy(outcome = PrintOutcome.MaintenanceSent(task)) }
-                log(task.label + " dikirim ke printer.")
+                log(task.label + " selesai dikirim.")
             } catch (error: Throwable) {
                 val stillAttached = usbManager.deviceList.values
                     .any { it.deviceName == device.deviceName }
@@ -928,6 +956,29 @@ class PrintViewModel @JvmOverloads constructor(
                 _state.update { it.copy(busy = false, progress = 0f) }
             }
         }
+    }
+
+    /**
+     * Menunggu printer melaporkan dirinya siap lagi.
+     *
+     * Hanya membaca; tidak satu byte pun dikirim. Itu disengaja: permintaan
+     * status dibungkus ESC @ yang akan mereset printer kalau tiba di tengah
+     * pekerjaan, dan yang ingin dihindari justru itu.
+     *
+     * Mengembalikan null kalau printer tidak pernah melapor siap sampai batas
+     * waktu -- yang bukan berarti gagal, hanya berarti tidak terdengar.
+     */
+    private fun waitUntilIdle(printer: UsbPrinter): PrinterStatus? {
+        val batas = System.currentTimeMillis() + MAINTENANCE_WAIT_MS
+        var terakhir: PrinterStatus? = null
+        while (System.currentTimeMillis() < batas) {
+            val potongan = printer.readStatus(1000)
+            if (potongan.isEmpty()) continue
+            val status = parsePrinterStatus(potongan)
+            terakhir = status
+            if (status.confident && status.state == PrinterState.IDLE) return status
+        }
+        return terakhir
     }
 
     /**

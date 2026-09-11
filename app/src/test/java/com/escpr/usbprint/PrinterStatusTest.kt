@@ -118,6 +118,56 @@ class PrinterStatusTest {
         }
     }
 
+    // ------------------------------------------------- balasan bentuk teks
+
+    /** Balasan sungguhan dari Epson L3110, disalin apa adanya dari perangkat. */
+    private val l3110 = byteArrayOf(
+        0x40, 0x42, 0x44, 0x43, 0x20, 0x53, 0x54, 0x0D,
+        0x0A, 0x53, 0x54, 0x3A, 0x30, 0x34, 0x3B, 0x0C,
+    )
+
+    @Test
+    fun `balasan teks dari L3110 sungguhan terbaca siap`() {
+        val status = parsePrinterStatus(l3110)
+        assertEquals(PrinterState.IDLE, status.state)
+        assertTrue(status.confident)
+        assertFalse(status.blocksPrinting)
+    }
+
+    @Test
+    fun `ER nol pada bentuk teks berarti tidak ada galat`() {
+        // Kode yang sama pada blok biner berarti galat fatal. Kalau keduanya
+        // disamakan, printer sehat yang rajin melaporkan ER:00 akan membuat
+        // aplikasi menolak mencetak sama sekali.
+        val status = parsePrinterStatus("@BDC ST\r\nST:04;ER:00;".toByteArray())
+        assertEquals(PrinterFault.NONE, status.fault)
+        assertFalse(status.blocksPrinting)
+    }
+
+    @Test
+    fun `galat sungguhan pada bentuk teks tetap menghalangi`() {
+        val status = parsePrinterStatus("@BDC ST\r\nST:00;ER:04;".toByteArray())
+        assertEquals(PrinterFault.PAPER_OUT, status.fault)
+        assertTrue(status.blocksPrinting)
+    }
+
+    @Test
+    fun `bentuk teks yang dijeda dikenali tanpa menghalangi`() {
+        val status = parsePrinterStatus("@BDC ST\r\nST:05;".toByteArray())
+        assertEquals(PrinterState.PAUSED, status.state)
+        assertFalse(status.blocksPrinting)
+    }
+
+    @Test
+    fun `bentuk biner tetap menang kalau judulnya ST2`() {
+        // "@BDC ST2" memuat "@BDC ST" sebagai awalan, jadi urutan pemeriksaan
+        // menentukan. Kalau terbalik, semua balasan biner akan diuraikan
+        // sebagai teks dan kehilangan seluruh isinya.
+        val status = parsePrinterStatus(reply(0x01 to byteArrayOf(0x04)))
+        assertEquals(PrinterState.IDLE, status.state)
+        assertTrue(status.confident)
+    }
+
     @Test
     fun `catatan mentah dibersihkan dari byte kendali`() {
         val status = parsePrinterStatus(reply(0x01 to byteArrayOf(0x04)))
