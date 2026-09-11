@@ -95,6 +95,21 @@ class UsbPrinter private constructor(
         }
     }
 
+    /**
+     * Kecepatan sambungan USB, disimpulkan dari ukuran paket bulk maksimum.
+     *
+     * Nilainya ditentukan spesifikasi USB dan tidak bisa berbohong: bulk
+     * endpoint berukuran 64 byte hanya ada pada Full Speed (12 Mbps), 512 byte
+     * pada High Speed (480 Mbps). Ini satu-satunya cara memastikan apakah
+     * lambatnya mengirim berasal dari sambungan atau dari printer -- tanpa itu
+     * keduanya hanya bisa ditebak dari laju MB per detik.
+     */
+    fun linkSpeed(): String = when (endpointOut.maxPacketSize) {
+        64 -> "USB Full Speed (12 Mbps, batas sekitar 1 MB/detik)"
+        512 -> "USB High Speed (480 Mbps)"
+        else -> "paket bulk " + endpointOut.maxPacketSize + " byte"
+    }
+
     /** Membaca balasan status printer, kalau ada. Tidak memblokir lama. */
     fun readStatus(timeoutMs: Int = 300): ByteArray {
         val ep = endpointIn ?: return ByteArray(0)

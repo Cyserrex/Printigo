@@ -20,6 +20,14 @@ package com.escpr.usbprint.escpr
  * bentuk klasik, dan bentuk kedua tinggal mengganti [Variant]. Kalau printer
  * tidak bereaksi sama sekali, itu petunjuk pertama yang harus dicoba.
  *
+ * Akhiran `ESC @` sengaja **tidak** disertakan. Pada L3110 sungguhan, pola cek
+ * nozzle tercetak lengkap tetapi kertasnya berhenti separuh keluar sementara
+ * printer melaporkan dirinya sudah idle -- ia menganggap pekerjaannya selesai
+ * tanpa pernah mengeluarkan kertas. `ESC @` berarti "reset printer", dan reset
+ * yang tiba tepat sebelum kertas dikeluarkan adalah tersangka yang paling
+ * masuk akal. Membuangnya aman karena setiap pekerjaan -- cetak maupun
+ * perawatan -- sudah diawali resetnya sendiri.
+ *
  * Perintah ini tidak bisa merusak printer: keduanya operasi perawatan biasa
  * yang juga ada di panel printer bermenu. Yang perlu diingat hanya bahwa
  * pembersihan head **memakai tinta cukup banyak**, jadi tidak untuk diulang-ulang.
@@ -93,8 +101,20 @@ object Maintenance {
             EscpR.INIT_PRINTER +
             EscpR.ENTER_REMOTE_MODE +
             command +
-            EscpR.EXIT_REMOTE_MODE +
-            EscpR.INIT_PRINTER
+            EscpR.EXIT_REMOTE_MODE
+
+    /**
+     * Mengeluarkan kertas yang tertahan di dalam printer.
+     *
+     * Form feed adalah perintah ESC/P paling tua dan paling sederhana: majukan
+     * kertas sampai keluar. Disediakan sebagai tombol tersendiri karena kertas
+     * bisa tertahan oleh sebab apa pun, dan satu-satunya jalan keluar sebelum
+     * ini adalah mematikan printer.
+     */
+    fun ejectPage(): ByteArray = EscpR.EXIT_PACKET_MODE + byteArrayOf(FORM_FEED)
+
+    /** ESC/P: majukan kertas ke halaman berikutnya. */
+    private const val FORM_FEED: Byte = 0x0C
 }
 
 /** Perawatan yang bisa diminta pengguna. */
@@ -116,10 +136,17 @@ enum class MaintenanceTask(
             "berlangsung sekitar satu menit. Lakukan hanya kalau hasil cek " +
             "nozzle memang putus-putus, dan jangan diulang berkali-kali.",
         usesPaper = false,
+    ),
+    EJECT(
+        label = "Keluarkan kertas",
+        confirmation = "Printer akan memajukan kertas sampai keluar. Dipakai " +
+            "kalau ada kertas yang tertahan di dalam.",
+        usesPaper = false,
     );
 
     fun bytes(variant: Maintenance.Variant = Maintenance.Variant.CLASSIC): ByteArray =
         when (this) {
+            EJECT -> Maintenance.ejectPage()
             NOZZLE_CHECK -> Maintenance.nozzleCheck(variant)
             HEAD_CLEANING -> Maintenance.headCleaning(variant)
         }

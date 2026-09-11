@@ -1098,6 +1098,7 @@ class PrintViewModel @JvmOverloads constructor(
                         // olah; kalau yang besar justru kirim, batasnya ada di
                         // kabel dan printer, bukan di aplikasi.
                         log("Waktu -- " + laporan.ringkas())
+                        log("Sambungan: " + printer.linkSpeed())
                     }
                     sink.close()
 

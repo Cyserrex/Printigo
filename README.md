@@ -66,7 +66,7 @@ untuk mengujinya, jadi batas antara "terbukti" dan "belum" dijaga ketat.
 | Tampilan benar-benar tergambar | tangkapan layar dari komposisi Compose di JVM |
 | APK terkompilasi, tertandatangani, zipalign, manifes benar | `apksigner`, `zipalign`, `aapt2` |
 
-**178 unit test**, semuanya lolos: `gradlew test`.
+**180 unit test**, semuanya lolos: `gradlew test`.
 
 ### Belum terbukti
 
@@ -88,12 +88,12 @@ terbuka. Kode warna yang tidak dikenali ditampilkan sebagai "Warna N", bukan
 diberi nama tebakan -- menyebut cyan sebagai magenta membuat orang mengisi
 tangki yang salah.
 
-**Kertas yang berhenti separuh keluar setelah cek nozzle.** Penantian yang
-ditambahkan di 2.7 ternyata tidak pernah berjalan: printer menjawab "siap" pada
-detik yang sama perintahnya dikirim, karena ia memang belum mulai bergerak.
-Sejak 2.8 ada jeda terendah sebelum jawaban itu dipercaya. Masih **belum
-dicoba** pada perangkat; kalau tetap tertahan, tersangka berikutnya adalah
-`ESC @` di akhir perintah perawatan.
+**Kertas yang berhenti separuh keluar setelah cek nozzle.** Menahan sambungan
+sampai printer melapor siap **sudah dicoba dan tidak menolong** -- ditunggu 18
+detik, printer melapor idle, kertas tetap tertahan. Itu sendiri petunjuk:
+printer menganggap pekerjaannya selesai tanpa pernah mengeluarkan kertas. Sejak
+2.10 akhiran `ESC @` dibuang, karena reset yang tiba tepat sebelum kertas
+dikeluarkan adalah tersangka yang tersisa. **Belum dicoba** pada perangkat.
 
 **Perilaku APK yang sudah dikecilkan R8 di HP.** Isi DEX-nya diperiksa, tapi
 aplikasinya sendiri belum pernah dijalankan dalam bentuk terkecilkan. Kalau
@@ -198,6 +198,7 @@ Berguna untuk memisahkan masalah data dari masalah kabel.
   lamanya menunggu -- dan 300 dpi mengirim seperempat dari 600 dpi
 - **Sisa tinta** dibaca dari printer. Hanya membaca; angkanya perkiraan printer
   sendiri karena printer tangki tinta tidak punya sensor di dalam tangkinya
+- **Keluarkan kertas** yang tertahan tanpa mematikan printer
 - **Cek nozzle dan pembersihan head** langsung dari HP, dengan persetujuan
   lebih dulu karena keduanya memakai kertas atau tinta. Printer tanpa panel
   bermenu tidak punya cara lain membersihkan head tanpa komputer
@@ -515,7 +516,8 @@ yang meleset lebih buruk daripada penolakan yang jujur.
 
 | Versi | Isi |
 |---|---|
-| **2.9** | Dua preset -- Cetak biasa dan Kualitas foto -- menggantikan empat baris chip yang memang bergerak bersama; sisanya pindah ke Setelan lanjutan |
+| **2.10** | Akhiran `ESC @` dibuang dari perintah perawatan -- tersangka kertas yang berhenti separuh keluar; tombol Keluarkan kertas; kecepatan sambungan USB dilaporkan dari ukuran paket bulk, bukan disimpulkan dari laju |
+| 2.9 | Dua preset -- Cetak biasa dan Kualitas foto -- menggantikan empat baris chip yang memang bergerak bersama; sisanya pindah ke Setelan lanjutan |
 | 2.8 | Bawaan cetak jadi 300 dpi dan ada tombol mengembalikan seluruh setelan ke bawaan; jeda terendah sebelum jawaban "siap" printer dipercaya, karena tanpa itu penantian di 2.7 keluar seketika |
 | 2.7 | Balasan status bentuk teks `@BDC ST` diuraikan -- L3110 memakai itu, bukan blok biner `ST2`, jadi sisa tinta selalu kosong sebelumnya; sambungan ditahan sampai printer melapor siap setelah perintah perawatan |
 | 2.6 | Waktu satu pekerjaan cetak dirinci jadi menggambar, mengolah, dan mengirim -- supaya "lambat" bisa ditindaklanjuti alih-alih ditebak |

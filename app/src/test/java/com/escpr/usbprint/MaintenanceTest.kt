@@ -26,7 +26,7 @@ class MaintenanceTest {
         val bytes = Maintenance.nozzleCheck()
         assertEquals(
             "00 00 00 1B 01 40 45 4A 4C 20 31 32 38 34 2E 34 0A 40 45 4A 4C 20 20 20 20 20 0A " +
-                "1B 40 1B 40 1B 28 52 08 00 00 52 45 4D 4F 54 45 31 4E 43 01 00 00 1B 00 00 00 1B 40",
+                "1B 40 1B 40 1B 28 52 08 00 00 52 45 4D 4F 54 45 31 4E 43 01 00 00 1B 00 00 00",
             hex(bytes),
         )
     }
@@ -49,8 +49,30 @@ class MaintenanceTest {
     }
 
     @Test
-    fun `setiap perintah masuk lalu keluar dari remote mode`() {
-        MaintenanceTask.entries.forEach { task ->
+    fun `urutan tidak lagi diakhiri reset printer`() {
+        // ESC @ di akhir adalah tersangka kertas yang berhenti separuh keluar:
+        // printer melaporkan diri idle sambil menahan kertas, seolah reset
+        // membatalkan pengeluaran kertas yang belum sempat terjadi.
+        listOf(MaintenanceTask.NOZZLE_CHECK, MaintenanceTask.HEAD_CLEANING).forEach { task ->
+            val hex = hex(task.bytes())
+            assertTrue(task.name + " masih diakhiri ESC @", !hex.endsWith("1B 40"))
+            assertTrue(task.name, hex.endsWith("1B 00 00 00"))
+        }
+    }
+
+    @Test
+    fun `keluarkan kertas hanya form feed, tanpa perintah lain`() {
+        val hex = hex(MaintenanceTask.EJECT.bytes())
+        assertTrue(hex, hex.endsWith("0C"))
+        // Tidak boleh ada remote mode maupun reset: yang diminta cuma kertas
+        // maju keluar, bukan printer diatur ulang.
+        assertTrue(hex, !hex.contains("52 45 4D 4F 54 45 31"))
+        assertTrue(hex, !hex.contains("4E 43"))
+    }
+
+    @Test
+    fun `perintah REMOTE1 masuk lalu keluar dari remote mode`() {
+        listOf(MaintenanceTask.NOZZLE_CHECK, MaintenanceTask.HEAD_CLEANING).forEach { task ->
             val text = hex(task.bytes())
             val enter = text.indexOf("1B 28 52 08 00 00")
             val exit = text.indexOf("1B 00 00 00")
