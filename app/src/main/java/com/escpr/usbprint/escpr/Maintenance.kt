@@ -20,20 +20,27 @@ package com.escpr.usbprint.escpr
  * bentuk klasik, dan bentuk kedua tinggal mengganti [Variant]. Kalau printer
  * tidak bereaksi sama sekali, itu petunjuk pertama yang harus dicoba.
  *
- * ## Kenapa cek nozzle diakhiri form feed
+ * ## Kenapa perintahnya dibungkus JS dan JE
  *
  * Pada L3110 sungguhan, pola cek nozzle tercetak lengkap tetapi kertasnya
- * berhenti separuh keluar sementara printer melaporkan dirinya sudah idle --
- * ia menganggap pekerjaannya selesai tanpa pernah mengeluarkan kertas.
+ * berhenti separuh keluar sementara printer melaporkan dirinya sudah idle.
  *
- * Dua dugaan dicoba dan gugur berurutan: menahan sambungan sampai printer
- * melapor siap (ditunggu 18 detik, tetap tertahan), lalu membuang akhiran
- * `ESC @` (tetap tertahan). Yang akhirnya mengeluarkan kertas adalah form feed
- * yang dikirim terpisah. Jadi yang hilang memang perintah mengeluarkan
- * kertasnya, bukan waktu dan bukan reset -- dan sekarang ia menjadi bagian
- * dari urutan cek nozzle itu sendiri.
+ * Tiga dugaan dicoba di perangkat. Menahan sambungan sampai printer melapor
+ * siap: tetap tertahan. Membuang akhiran `ESC @`: tetap tertahan. Form feed
+ * terpisah: kertas keluar -- jadi kertasnya memang menunggu diperintah.
  *
- * Pembersihan head tidak memakai kertas, jadi tidak diakhiri form feed.
+ * Tetapi form feed hanya menutup gejalanya. Sebabnya terlihat setelah
+ * membandingkan dengan jalur cetak, yang tidak pernah meninggalkan kertas
+ * tertahan: [EscpRJob] membuka pekerjaan dengan `JS` dan menutupnya dengan
+ * `LD` lalu `JE`. Perintah perawatan dulu tidak melakukan keduanya, jadi
+ * printer menerimanya di luar pekerjaan mana pun -- ia mencetak polanya, tapi
+ * rutinitas akhir yang mengeluarkan kertas tidak pernah dijalankan karena
+ * tidak ada pekerjaan yang dinyatakan selesai.
+ *
+ * Membungkusnya sama seperti jalur cetak lebih baik daripada menambahkan form
+ * feed: kalau suatu model memang mengeluarkan kertas sendiri, form feed akan
+ * memakan satu lembar kosong, sedangkan penutup pekerjaan tidak pernah
+ * menambah halaman.
  *
  * Perintah ini tidak bisa merusak printer: keduanya operasi perawatan biasa
  * yang juga ada di panel printer bermenu. Yang perlu diingat hanya bahwa
@@ -64,7 +71,7 @@ object Maintenance {
      * ada gambar yang dikirim dari HP.
      */
     fun nozzleCheck(variant: Variant = Variant.CLASSIC): ByteArray =
-        wrap(command("NC", NOZZLE_PATTERN, variant)) + byteArrayOf(FORM_FEED)
+        wrap(command("NC", NOZZLE_PATTERN, variant))
 
     /**
      * Menjalankan pembersihan head.
@@ -86,7 +93,7 @@ object Maintenance {
      *
      * Tidak memakai kertas maupun tinta, dan tidak menggerakkan apa pun.
      */
-    fun statusRequest(): ByteArray = wrap(EscpR.remoteCmd("ST", byteArrayOf(0x01)))
+    fun statusRequest(): ByteArray = wrapQuery(EscpR.remoteCmd("ST", byteArrayOf(0x01)))
 
     private fun command(name: String, parameter: Int, variant: Variant): ByteArray =
         when (variant) {
@@ -103,6 +110,17 @@ object Maintenance {
      * benar-benar terbaca sebagai reset.
      */
     private fun wrap(command: ByteArray): ByteArray =
+        wrapQuery(EscpR.jobStart() + command + EscpR.loadDefaults() + EscpR.jobEnd())
+
+    /**
+     * Membungkus perintah yang hanya bertanya, tanpa membuka pekerjaan.
+     *
+     * Membaca status bukan mencetak. Membungkusnya dengan `JS` dan `JE` berarti
+     * setiap kali sisa tinta diperiksa, printer membuka lalu menutup sebuah
+     * pekerjaan -- dan pekerjaan yang ditutup adalah persis yang memicu
+     * penanganan kertas. Menanyakan sesuatu tidak boleh menggerakkan apa pun.
+     */
+    private fun wrapQuery(command: ByteArray): ByteArray =
         EscpR.EXIT_PACKET_MODE +
             EscpR.INIT_PRINTER +
             EscpR.INIT_PRINTER +

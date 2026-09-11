@@ -26,28 +26,45 @@ class MaintenanceTest {
         val bytes = Maintenance.nozzleCheck()
         assertEquals(
             "00 00 00 1B 01 40 45 4A 4C 20 31 32 38 34 2E 34 0A 40 45 4A 4C 20 20 20 20 20 0A " +
-                "1B 40 1B 40 1B 28 52 08 00 00 52 45 4D 4F 54 45 31 4E 43 01 00 00 1B 00 00 00 0C",
+                "1B 40 1B 40 1B 28 52 08 00 00 52 45 4D 4F 54 45 31 " +
+                "4A 53 04 00 00 00 00 00 4E 43 01 00 00 4C 44 01 00 00 4A 45 01 00 00 1B 00 00 00",
             hex(bytes),
         )
     }
 
     @Test
-    fun `pembersihan head sama dengan cek nozzle kecuali perintah dan form feed`() {
+    fun `pembersihan head hanya berbeda pada dua huruf perintahnya`() {
         val nozzle = hex(Maintenance.nozzleCheck())
         val clean = hex(Maintenance.headCleaning())
-        // 4E 43 = "NC", 43 48 = "CH". Bedanya yang sah tinggal dua: huruf
-        // perintahnya, dan form feed di akhir cek nozzle -- pembersihan head
-        // tidak memakai kertas, jadi tidak ada yang perlu dikeluarkan.
-        assertEquals(nozzle.removeSuffix(" 0C").replace("4E 43", "43 48"), clean)
+        // 4E 43 = "NC", 43 48 = "CH". Selebihnya harus identik: kalau ada beda
+        // lain, salah satu urutannya sudah tergeser.
+        assertEquals(nozzle.replace("4E 43", "43 48"), clean)
     }
 
     @Test
-    fun `cek nozzle diakhiri form feed, pembersihan head tidak`() {
-        // Inilah yang ditemukan dari perangkat: printer mencetak polanya lalu
-        // menahan kertas sambil melapor idle. Menahan sambungan dan membuang
-        // ESC @ sama-sama tidak menolong; form feed yang mengeluarkannya.
-        assertTrue(hex(Maintenance.nozzleCheck()).endsWith("0C"))
-        assertFalse(hex(Maintenance.headCleaning()).endsWith("0C"))
+    fun `perintah perawatan dibungkus pembuka dan penutup pekerjaan`() {
+        // Inilah sebab kertas tertahan: printer menerima perintah di luar
+        // pekerjaan mana pun, jadi rutinitas akhir yang mengeluarkan kertas
+        // tidak pernah dijalankan. Jalur cetak membungkusnya dengan benar
+        // sejak awal, dan jalur cetak tidak pernah menyisakan kertas tertahan.
+        listOf(MaintenanceTask.NOZZLE_CHECK, MaintenanceTask.HEAD_CLEANING).forEach { task ->
+            val hex = hex(task.bytes())
+            assertTrue(task.name + ": tidak ada JS", hex.contains("4A 53"))
+            assertTrue(task.name + ": tidak ada JE", hex.contains("4A 45"))
+            assertTrue(
+                task.name + ": JE harus sesudah perintahnya",
+                hex.indexOf("4A 45") > hex.indexOf("4A 53"),
+            )
+        }
+    }
+
+    @Test
+    fun `membaca status tidak membuka pekerjaan`() {
+        // Menanyakan sesuatu tidak boleh menggerakkan apa pun. Penutup
+        // pekerjaan justru yang memicu penanganan kertas.
+        val hex = hex(Maintenance.statusRequest())
+        assertFalse("permintaan status membuka pekerjaan", hex.contains("4A 53"))
+        assertFalse("permintaan status menutup pekerjaan", hex.contains("4A 45"))
     }
 
     @Test

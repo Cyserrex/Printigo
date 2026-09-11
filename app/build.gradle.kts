@@ -26,8 +26,8 @@ android {
         targetSdk = 35
         // Dinaikkan tiap kali APK diserahkan. versionCode harus naik agar
         // Android mau memasang sebagai pembaruan; versionName yang dibaca orang.
-        versionCode = 22
-        versionName = "2.11"
+        versionCode = 23
+        versionName = "2.12"
     }
 
     signingConfigs {

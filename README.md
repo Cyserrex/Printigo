@@ -67,7 +67,7 @@ untuk mengujinya, jadi batas antara "terbukti" dan "belum" dijaga ketat.
 | Tampilan benar-benar tergambar | tangkapan layar dari komposisi Compose di JVM |
 | APK terkompilasi, tertandatangani, zipalign, manifes benar | `apksigner`, `zipalign`, `aapt2` |
 
-**181 unit test**, semuanya lolos: `gradlew test`.
+**182 unit test**, semuanya lolos: `gradlew test`.
 
 ### Belum terbukti
 
@@ -515,7 +515,8 @@ yang meleset lebih buruk daripada penolakan yang jujur.
 
 | Versi | Isi |
 |---|---|
-| **2.11** | Cek nozzle diakhiri form feed -- ternyata itu yang hilang, bukan waktu tunggu dan bukan `ESC @`; dua dugaan sebelumnya dicoba di perangkat dan gugur |
+| **2.12** | Perintah perawatan dibungkus `JS` dan `JE` seperti jalur cetak -- itulah sebab kertas tertahan, bukan waktu tunggu, bukan `ESC @`, dan bukan form feed yang hilang; membaca status sengaja tidak ikut dibungkus, karena bertanya tidak boleh menggerakkan kertas |
+| 2.11 | Cek nozzle diakhiri form feed -- ternyata itu yang hilang, bukan waktu tunggu dan bukan `ESC @`; dua dugaan sebelumnya dicoba di perangkat dan gugur |
 | 2.10 | Akhiran `ESC @` dibuang dari perintah perawatan -- tersangka kertas yang berhenti separuh keluar; tombol Keluarkan kertas; kecepatan sambungan USB dilaporkan dari ukuran paket bulk, bukan disimpulkan dari laju |
 | 2.9 | Dua preset -- Cetak biasa dan Kualitas foto -- menggantikan empat baris chip yang memang bergerak bersama; sisanya pindah ke Setelan lanjutan |
 | 2.8 | Bawaan cetak jadi 300 dpi dan ada tombol mengembalikan seluruh setelan ke bawaan; jeda terendah sebelum jawaban "siap" printer dipercaya, karena tanpa itu penantian di 2.7 keluar seketika |
