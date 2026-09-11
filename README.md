@@ -249,6 +249,44 @@ Satu hal yang justru terkonfirmasi: driver mengakhiri **pekerjaan cetak** pun
 dengan `0D 0C` lalu `LD`, `JE` -- form feed sebelum penutup pekerjaan, persis
 pola yang ditemukan pada cek nozzle. Kebiasaan itu konsisten di kedua jalur.
 
+### Kenapa tidak pindah ke ESC/P2 saja
+
+Pindah memang berarti data yang dikirim jauh lebih sedikit -- driver mengirim
+titik tinta 1 bit per warna, aplikasi ini mengirim RGB 24 bit per piksel. Itu
+menggoda ketika mencetak foto memakan puluhan detik.
+
+Tetapi selisih itu bukan sihir melainkan **pekerjaan yang berpindah**. Yang
+sekarang dikerjakan printer -- mengubah RGB jadi CMYK, dithering jadi titik,
+memilih ukuran tetesan, menyusun lintasan kepala -- semuanya jadi tanggung
+jawab aplikasi. Keempatnya disetel Epson per model, per set tinta, dan per
+jenis kertas; itu justru isi sebenarnya dari sebuah driver printer.
+
+Tiga hal yang hilang kalau ditukar:
+
+- **Kalibrasi warna pabrik.** Tabel warna printer diganti tebakan kita. Tidak
+  ada uji yang bisa menangkap "warnanya agak keruh" -- hanya mata di depan
+  kertas, setelah tinta terpakai.
+- **Kebebasan dari model.** ESC/P-R memang dirancang tidak bergantung model.
+  Dukungan untuk printer Epson lain berubah dari "kemungkinan besar sudah
+  jalan" menjadi "satu per satu, masing-masing perlu disetel".
+- **Keterujian.** Encoder sekarang 636 baris dan terbukti mencetak benar.
+  Jalur ESC/P2 berlipat lebih besar, dan bagian terbesarnya yang paling sulit
+  dibuktikan benar.
+
+Dan keuntungannya belum tentu ada. Pengukuran di perangkat menunjukkan 32 dari
+33 detik habis di pengiriman -- tetapi kalau yang menahan adalah kecepatan
+mekanis printer dan bukan kabelnya, mengirim lima kali lebih sedikit tidak
+mempercepat apa pun; datanya hanya menunggu lebih lama di dalam printer.
+
+Beban CPU tambahan itu **biaya** yang bisa dihitung dan dioptimalkan. Warna
+yang meleset itu **risiko** yang tidak bisa diukur. Yang kedua tidak layak
+ditukar demi separuh menit, apalagi untuk aplikasi yang alasan keberadaannya
+mencetak dengan andal tanpa komputer.
+
+Jalan yang lebih murah kalau kecepatan memang perlu dikejar: mode mono sejati
+ESC/P-R mengirim 1 byte per piksel alih-alih 3 -- sepertiganya, tanpa satu pun
+risiko di atas.
+
 ---
 
 ## Cara kerjanya
