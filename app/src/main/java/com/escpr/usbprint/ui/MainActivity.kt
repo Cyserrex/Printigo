@@ -84,6 +84,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.escpr.usbprint.BuildConfig
 import com.escpr.usbprint.escpr.ColorMode
 import com.escpr.usbprint.escpr.Dpi
+import com.escpr.usbprint.escpr.Maintenance
 import com.escpr.usbprint.escpr.MaintenanceTask
 import com.escpr.usbprint.escpr.MediaType
 import com.escpr.usbprint.escpr.EscpRJob
@@ -306,10 +307,20 @@ private fun MaintenanceSection(state: UiState, viewModel: PrintViewModel) {
                         ) { Text(task.label) }
                     }
                 }
+                HorizontalDivider()
+                Text("Bentuk perintah", style = MaterialTheme.typography.labelLarge)
+                ChipRow(
+                    Maintenance.Variant.entries,
+                    state.maintenanceVariant,
+                    { v -> if (v == Maintenance.Variant.CLASSIC) "Umum" else "Alternatif" },
+                    !state.busy,
+                ) { v -> viewModel.setMaintenanceVariant(v) }
+
                 Text(
-                    "Perintah ini mengikuti driver Epson terbuka dan belum " +
-                        "diuji pada printer sungguhan. Kalau printer tidak bereaksi sama " +
-                        "sekali, bentuk perintahnya perlu disesuaikan.",
+                    "Bentuk perintah yang benar berbeda antar-model Epson, dan " +
+                        "tidak ada cara mengetahuinya selain mencoba. Kalau " +
+                        "printer diam saja pada satu bentuk, coba yang satunya. " +
+                        "Byte yang dikirim dicatat di kartu Catatan.",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

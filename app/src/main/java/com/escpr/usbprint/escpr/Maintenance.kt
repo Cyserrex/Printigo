@@ -118,8 +118,9 @@ enum class MaintenanceTask(
         usesPaper = false,
     );
 
-    fun bytes(): ByteArray = when (this) {
-        NOZZLE_CHECK -> Maintenance.nozzleCheck()
-        HEAD_CLEANING -> Maintenance.headCleaning()
-    }
+    fun bytes(variant: Maintenance.Variant = Maintenance.Variant.CLASSIC): ByteArray =
+        when (this) {
+            NOZZLE_CHECK -> Maintenance.nozzleCheck(variant)
+            HEAD_CLEANING -> Maintenance.headCleaning(variant)
+        }
 }

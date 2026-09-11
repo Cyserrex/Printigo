@@ -86,12 +86,11 @@ terbuka. Kode warna yang tidak dikenali ditampilkan sebagai "Warna N", bukan
 diberi nama tebakan -- menyebut cyan sebagai magenta membuat orang mengisi
 tangki yang salah.
 
-**Perintah cek nozzle dan pembersihan head.** Urutan byte-nya mengikuti
-escputil di Gutenprint dan belum pernah dijalankan pada L3110. Kalau printer
-tidak bereaksi sama sekali, bentuk perintahnya perlu diganti ke varian
-`EXTENDED` di [Maintenance.kt](app/src/main/java/com/escpr/usbprint/escpr/Maintenance.kt).
-Keduanya operasi perawatan biasa yang juga ada di printer bermenu, jadi tidak
-bisa merusak apa pun -- paling buruk tidak terjadi apa-apa.
+**Perintah cek nozzle dan pembersihan head.** Dicoba pada L3110 dengan bentuk
+klasik: printer **tidak bereaksi sama sekali**. Yang sudah pasti dari percobaan
+itu, amplop REMOTE1-nya benar -- perintah `ST` pada jalur yang sama dijawab
+dengan `@BDC ST2`. Jadi yang salah bentuk perintahnya, bukan jalurnya. Bentuk
+kedua bisa dicoba langsung dari layar tanpa membangun ulang.
 
 **Perilaku APK yang sudah dikecilkan R8 di HP.** Isi DEX-nya diperiksa, tapi
 aplikasinya sendiri belum pernah dijalankan dalam bentuk terkecilkan. Kalau
@@ -509,7 +508,8 @@ yang meleset lebih buruk daripada penolakan yang jujur.
 
 | Versi | Isi |
 |---|---|
-| **2.4** | Arah cetak bisa dipilih (dua arah atau satu arah); perkiraan besar data ditampilkan sebelum mencetak karena foto praktis tidak bisa dipadatkan dan itulah yang menentukan lamanya |
+| **2.5** | Bentuk perintah perawatan bisa diganti dari layar, karena bentuk klasik ternyata tidak direspons L3110; balasan status dicatat dalam heksa supaya format blok tintanya bisa diuraikan, bukan ditebak |
+| 2.4 | Arah cetak bisa dipilih (dua arah atau satu arah); perkiraan besar data ditampilkan sebelum mencetak karena foto praktis tidak bisa dipadatkan dan itulah yang menentukan lamanya |
 | 2.3 | Sisa tinta dibaca dan ditampilkan di kartu Perawatan, dengan permintaan status yang eksplisit ke printer; bilah bawah tidak lagi menampilkan kemajuan cetak palsu saat aplikasi hanya sedang berbicara dengan printer |
 | 2.2 | Cek nozzle dan pembersihan head dari dalam aplikasi; menerima banyak foto sekaligus lewat Bagikan dan bisa dibuka dari pengelola berkas; salinan lama di cache dibersihkan sendiri; satu salinan memori penuh dihapus dari jalur transfer USB |
 | 2.1 | Pilih halaman PDF yang dicetak; foto tumpah ke lembar berikutnya dengan jumlah per lembar yang bisa dipilih; status printer diperiksa sebelum mengirim; pembatalan menutup pekerjaan dengan rapi; pengaturan diingat antar-sesi; layar tidak mati saat mencetak; label untuk TalkBack; R8 dinyalakan (APK 7,0 MB menjadi 1,5 MB) dengan isi DEX-nya diperiksa |

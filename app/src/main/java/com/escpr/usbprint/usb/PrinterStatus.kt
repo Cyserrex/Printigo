@@ -77,6 +77,15 @@ data class PrinterStatus(
     val confident: Boolean = false,
     /** Isi balasan apa adanya, untuk ditulis ke catatan saat menelusuri masalah. */
     val raw: String = "",
+    /**
+     * Balasan yang sama dalam heksa.
+     *
+     * Bentuk terbacanya membuang justru yang dibutuhkan: nomor blok dan
+     * panjangnya adalah byte kendali, yang di [raw] semuanya berubah jadi
+     * titik. Tanpa heksa, format blok tinta hanya bisa ditebak -- dan menebak
+     * format adalah cara paling cepat memasang penguraian yang salah.
+     */
+    val hex: String = "",
 ) {
     val blocksPrinting: Boolean
         get() = confident && (state == PrinterState.ERROR || fault != PrinterFault.NONE)
@@ -113,10 +122,11 @@ data class PrinterStatus(
 fun parsePrinterStatus(reply: ByteArray): PrinterStatus {
     val text = String(reply, Charsets.ISO_8859_1)
     val raw = text.take(120).replace(Regex("[\\x00-\\x1F]"), ".")
+    val hex = reply.take(160).joinToString(" ") { "%02X".format(it) }
 
     val header = "@BDC ST2"
     val headerAt = text.indexOf(header)
-    if (headerAt < 0) return PrinterStatus(raw = raw)
+    if (headerAt < 0) return PrinterStatus(raw = raw, hex = hex)
 
     // Lewati judul dan akhiran barisnya.
     var index = headerAt + header.length
@@ -125,7 +135,7 @@ fun parsePrinterStatus(reply: ByteArray): PrinterStatus {
     ) index++
 
     // Dua byte panjang, little-endian.
-    if (index + 2 > reply.size) return PrinterStatus(raw = raw)
+    if (index + 2 > reply.size) return PrinterStatus(raw = raw, hex = hex)
     index += 2
 
     var state = PrinterState.UNKNOWN
@@ -166,6 +176,7 @@ fun parsePrinterStatus(reply: ByteArray): PrinterStatus {
         inks = inks,
         confident = understood,
         raw = raw,
+        hex = hex,
     )
 }
 

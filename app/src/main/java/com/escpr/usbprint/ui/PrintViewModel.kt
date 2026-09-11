@@ -141,6 +141,14 @@ data class UiState(
     val sheetPage: Int = 0,
     /** Perawatan yang sedang menunggu persetujuan pengguna. */
     val maintenanceAsked: MaintenanceTask? = null,
+    /**
+     * Bentuk perintah perawatan yang dipakai.
+     *
+     * Ada di layar karena bentuk yang benar berbeda antar-model dan tidak ada
+     * cara mengetahuinya selain mencoba. Tanpa pilihan ini, tiap percobaan
+     * berarti membangun ulang aplikasi.
+     */
+    val maintenanceVariant: Maintenance.Variant = Maintenance.Variant.CLASSIC,
     /** Sisa tinta hasil pembacaan terakhir. */
     val inks: List<InkLevel> = emptyList(),
     /**
@@ -802,6 +810,10 @@ class PrintViewModel @JvmOverloads constructor(
         _state.update { it.copy(maintenanceAsked = task) }
     }
 
+    fun setMaintenanceVariant(variant: Maintenance.Variant) {
+        _state.update { it.copy(maintenanceVariant = variant) }
+    }
+
     fun dismissMaintenance() {
         _state.update { it.copy(maintenanceAsked = null) }
     }
@@ -828,6 +840,7 @@ class PrintViewModel @JvmOverloads constructor(
 
                     val status = parsePrinterStatus(readStatusReply(printer))
                     if (status.raw.isNotBlank()) log("Status: " + status.raw)
+                    if (status.hex.isNotBlank()) log("Heksa: " + status.hex)
                     _state.update { it.copy(inks = status.inks, inkChecked = true) }
 
                     if (status.inks.isEmpty()) {
@@ -891,7 +904,11 @@ class PrintViewModel @JvmOverloads constructor(
             try {
                 UsbPrinter.open(usbManager, device).use { printer ->
                     val sink = printer.sink()
-                    val bytes = task.bytes()
+                    val bytes = task.bytes(current.maintenanceVariant)
+                    log(
+                        task.label + " (" + current.maintenanceVariant.name + "): " +
+                            bytes.joinToString(" ") { "%02X".format(it) }
+                    )
                     sink.write(bytes, 0, bytes.size)
                     sink.flush()
                 }
