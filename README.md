@@ -41,7 +41,8 @@ untuk mengujinya, jadi batas antara "terbukti" dan "belum" dijaga ketat.
 | Pemeriksaan | Cara |
 |---|---|
 | **Bentuk perintah cocok dengan driver Epson resmi** | dibaca dari berkas driver L3110 di Windows: `NC 02 00 00 00` ada, `NC 01 00 00` tidak ada sama sekali; `JS 04 00 00 00 00` dan `JE 01 00 00` persis sama dengan yang dihasilkan kode ini |
-| **Cek nozzle dijalankan dari HP, polanya tercetak** | Epson L3110, bentuk `EXTENDED` (`NC 02 00 00 00`); bentuk klasik tidak direspons sama sekali |
+| **Cek nozzle berjalan tuntas dari HP, kertas keluar sendiri** | Epson L3110, Printigo 2.15 -- pola tercetak dan kertas keluar tanpa campur tangan |
+| Bentuk perintah perawatan yang benar | `NC 02 00 00 00`; bentuk klasik `NC 01 00 00` tidak direspons sama sekali |
 | **Form feed mengeluarkan kertas yang tertahan** | dicoba di perangkat setelah dua dugaan lain gugur |
 | **Balasan status bentuk teks `@BDC ST` diuraikan** | byte sungguhan dari L3110 dipakai langsung sebagai data uji |
 | **Mencetak dari HP lewat kabel USB OTG, foto keluar di kertas** | Epson L3110, Printigo 2.3 -- jalur USB Android akhirnya terbukti, bukan lagi hanya jalur datanya |
@@ -85,20 +86,29 @@ dilaporkan apa adanya, dan balasan yang tidak dipahami tidak pernah
 menghalangi pencetakan: salah menghalangi lebih merugikan daripada meneruskan
 lalu gagal seperti sebelumnya.
 
-**Sisa tinta.** Nomor blok status dan bentuk entrinya diambil dari driver
+**Sisa tinta.** Sejak 2.13 permintaan status memakai parameter `00` seperti
+driver, dan L3110 menjawabnya dengan balasan biner ratusan byte yang memuat
+nomor seri printer -- jauh lebih kaya daripada balasan teks sebelumnya. Isinya
+belum diuraikan. Nomor blok status dan bentuk entrinya diambil dari driver
 terbuka. Kode warna yang tidak dikenali ditampilkan sebagai "Warna N", bukan
 diberi nama tebakan -- menyebut cyan sebagai magenta membuat orang mengisi
 tangki yang salah.
 
-**Kenapa printer menahan kertas setelah cek nozzle.** Empat dugaan sudah
-dicoba di perangkat dan **semuanya gugur**: menahan sambungan sampai printer
-melapor siap, membuang akhiran `ESC @`, membungkus dengan `JS`/`JE` seperti
-jalur cetak, dan menyamakan bentuk perintah dengan driver resmi. Yang terbukti
-bekerja hanya form feed yang dikirim **setelah** polanya tercetak. Sejak 2.14
-aplikasi mengirimkannya sendiri; pada 2.14 langkah itu tertahan oleh regresi
-di penantian, diperbaiki di 2.15. Gejalanya tertutup -- sebabnya masih belum
-diketahui. Satu perbedaan yang belum ditelusuri: driver memuat
-`PP 03 00 00 01 FE` sedangkan jalur cetak di sini memakai `PP 03 00 00 01 00`.
+**Kenapa printer menahan kertas setelah cek nozzle.** Gejalanya sudah tertutup
+sejak 2.15 -- kertas keluar sendiri -- tetapi **sebabnya tetap tidak diketahui**,
+dan itu dua hal yang berbeda.
+
+Empat dugaan dicoba di perangkat dan semuanya gugur: menahan sambungan sampai
+printer melapor siap, membuang akhiran `ESC @`, membungkus dengan `JS`/`JE`
+seperti jalur cetak, dan menyamakan bentuk perintah dengan driver resmi. Yang
+bekerja hanya form feed yang dikirim **setelah** polanya tercetak, sebagai
+pengiriman tersendiri. Aplikasi kini melakukannya sendiri.
+
+Satu perbedaan yang belum ditelusuri dan layak dicoba lebih dulu kalau ada yang
+melanjutkan: tabel di driver memuat `PP 03 00 00 01 FE`, sedangkan jalur cetak
+di sini memakai `PP 03 00 00 01 00`. Jalur kertas adalah kandidat yang masuk
+akal. Cara yang benar untuk memastikannya bukan menebak yang kelima, melainkan
+merekam apa yang benar-benar dikirim driver saat Nozzle Check ditekan.
 
 **Bunyi printer yang berlanjut beberapa saat setelah kertas keluar.** Terdengar
 pada perangkat, sebabnya belum ditelusuri. Kertasnya sudah keluar dan tidak ada
