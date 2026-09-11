@@ -14,9 +14,11 @@ import org.junit.Test
  * melaporkan sisa tinta sama sekali** -- printer tangki tidak punya sensor di
  * dalam tangkinya, dan Status Monitor bawaan Epson pun hanya menyuruh melihat
  * tangkinya langsung. Jadi penguraian di sini untuk model berkartrid yang
- * memang melaporkannya, dan belum pernah diverifikasi pada perangkat mana pun. Uji di sini menjaga dua hal yang tetap benar apa pun
- * hasil verifikasi nanti: penguraiannya tidak pernah melempar pada data yang
- * aneh, dan kode warna yang tidak dikenali tidak pernah diberi nama tebakan.
+ * memang melaporkannya, dan belum pernah diverifikasi pada perangkat mana pun.
+ *
+ * Uji di sini menjaga dua hal yang tetap benar apa pun hasil verifikasi nanti:
+ * penguraiannya tidak pernah melempar pada data yang aneh, dan kode warna yang
+ * tidak dikenali tidak pernah diberi nama tebakan.
  */
 class InkLevelTest {
 
