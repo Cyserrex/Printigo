@@ -23,13 +23,23 @@ class MaintenanceTest {
 
     @Test
     fun `cek nozzle memakai urutan yang dipatok`() {
-        val bytes = Maintenance.nozzleCheck()
+        val bytes = Maintenance.nozzleCheck(Maintenance.Variant.CLASSIC)
         assertEquals(
             "00 00 00 1B 01 40 45 4A 4C 20 31 32 38 34 2E 34 0A 40 45 4A 4C 20 20 20 20 20 0A " +
                 "1B 40 1B 40 1B 28 52 08 00 00 52 45 4D 4F 54 45 31 " +
                 "4A 53 04 00 00 00 00 00 4E 43 01 00 00 4C 44 01 00 00 4A 45 01 00 00 1B 00 00 00",
             hex(bytes),
         )
+    }
+
+    @Test
+    fun `bawaan memakai bentuk yang dipakai driver Epson`() {
+        // Dibaca dari berkas driver L3110 di Windows: NC 02 00 00 00 ada,
+        // NC 01 00 00 tidak ada sama sekali. Cocok dengan hasil di perangkat.
+        // Dua sumber bebas menunjuk jawaban yang sama, jadi itulah bawaannya.
+        assertEquals(Maintenance.Variant.EXTENDED, Maintenance.DEFAULT_VARIANT)
+        assertTrue(hex(Maintenance.nozzleCheck()).contains("4E 43 02 00 00 00"))
+        assertTrue(hex(Maintenance.headCleaning()).contains("43 48 02 00 00 00"))
     }
 
     @Test

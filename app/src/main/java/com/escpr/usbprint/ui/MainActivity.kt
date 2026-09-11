@@ -314,14 +314,14 @@ private fun MaintenanceSection(state: UiState, viewModel: PrintViewModel) {
                 ChipRow(
                     Maintenance.Variant.entries,
                     state.maintenanceVariant,
-                    { v -> if (v == Maintenance.Variant.CLASSIC) "Umum" else "Alternatif" },
+                    { v -> if (v == Maintenance.Variant.EXTENDED) "Baku" else "Lama" },
                     !state.busy,
                 ) { v -> viewModel.setMaintenanceVariant(v) }
 
                 Text(
-                    "Bentuk perintah yang benar berbeda antar-model Epson, dan " +
-                        "tidak ada cara mengetahuinya selain mencoba. Kalau " +
-                        "printer diam saja pada satu bentuk, coba yang satunya. " +
+                    "Baku mengikuti bentuk yang dipakai driver Epson resmi, dan " +
+                        "itulah yang terbukti bekerja pada L3110. Bentuk Lama " +
+                        "disediakan untuk model yang tidak merespons yang baku. " +
                         "Byte yang dikirim dicatat di kartu Catatan.",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1143,9 +1143,11 @@ private fun PrintBar(
                 if (state.busy && state.busyReason == BusyReason.PRINTING) {
                     OutlinedButton(onClick = viewModel::cancel) { Text("Batalkan") }
                 } else if (state.busy) {
-                    // Tidak ada pekerjaan cetak untuk dibatalkan; tombolnya
-                    // hanya akan terlihat berfungsi padahal tidak.
-                    OutlinedButton(onClick = {}, enabled = false) { Text("Tunggu") }
+                    // Menunggu printer selesai bisa berlangsung sampai dua
+                    // setengah menit pada printer yang tidak pernah menjawab.
+                    // Tombolnya tidak membatalkan perintah yang sudah terkirim
+                    // -- itu sudah di tangan printer -- hanya berhenti menunggu.
+                    OutlinedButton(onClick = viewModel::cancel) { Text("Berhenti menunggu") }
                 } else {
                     OutlinedButton(
                         onClick = onExport,

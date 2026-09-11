@@ -58,6 +58,17 @@ object Maintenance {
      */
     enum class Variant { CLASSIC, EXTENDED }
 
+    /**
+     * Bentuk yang dipakai driver Epson resmi.
+     *
+     * Dibaca langsung dari berkas driver L3110 yang terpasang di Windows:
+     * `NC 02 00 00 00` ada, sedangkan `NC 01 00 00` tidak ada sama sekali.
+     * Cocok dengan hasil di perangkat -- bentuk klasik tidak direspons, bentuk
+     * ini mencetak polanya. Dua sumber bebas yang menunjuk ke jawaban yang
+     * sama, jadi inilah yang jadi bawaan.
+     */
+    val DEFAULT_VARIANT = Variant.EXTENDED
+
     /** Pola pembersihan. Nol berarti seluruh warna. */
     const val CLEAN_ALL = 0x00
 
@@ -70,7 +81,7 @@ object Maintenance {
      * Satu lembar kertas dipakai. Polanya digambar printer sendiri, jadi tidak
      * ada gambar yang dikirim dari HP.
      */
-    fun nozzleCheck(variant: Variant = Variant.CLASSIC): ByteArray =
+    fun nozzleCheck(variant: Variant = DEFAULT_VARIANT): ByteArray =
         wrap(command("NC", NOZZLE_PATTERN, variant))
 
     /**
@@ -80,7 +91,7 @@ object Maintenance {
      * sibuk sekitar setengah menit hingga dua menit; selama itu ia tidak akan
      * menerima pekerjaan cetak.
      */
-    fun headCleaning(variant: Variant = Variant.CLASSIC): ByteArray =
+    fun headCleaning(variant: Variant = DEFAULT_VARIANT): ByteArray =
         wrap(command("CH", CLEAN_ALL, variant))
 
     /**
@@ -91,9 +102,13 @@ object Maintenance {
      * pekerjaan sebelumnya. Perintah `ST` menyuruh printer menyusun laporan
      * baru, dan laporan itulah yang memuat sisa tinta.
      *
+     * Parameternya `00`, mengikuti driver Epson resmi -- dibaca dari berkas
+     * drivernya sendiri. Sebelumnya `01`, yang memang dijawab printer tetapi
+     * balasannya tidak pernah memuat sisa tinta.
+     *
      * Tidak memakai kertas maupun tinta, dan tidak menggerakkan apa pun.
      */
-    fun statusRequest(): ByteArray = wrapQuery(EscpR.remoteCmd("ST", byteArrayOf(0x01)))
+    fun statusRequest(): ByteArray = wrapQuery(EscpR.remoteCmd("ST", byteArrayOf(0x00)))
 
     private fun command(name: String, parameter: Int, variant: Variant): ByteArray =
         when (variant) {
@@ -178,7 +193,7 @@ enum class MaintenanceTask(
         usesVariant = false,
     );
 
-    fun bytes(variant: Maintenance.Variant = Maintenance.Variant.CLASSIC): ByteArray =
+    fun bytes(variant: Maintenance.Variant = Maintenance.DEFAULT_VARIANT): ByteArray =
         when (this) {
             EJECT -> Maintenance.ejectPage()
             NOZZLE_CHECK -> Maintenance.nozzleCheck(variant)

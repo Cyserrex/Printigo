@@ -40,6 +40,7 @@ untuk mengujinya, jadi batas antara "terbukti" dan "belum" dijaga ketat.
 
 | Pemeriksaan | Cara |
 |---|---|
+| **Bentuk perintah cocok dengan driver Epson resmi** | dibaca dari berkas driver L3110 di Windows: `NC 02 00 00 00` ada, `NC 01 00 00` tidak ada sama sekali; `JS 04 00 00 00 00` dan `JE 01 00 00` persis sama dengan yang dihasilkan kode ini |
 | **Cek nozzle dijalankan dari HP, polanya tercetak, kertas keluar** | Epson L3110, bentuk `EXTENDED` (`NC 02 00 00 00`); bentuk klasik tidak direspons, dan kertas baru keluar setelah form feed |
 | **Form feed mengeluarkan kertas yang tertahan** | dicoba di perangkat setelah dua dugaan lain gugur |
 | **Balasan status bentuk teks `@BDC ST` diuraikan** | byte sungguhan dari L3110 dipakai langsung sebagai data uji |
@@ -67,7 +68,7 @@ untuk mengujinya, jadi batas antara "terbukti" dan "belum" dijaga ketat.
 | Tampilan benar-benar tergambar | tangkapan layar dari komposisi Compose di JVM |
 | APK terkompilasi, tertandatangani, zipalign, manifes benar | `apksigner`, `zipalign`, `aapt2` |
 
-**182 unit test**, semuanya lolos: `gradlew test`.
+**183 unit test**, semuanya lolos: `gradlew test`.
 
 ### Belum terbukti
 
@@ -515,7 +516,8 @@ yang meleset lebih buruk daripada penolakan yang jujur.
 
 | Versi | Isi |
 |---|---|
-| **2.12** | Perintah perawatan dibungkus `JS` dan `JE` seperti jalur cetak -- itulah sebab kertas tertahan, bukan waktu tunggu, bukan `ESC @`, dan bukan form feed yang hilang; membaca status sengaja tidak ikut dibungkus, karena bertanya tidak boleh menggerakkan kertas |
+| **2.13** | Bentuk perintah perawatan dan permintaan status disamakan dengan driver Epson resmi setelah berkas drivernya dibaca; penantian printer bisa dihentikan; dua bug pelacakan pekerjaan diperbaiki |
+| 2.12 | Perintah perawatan dibungkus `JS` dan `JE` seperti jalur cetak -- itulah sebab kertas tertahan, bukan waktu tunggu, bukan `ESC @`, dan bukan form feed yang hilang; membaca status sengaja tidak ikut dibungkus, karena bertanya tidak boleh menggerakkan kertas |
 | 2.11 | Cek nozzle diakhiri form feed -- ternyata itu yang hilang, bukan waktu tunggu dan bukan `ESC @`; dua dugaan sebelumnya dicoba di perangkat dan gugur |
 | 2.10 | Akhiran `ESC @` dibuang dari perintah perawatan -- tersangka kertas yang berhenti separuh keluar; tombol Keluarkan kertas; kecepatan sambungan USB dilaporkan dari ukuran paket bulk, bukan disimpulkan dari laju |
 | 2.9 | Dua preset -- Cetak biasa dan Kualitas foto -- menggantikan empat baris chip yang memang bergerak bersama; sisanya pindah ke Setelan lanjutan |

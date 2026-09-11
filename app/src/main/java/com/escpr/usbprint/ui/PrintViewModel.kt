@@ -61,6 +61,8 @@ import com.escpr.usbprint.util.displayName
 import com.escpr.usbprint.util.formatBytes
 import com.escpr.usbprint.util.mimeType
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -168,7 +170,7 @@ data class UiState(
      * cara mengetahuinya selain mencoba. Tanpa pilihan ini, tiap percobaan
      * berarti membangun ulang aplikasi.
      */
-    val maintenanceVariant: Maintenance.Variant = Maintenance.Variant.CLASSIC,
+    val maintenanceVariant: Maintenance.Variant = Maintenance.DEFAULT_VARIANT,
     /** Sisa tinta hasil pembacaan terakhir. */
     val inks: List<InkLevel> = emptyList(),
     /**
@@ -868,7 +870,10 @@ class PrintViewModel @JvmOverloads constructor(
         if (current.busy) return
         val device = current.selectedDevice ?: return
 
-        viewModelScope.launch(ioDispatcher) {
+        // Dicatat sebagai printJob supaya tombol berhenti benar-benar mengenai
+        // pekerjaan ini. Tanpa itu tombolnya membatalkan pekerjaan lama yang
+        // sudah selesai -- terlihat berfungsi, padahal tidak melakukan apa-apa.
+        printJob = viewModelScope.launch(ioDispatcher) {
             _state.update { it.copy(busy = true, busyReason = BusyReason.PRINTER_TALK) }
             try {
                 UsbPrinter.open(usbManager, device).use { printer ->
@@ -996,7 +1001,7 @@ class PrintViewModel @JvmOverloads constructor(
      * Mengembalikan null kalau printer tidak pernah melapor siap sampai batas
      * waktu -- yang bukan berarti gagal, hanya berarti tidak terdengar.
      */
-    private fun waitUntilIdle(printer: UsbPrinter): PrinterStatus? {
+    private suspend fun waitUntilIdle(printer: UsbPrinter): PrinterStatus? {
         val mulai = System.currentTimeMillis()
         // Jeda terendah sebelum jawaban "siap" boleh dipercaya. Tanpa ini
         // penantiannya sia-sia: pada percobaan sungguhan printer menjawab
@@ -1008,6 +1013,11 @@ class PrintViewModel @JvmOverloads constructor(
 
         var terakhir: PrinterStatus? = null
         while (System.currentTimeMillis() < batas) {
+            // Pembatalan diperiksa tiap putaran. readStatus memblokir sampai
+            // satu detik dan tidak bisa disela, jadi tanpa pemeriksaan ini
+            // pengguna terkunci sampai dua setengah menit tanpa jalan keluar
+            // pada printer yang tidak pernah menjawab.
+            if (!currentCoroutineContext().isActive) return terakhir
             val potongan = printer.readStatus(1000)
             if (potongan.isNotEmpty()) {
                 val status = parsePrinterStatus(potongan)
@@ -1153,8 +1163,14 @@ class PrintViewModel @JvmOverloads constructor(
         val current = _state.value
         if (!current.hasContent) return
 
-        viewModelScope.launch(ioDispatcher) {
-            _state.update { it.copy(busy = true, progress = 0f) }
+        // Alasan sibuk harus disebut tegas. Kalau tidak, ia mewarisi nilai dari
+        // pekerjaan sebelumnya -- menyimpan .prn sesudah cek nozzle akan
+        // menampilkan "Menghubungi printer" padahal tidak ada printer yang
+        // disentuh sama sekali.
+        printJob = viewModelScope.launch(ioDispatcher) {
+            _state.update {
+                it.copy(busy = true, busyReason = BusyReason.PRINTING, progress = 0f)
+            }
             try {
                 val app = getApplication<Application>()
                 val stream = app.contentResolver.openOutputStream(uri)

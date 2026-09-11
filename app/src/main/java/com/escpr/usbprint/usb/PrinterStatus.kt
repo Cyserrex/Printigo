@@ -230,7 +230,10 @@ ST:04;"
  * bisa membedakan "bukan format ini" dari "format ini tapi kosong".
  */
 private fun parseTextStatus(text: String, raw: String, hex: String): PrinterStatus? {
-    if (!text.contains("@BDC ST")) return null
+    // "@BDC PS" adalah bentuk balasan lain yang dikenali driver Epson resmi --
+    // terbaca dari berkas drivernya. Isinya pasangan KUNCI:HEKSA; yang sama,
+    // jadi tidak perlu penguraian tersendiri.
+    if (!text.contains("@BDC ST") && !text.contains("@BDC PS")) return null
 
     var state = PrinterState.UNKNOWN
     var fault = PrinterFault.NONE

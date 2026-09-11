@@ -125,6 +125,8 @@ class InkLevelTest {
     @Test
     fun `permintaan status memakai urutan yang dipatok`() {
         val hex = Maintenance.statusRequest().joinToString(" ") { "%02X".format(it) }
-        assertTrue(hex, hex.contains("52 45 4D 4F 54 45 31 53 54 02 00 00 01 1B 00 00 00"))
+        // Parameter 00, mengikuti driver Epson resmi -- terbaca dari berkas
+        // drivernya sendiri, dan itulah satu-satunya bentuk ST yang ada di sana.
+        assertTrue(hex, hex.contains("52 45 4D 4F 54 45 31 53 54 02 00 00 00 1B 00 00 00"))
     }
 }
