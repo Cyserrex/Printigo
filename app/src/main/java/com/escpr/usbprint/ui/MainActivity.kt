@@ -94,6 +94,7 @@ import com.escpr.usbprint.escpr.PrintPreset
 import com.escpr.usbprint.escpr.presetOf
 import com.escpr.usbprint.escpr.Quality
 import com.escpr.usbprint.layout.PageLayout
+import com.escpr.usbprint.usb.InkLevel
 import com.escpr.usbprint.usb.PrinterState
 import com.escpr.usbprint.util.formatBytes
 import com.escpr.usbprint.print.PageSelectionMode
@@ -362,11 +363,18 @@ private fun InkPanel(state: UiState, viewModel: PrintViewModel) {
 
         when {
             state.inks.isNotEmpty() -> {
-                state.inks.forEach { ink -> InkBar(ink.label, ink.percent) }
+                state.inks.forEach { ink -> InkBar(ink) }
                 Text(
-                    "Angka ini perkiraan printer, bukan hasil pengukuran. Kalau " +
-                        "tangki sudah diisi tapi angkanya masih rendah, level " +
-                        "tintanya perlu di-reset lewat tombol tetesan di printer.",
+                    if (state.inks.none { it.measured })
+                        "Printer melaporkan tangkinya, tapi tanpa angka yang " +
+                            "bisa diukur -- printer tangki tidak punya sensor " +
+                            "di dalamnya. Periksa tangkinya langsung; aplikasi " +
+                            "Epson di komputer pun menyarankan hal yang sama."
+                    else
+                        "Angka ini perkiraan printer, bukan hasil pengukuran. " +
+                            "Kalau tangki sudah diisi tapi angkanya masih " +
+                            "rendah, level tintanya perlu di-reset lewat tombol " +
+                            "tetesan di printer.",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -406,27 +414,43 @@ private fun keadaanPrinter(state: PrinterState): String = when (state) {
     PrinterState.UNKNOWN -> "keadaan tidak dikenali"
 }
 
+/**
+ * Satu baris tangki tinta.
+ *
+ * Batang hanya digambar kalau angkanya benar-benar hasil pengukuran. Batang
+ * kosong untuk nilai yang tidak terukur akan terbaca sebagai "tinta habis" --
+ * salah baca yang jauh lebih merugikan daripada tidak ada batang sama sekali.
+ */
 @Composable
-private fun InkBar(label: String, percent: Int) {
+private fun InkBar(ink: InkLevel) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
-            label,
+            ink.label,
             style = MaterialTheme.typography.labelMedium,
             modifier = Modifier.width(76.dp),
         )
-        LinearProgressIndicator(
-            progress = { percent / 100f },
-            modifier = Modifier
-                .weight(1f)
-                .height(8.dp),
-        )
-        Spacer(Modifier.width(8.dp))
-        Text(
-            percent.toString() + "%",
-            style = MaterialTheme.typography.labelMedium,
-            modifier = Modifier.width(40.dp),
-            textAlign = TextAlign.End,
-        )
+        if (ink.measured) {
+            LinearProgressIndicator(
+                progress = { ink.percent / 100f },
+                modifier = Modifier
+                    .weight(1f)
+                    .height(8.dp),
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                ink.reading,
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.width(40.dp),
+                textAlign = TextAlign.End,
+            )
+        } else {
+            Text(
+                ink.reading,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+        }
     }
 }
 

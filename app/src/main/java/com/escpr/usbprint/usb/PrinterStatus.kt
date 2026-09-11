@@ -39,10 +39,21 @@ enum class PrinterFault {
  * dan itu bukan kesalahan pembacaan.
  */
 data class InkLevel(
-    /** Kode warna dari printer, apa adanya. */
+    /** Kode warna, dibaca dari byte kedua tiap entri. */
     val code: Int,
+    /** Nilai mentah. 0-100 berarti persen; 105 berarti tidak terukur. */
     val percent: Int,
 ) {
+    /**
+     * Apakah angkanya benar-benar hasil pengukuran.
+     *
+     * L3110 mengirimkan 105 untuk keempat tangkinya -- nilai tetap di luar
+     * rentang persen, yang artinya "tidak punya sensor untuk diukur". Terbaca
+     * langsung dari rekaman USB Status Monitor. Menampilkannya sebagai 105%
+     * akan jadi kebohongan yang rapi; menyembunyikannya sama sekali membuang
+     * kabar bahwa printer memang melaporkan empat tangkinya.
+     */
+    val measured: Boolean get() = percent in 0..100
     /**
      * Nama warnanya, atau null kalau kodenya tidak dikenali.
      *
@@ -56,6 +67,9 @@ data class InkLevel(
         0x03 -> "Kuning"
         else -> null
     }
+
+    /** Angka untuk ditampilkan, atau keterangan kalau memang tidak terukur. */
+    val reading: String get() = if (measured) "$percent%" else "tidak terukur"
 
     /** Yang ditampilkan ke pengguna; tidak pernah menebak nama. */
     val label: String get() = name ?: ("Warna " + code)
@@ -196,9 +210,13 @@ fun parsePrinterStatus(reply: ByteArray): PrinterStatus {
  *
  * Mengembalikan null kalau bentuknya tidak masuk akal, dan **bukan** daftar
  * kosong: keduanya berbeda artinya. Null berarti "tidak paham blok ini", daftar
- * kosong berarti "printer tidak melaporkan tinta sama sekali". Entri yang
- * persennya di luar 0-100 dibuang satu per satu, karena satu entri aneh tidak
- * boleh membuat tiga entri lain yang waras ikut hilang.
+ * kosong berarti "printer tidak melaporkan tinta sama sekali".
+ *
+ * Nilai di luar 0-100 **tidak lagi dibuang**. Dulu dibuang karena dikira data
+ * rusak; rekaman USB menunjukkan L3110 mengirim 105 untuk keempat tangkinya --
+ * nilai tetap yang berarti "tidak punya sensor". Membuangnya membuat aplikasi
+ * melapor "printer tidak melaporkan tinta" padahal printer justru melaporkan
+ * dengan jelas bahwa tintanya tidak terukur.
  */
 private fun parseInk(reply: ByteArray, payloadAt: Int, length: Int): List<InkLevel>? {
     if (length < 2) return null
@@ -209,9 +227,16 @@ private fun parseInk(reply: ByteArray, payloadAt: Int, length: Int): List<InkLev
     var at = payloadAt + 1
     val end = payloadAt + length
     while (at + entrySize <= end) {
-        val code = reply[at].toInt() and 0xFF
-        val percent = reply[at + entrySize - 1].toInt() and 0xFF
-        if (percent in 0..100) levels += InkLevel(code, percent)
+        // Byte pertama nomor slot fisik, byte kedua kode warnanya, byte
+        // terakhir nilainya. Urutan itu terbaca dari rekaman USB L3110:
+        // byte kedua bernilai 00 03 02 01, yang berarti Hitam Kuning Magenta
+        // Cyan -- persis urutan BK Y M C yang tercetak di lembar cek nozzle.
+        // Membaca warna dari byte pertama justru menghasilkan susunan tanpa
+        // hitam sama sekali, yang mustahil untuk printer empat tangki.
+        val code = if (entrySize >= 3) reply[at + 1].toInt() and 0xFF
+                   else reply[at].toInt() and 0xFF
+        val nilai = reply[at + entrySize - 1].toInt() and 0xFF
+        levels += InkLevel(code, nilai)
         at += entrySize
     }
     return levels

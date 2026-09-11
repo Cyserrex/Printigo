@@ -43,6 +43,7 @@ untuk mengujinya, jadi batas antara "terbukti" dan "belum" dijaga ketat.
 | **Bentuk perintah cocok dengan driver Epson resmi** | dibaca dari berkas driver L3110 di Windows: `NC 02 00 00 00` ada, `NC 01 00 00` tidak ada sama sekali; `JS 04 00 00 00 00` dan `JE 01 00 00` persis sama dengan yang dihasilkan kode ini |
 | **Cek nozzle berjalan tuntas dari HP, kertas keluar sendiri** | Epson L3110 -- pola tercetak dan kertas keluar tanpa campur tangan |
 | **Urutan cek nozzle sama persis dengan driver Epson resmi** | rekaman USBPcap saat tombol Nozzle Check ditekan di driver; 132 byte, dibandingkan byte per byte |
+| **Blok tinta `@BDC ST2` diuraikan dari balasan L3110 sungguhan** | rekaman USBPcap saat Status Monitor 3 dibuka: empat tangki, urutan Hitam-Kuning-Magenta-Cyan yang sama dengan lembar cek nozzle, semuanya bernilai 105 |
 | **Driver Windows mencetak dengan ESC/P2, bukan ESC/P-R** | rekaman USBPcap satu halaman cetak: `ESC ( G`, `ESC ( U`, `ESC ( C`, `ESC ( S`, `ESC ( D`, `ESC U`, `ESC i` -- tidak ada satu pun `setj`, `setq`, atau `dsnd` |
 | Bentuk perintah perawatan yang benar | `NC 02 00 00 00`; bentuk klasik `NC 01 00 00` tidak direspons sama sekali |
 | **Form feed mengeluarkan kertas yang tertahan** | dicoba di perangkat setelah dua dugaan lain gugur |
@@ -71,7 +72,7 @@ untuk mengujinya, jadi batas antara "terbukti" dan "belum" dijaga ketat.
 | Tampilan benar-benar tergambar | tangkapan layar dari komposisi Compose di JVM |
 | APK terkompilasi, tertandatangani, zipalign, manifes benar | `apksigner`, `zipalign`, `aapt2` |
 
-**187 unit test**, semuanya lolos: `gradlew test`.
+**192 unit test**, semuanya lolos: `gradlew test`.
 
 ### Belum terbukti
 
@@ -88,11 +89,11 @@ dilaporkan apa adanya, dan balasan yang tidak dipahami tidak pernah
 menghalangi pencetakan: salah menghalangi lebih merugikan daripada meneruskan
 lalu gagal seperti sebelumnya.
 
-**Penguraian sisa tinta.** Kodenya ada, tetapi **belum pernah diuji pada
-perangkat mana pun** -- L3110 tidak melaporkan sisa tinta sama sekali, jadi
-tidak ada yang bisa diuji dengannya. Kode warna yang tidak dikenali ditampilkan
-sebagai "Warna N", bukan diberi nama tebakan: menyebut cyan sebagai magenta
-membuat orang mengisi tangki yang salah.
+**Angka sisa tinta yang benar-benar terukur.** Penguraiannya kini terbukti dari
+balasan L3110 sungguhan, tetapi printer itu mengirim nilai tetap 105 untuk
+keempat tangkinya -- penanda "tidak punya sensor". Jadi jalur untuk angka yang
+sungguh-sungguh terukur baru bisa dibuktikan pada model berkartrid, yang belum
+pernah dicoba.
 
 **Bunyi printer yang berlanjut beberapa saat setelah kertas keluar.** Terdengar
 pada perangkat, sebabnya belum ditelusuri. Kertasnya sudah keluar dan tidak ada
@@ -200,10 +201,11 @@ Berguna untuk memisahkan masalah data dari masalah kabel.
   kemungkinan jalur pergi dan pulang tidak bertumpuk tepat
 - **Besar data disebutkan sebelum mencetak**, karena itulah yang menentukan
   lamanya menunggu -- dan 300 dpi mengirim seperempat dari 600 dpi
-- **Status printer** dibaca langsung: siap, sibuk, dijeda, atau ada masalah.
-  Sisa tinta ikut ditampilkan **kalau printernya melaporkannya** -- printer
-  tangki seperti L3110 tidak punya sensor di dalam tangkinya dan tidak pernah
-  melaporkan apa pun, sama seperti di aplikasi Epson di komputer
+- **Status printer** dibaca langsung: siap, sibuk, dijeda, atau ada masalah
+- **Tangki tinta** ditampilkan lengkap dengan namanya. Pada printer tangki
+  seperti L3110 angkanya ditandai "tidak terukur" -- printer memang melaporkan
+  keempat tangkinya tetapi tanpa sensor untuk mengukurnya, dan itu disebutkan
+  apa adanya alih-alih digambarkan sebagai batang kosong yang terbaca "habis"
 - **Keluarkan kertas** yang tertahan tanpa mematikan printer
 - **Cek nozzle dan pembersihan head** langsung dari HP, dengan persetujuan
   lebih dulu karena keduanya memakai kertas atau tinta. Printer tanpa panel
@@ -547,7 +549,8 @@ yang meleset lebih buruk daripada penolakan yang jujur.
 
 | Versi | Isi |
 |---|---|
-| **2.17** | Urutan cek nozzle disalin dari rekaman USB driver Epson resmi dan sama persis 132 byte -- sebab kertas tertahan akhirnya diketahui: `JE` harus datang **sesudah** form feed, dalam blok REMOTE1 tersendiri, bukan sebelumnya |
+| **2.18** | Blok tinta diuraikan dengan benar setelah balasan L3110 direkam: kode warna ada di byte kedua, dan nilai 105 berarti "tidak terukur" -- bukan data rusak yang layak dibuang seperti dugaan sebelumnya |
+| 2.17 | Urutan cek nozzle disalin dari rekaman USB driver Epson resmi dan sama persis 132 byte -- sebab kertas tertahan akhirnya diketahui: `JE` harus datang **sesudah** form feed, dalam blok REMOTE1 tersendiri, bukan sebelumnya |
 | 2.16 | Panel sisa tinta jadi panel status printer, karena printer tangki memang tidak punya sensor tinta -- dikonfirmasi Status Monitor Epson sendiri yang juga hanya menyuruh melihat tangkinya; permintaan status kembali ke parameter yang benar-benar dijawab L3110 |
 | 2.15 | Penantian printer tidak lagi bergantung pada balasan yang bisa diurai -- perubahan bentuk permintaan status di 2.13 membuatnya berjalan sampai batas penuh, sehingga pengeluaran kertas di 2.14 tidak pernah sempat terkirim; balasan status dicatat utuh dan terbaca |
 | 2.14 | Kertas dikeluarkan sendiri sesudah cek nozzle selesai, sebagai pengiriman tersendiri -- menirukan urutan yang memang terbukti bekerja, setelah empat dugaan tentang sebabnya gugur berturut-turut |

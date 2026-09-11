@@ -34,10 +34,17 @@ class InkLevelTest {
         return header + length + body.toByteArray()
     }
 
-    /** Blok tinta: <ukuran entri> lalu entri <kode><jenis><persen>. */
+    /**
+     * Blok tinta dengan susunan yang terbukti: `<ukuran entri>` lalu entri
+     * `<slot><warna><nilai>`.
+     *
+     * Susunannya diambil dari rekaman USB L3110, bukan dikarang -- lihat
+     * [StatusCaptureTest]. Nomor slot di sini sekadar pengisi; yang menentukan
+     * warna adalah byte kedua.
+     */
     private fun inkBlock(vararg entries: Pair<Int, Int>): ByteArray =
-        byteArrayOf(3) + entries.flatMap { (code, percent) ->
-            listOf(code.toByte(), 0x01, percent.toByte())
+        byteArrayOf(3) + entries.flatMapIndexed { index, (code, percent) ->
+            listOf((index + 1).toByte(), code.toByte(), percent.toByte())
         }.toByteArray()
 
     @Test
@@ -70,12 +77,18 @@ class InkLevelTest {
     }
 
     @Test
-    fun `entri dengan persen di luar nalar dibuang sendirian`() {
-        // Satu entri aneh tidak boleh menjatuhkan tiga entri lain yang waras.
+    fun `nilai di luar rentang persen tetap dilaporkan, ditandai tidak terukur`() {
+        // Dulu dibuang karena dikira data rusak. Rekaman USB menunjukkan L3110
+        // memakai 105 untuk keempat tangkinya sebagai penanda "tidak punya
+        // sensor" -- membuangnya membuat aplikasi melapor printer tidak
+        // melaporkan tinta, padahal printer melaporkannya dengan jelas.
         val status = parsePrinterStatus(
-            reply(0x0F to inkBlock(0x00 to 90, 0x01 to 200, 0x02 to 30))
+            reply(0x0F to inkBlock(0x00 to 90, 0x01 to 105, 0x02 to 30))
         )
-        assertEquals(listOf(90, 30), status.inks.map { it.percent })
+        assertEquals(listOf(90, 105, 30), status.inks.map { it.percent })
+        assertEquals(listOf(true, false, true), status.inks.map { it.measured })
+        assertEquals("tidak terukur", status.inks[1].reading)
+        assertEquals("90%", status.inks[0].reading)
     }
 
     @Test

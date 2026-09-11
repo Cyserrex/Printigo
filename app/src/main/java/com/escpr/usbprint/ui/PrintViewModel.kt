@@ -907,7 +907,7 @@ class PrintViewModel @JvmOverloads constructor(
                     if (status.inks.isEmpty()) {
                         log("Sisa tinta tidak dilaporkan printer ini.")
                     } else {
-                        log(status.inks.joinToString(", ") { it.label + " " + it.percent + "%" })
+                        log(status.inks.joinToString(", ") { it.label + " " + it.reading })
                     }
                 }
             } catch (error: Throwable) {
