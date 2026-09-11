@@ -40,6 +40,8 @@ untuk mengujinya, jadi batas antara "terbukti" dan "belum" dijaga ketat.
 
 | Pemeriksaan | Cara |
 |---|---|
+| **Cek nozzle dijalankan dari HP, polanya tercetak** | Epson L3110, bentuk perintah `EXTENDED` (`NC 02 00 00 00`); bentuk klasik tidak direspons |
+| **Balasan status bentuk teks `@BDC ST` diuraikan** | byte sungguhan dari L3110 dipakai langsung sebagai data uji |
 | **Mencetak dari HP lewat kabel USB OTG, foto keluar di kertas** | Epson L3110, Printigo 2.3 -- jalur USB Android akhirnya terbukti, bukan lagi hanya jalur datanya |
 | **Halaman uji tercetak benar di Epson L3110 sungguhan** | `tools/testpage_light.py` dikirim apa adanya lewat `tools/send_raw.ps1` (winspool, datatype RAW, tanpa melewati driver Epson) |
 | Printer memang keluarga ESC/P-R | Registry Windows melaporkan compatible ID `1284_CID_EpsonRGB` |
@@ -64,7 +66,7 @@ untuk mengujinya, jadi batas antara "terbukti" dan "belum" dijaga ketat.
 | Tampilan benar-benar tergambar | tangkapan layar dari komposisi Compose di JVM |
 | APK terkompilasi, tertandatangani, zipalign, manifes benar | `apksigner`, `zipalign`, `aapt2` |
 
-**158 unit test**, semuanya lolos: `gradlew test`.
+**165 unit test**, semuanya lolos: `gradlew test`.
 
 ### Belum terbukti
 
@@ -86,11 +88,10 @@ terbuka. Kode warna yang tidak dikenali ditampilkan sebagai "Warna N", bukan
 diberi nama tebakan -- menyebut cyan sebagai magenta membuat orang mengisi
 tangki yang salah.
 
-**Perintah cek nozzle dan pembersihan head.** Dicoba pada L3110 dengan bentuk
-klasik: printer **tidak bereaksi sama sekali**. Yang sudah pasti dari percobaan
-itu, amplop REMOTE1-nya benar -- perintah `ST` pada jalur yang sama dijawab
-dengan `@BDC ST2`. Jadi yang salah bentuk perintahnya, bukan jalurnya. Bentuk
-kedua bisa dicoba langsung dari layar tanpa membangun ulang.
+**Kertas yang berhenti separuh keluar setelah cek nozzle.** Sambungan ditutup
+tepat setelah byte terakhir terkirim, dan printer menahan kertas sambil
+motornya terus berjalan. Sejak 2.7 sambungan ditahan sampai printer melapor
+siap; masuk akal, tetapi belum dicoba pada perangkat.
 
 **Perilaku APK yang sudah dikecilkan R8 di HP.** Isi DEX-nya diperiksa, tapi
 aplikasinya sendiri belum pernah dijalankan dalam bentuk terkecilkan. Kalau
@@ -508,7 +509,8 @@ yang meleset lebih buruk daripada penolakan yang jujur.
 
 | Versi | Isi |
 |---|---|
-| **2.6** | Waktu satu pekerjaan cetak dirinci jadi menggambar, mengolah, dan mengirim -- supaya "lambat" bisa ditindaklanjuti alih-alih ditebak |
+| **2.7** | Balasan status bentuk teks `@BDC ST` diuraikan -- L3110 memakai itu, bukan blok biner `ST2`, jadi sisa tinta selalu kosong sebelumnya; sambungan ditahan sampai printer melapor siap setelah perintah perawatan |
+| 2.6 | Waktu satu pekerjaan cetak dirinci jadi menggambar, mengolah, dan mengirim -- supaya "lambat" bisa ditindaklanjuti alih-alih ditebak |
 | 2.5 | Bentuk perintah perawatan bisa diganti dari layar, karena bentuk klasik ternyata tidak direspons L3110; balasan status dicatat dalam heksa supaya format blok tintanya bisa diuraikan, bukan ditebak |
 | 2.4 | Arah cetak bisa dipilih (dua arah atau satu arah); perkiraan besar data ditampilkan sebelum mencetak karena foto praktis tidak bisa dipadatkan dan itulah yang menentukan lamanya |
 | 2.3 | Sisa tinta dibaca dan ditampilkan di kartu Perawatan, dengan permintaan status yang eksplisit ke printer; bilah bawah tidak lagi menampilkan kemajuan cetak palsu saat aplikasi hanya sedang berbicara dengan printer |
