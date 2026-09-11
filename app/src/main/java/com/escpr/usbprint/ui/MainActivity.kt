@@ -90,6 +90,8 @@ import com.escpr.usbprint.escpr.MediaType
 import com.escpr.usbprint.escpr.EscpRJob
 import com.escpr.usbprint.escpr.PaperSize
 import com.escpr.usbprint.escpr.PrintDirection
+import com.escpr.usbprint.escpr.PrintPreset
+import com.escpr.usbprint.escpr.presetOf
 import com.escpr.usbprint.escpr.Quality
 import com.escpr.usbprint.layout.PageLayout
 import com.escpr.usbprint.util.formatBytes
@@ -768,52 +770,102 @@ private fun OutputSection(state: UiState, viewModel: PrintViewModel) {
     val settings = state.settings
     val enabled = !state.busy
 
+    // Preset menyatukan empat pilihan yang memang bergerak bersama. Yang
+    // tersisa di permukaan hanyalah keputusan tentang APA yang dicetak --
+    // warna dan jumlah salinan -- sedangkan BAGAIMANA mencetaknya cukup satu
+    // ketukan. Yang jarang dipakai tidak dihapus, hanya tidak lagi menuntut
+    // perhatian setiap kali layar dibuka.
+    var lanjutanTerbuka by remember { mutableStateOf(false) }
+    val preset = presetOf(settings)
+
     SectionCard("Hasil cetak") {
+        // Tipenya disebut tegas karena preset boleh null -- "setelan campuran"
+        // adalah keadaan yang sah, bukan kesalahan, dan saat itu memang tidak
+        // ada chip yang menyala.
+        ChipRow<PrintPreset?>(
+            PrintPreset.entries,
+            preset,
+            { it?.label.orEmpty() },
+            enabled,
+        ) { value -> value?.let { p -> viewModel.updateSettings { p.applyTo(it) } } }
+
+        Text(
+            preset?.hint
+                ?: "Setelan campuran. Pilih salah satu di atas untuk kembali " +
+                "ke pasangan yang serasi.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
         Label("Warna")
         ChipRow(ColorMode.entries, settings.colorMode, { it.label }, enabled) { value ->
             viewModel.updateSettings { it.copy(colorMode = value) }
         }
 
-        Label("Kualitas")
-        ChipRow(Quality.entries, settings.quality, { it.shortLabel }, enabled) { value ->
-            viewModel.updateSettings { it.copy(quality = value) }
-        }
-
-        Label("Resolusi")
-        ChipRow(Dpi.entries, settings.dpi, { it.label }, enabled) { value ->
-            viewModel.updateSettings { it.copy(dpi = value) }
-        }
-
-        // Besar data disebutkan karena inilah yang menentukan lamanya
-        // mencetak, dan selisih antar-resolusi jauh lebih besar daripada yang
-        // diduga orang: 300 dpi mengirim seperempat dari 600 dpi.
         DataSizeNote(state)
 
-        Label("Arah cetak")
-        ChipRow(
-            PrintDirection.entries,
-            settings.direction,
-            { arah ->
-                if (arah == PrintDirection.BIDIRECTIONAL) "Dua arah (cepat)"
-                else "Satu arah (lebih rapi)"
-            },
-            enabled,
-        ) { arah -> viewModel.updateSettings { it.copy(direction = arah) } }
+        Spacer(Modifier.height(4.dp))
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clickable { lanjutanTerbuka = !lanjutanTerbuka },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Setelan lanjutan", style = MaterialTheme.typography.labelLarge)
+            Spacer(Modifier.weight(1f))
+            Text(
+                if (lanjutanTerbuka) "Tutup" else "Buka",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
 
-        Text(
-            if (settings.direction == PrintDirection.BIDIRECTIONAL)
-                "Kepala mencetak saat bergerak ke kiri maupun ke kanan. " +
-                    "Kalau hasilnya tampak berbayang, coba satu arah."
-            else
-                "Kepala hanya mencetak satu arah. Kira-kira dua kali lebih " +
-                    "lama, tapi tidak bisa meleset antara jalur pergi dan pulang.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        if (lanjutanTerbuka) {
+            Label("Kualitas")
+            ChipRow(Quality.entries, settings.quality, { it.shortLabel }, enabled) { value ->
+                viewModel.updateSettings { it.copy(quality = value) }
+            }
 
-        Label("Jenis kertas")
-        ChipRow(MediaType.entries, settings.mediaType, { it.label }, enabled) { value ->
-            viewModel.updateSettings { it.copy(mediaType = value) }
+            Label("Resolusi")
+            ChipRow(Dpi.entries, settings.dpi, { it.label }, enabled) { value ->
+                viewModel.updateSettings { it.copy(dpi = value) }
+            }
+
+            Label("Jenis kertas")
+            ChipRow(MediaType.entries, settings.mediaType, { it.label }, enabled) { value ->
+                viewModel.updateSettings { it.copy(mediaType = value) }
+            }
+
+            Text(
+                "Jenis kertas harus cocok dengan yang benar-benar dimuat. " +
+                    "Memilih Matte atau kertas foto sementara yang dipakai HVS " +
+                    "biasa membuat printer menyemprot tinta jauh lebih banyak " +
+                    "daripada yang bisa diserap, dan hasilnya berbayang.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            Label("Arah cetak")
+            ChipRow(
+                PrintDirection.entries,
+                settings.direction,
+                { arah ->
+                    if (arah == PrintDirection.BIDIRECTIONAL) "Dua arah (cepat)"
+                    else "Satu arah (lebih rapi)"
+                },
+                enabled,
+            ) { arah -> viewModel.updateSettings { it.copy(direction = arah) } }
+
+            Text(
+                if (settings.direction == PrintDirection.BIDIRECTIONAL)
+                    "Kepala mencetak saat bergerak ke kiri maupun ke kanan. " +
+                        "Kalau hasilnya tampak berbayang, coba satu arah."
+                else
+                    "Kepala hanya mencetak satu arah. Kira-kira dua kali lebih " +
+                        "lama, tapi tidak bisa meleset antara jalur pergi dan pulang.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
 
         Spacer(Modifier.height(4.dp))

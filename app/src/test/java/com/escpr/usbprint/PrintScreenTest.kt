@@ -6,9 +6,11 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import android.net.Uri
 import java.io.File
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -17,7 +19,9 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.escpr.usbprint.escpr.ColorMode
 import com.escpr.usbprint.escpr.Dpi
 import com.escpr.usbprint.escpr.PaperSize
+import com.escpr.usbprint.escpr.PrintPreset
 import com.escpr.usbprint.escpr.Quality
+import com.escpr.usbprint.escpr.presetOf
 import com.escpr.usbprint.ui.PrintOutcome
 import com.escpr.usbprint.ui.StepAction
 import com.escpr.usbprint.ui.adviceFor
@@ -345,11 +349,44 @@ class PrintScreenTest {
     fun `menyentuh pilihan kualitas dan resolusi ikut bekerja`() {
         val viewModel = launch()
 
+        // Keduanya sekarang di balik "Setelan lanjutan". Ujinya membuka dulu
+        // alih-alih melonggarkan pemeriksaan: yang dijaga tetap bahwa chip itu
+        // benar-benar bisa disentuh, bukan sekadar bahwa nilainya bisa diubah
+        // lewat jalan lain.
+        compose.onNodeWithText("Setelan lanjutan").performClick()
+        compose.waitForIdle()
+
         compose.onNodeWithText("Draft").performClick()
         compose.onNodeWithText("720 dpi").performClick()
         compose.waitForIdle()
 
         assertEquals(Quality.DRAFT, viewModel.state.value.settings.quality)
         assertEquals(Dpi.DPI720, viewModel.state.value.settings.dpi)
+    }
+
+    @Test
+    fun `preset mengubah empat setelan sekaligus dengan satu ketukan`() {
+        val viewModel = launch()
+
+        compose.onNodeWithText("Kualitas foto").performClick()
+        compose.waitForIdle()
+
+        val s = viewModel.state.value.settings
+        assertEquals(Quality.HIGH, s.quality)
+        assertEquals(Dpi.DPI600, s.dpi)
+        assertEquals(PrintPreset.PHOTO, presetOf(s))
+    }
+
+    @Test
+    fun `setelan lanjutan tertutup sampai dibuka`() {
+        launch()
+
+        // Inilah inti perubahannya: chip teknis tidak lagi menuntut perhatian
+        // setiap kali layar dibuka.
+        compose.onAllNodesWithText("720 dpi").assertCountEquals(0)
+
+        compose.onNodeWithText("Setelan lanjutan").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("720 dpi").assertIsDisplayed()
     }
 }

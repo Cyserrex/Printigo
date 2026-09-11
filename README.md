@@ -66,7 +66,7 @@ untuk mengujinya, jadi batas antara "terbukti" dan "belum" dijaga ketat.
 | Tampilan benar-benar tergambar | tangkapan layar dari komposisi Compose di JVM |
 | APK terkompilasi, tertandatangani, zipalign, manifes benar | `apksigner`, `zipalign`, `aapt2` |
 
-**165 unit test**, semuanya lolos: `gradlew test`.
+**178 unit test**, semuanya lolos: `gradlew test`.
 
 ### Belum terbukti
 
@@ -188,6 +188,10 @@ Berguna untuk memisahkan masalah data dari masalah kabel.
 - **Layar tidak mati saat mencetak**
 - **Bisa dipakai dengan TalkBack**: slider batas cetak menyebut angka
   milimeternya, tombol tambah/kurang menyebut fungsinya
+- **Dua preset menggantikan empat baris chip teknis**: "Cetak biasa" untuk HVS
+  dan "Kualitas foto" untuk kertas foto. Jenis kertas ikut berganti bersamanya,
+  jadi pasangan yang merusak -- Matte di atas HVS -- tidak bisa terbentuk tanpa
+  sengaja. Yang jarang dipakai pindah ke Setelan lanjutan, tidak dihapus
 - **Arah cetak** bisa dipilih: dua arah lebih cepat, satu arah menghilangkan
   kemungkinan jalur pergi dan pulang tidak bertumpuk tepat
 - **Besar data disebutkan sebelum mencetak**, karena itulah yang menentukan
@@ -511,7 +515,8 @@ yang meleset lebih buruk daripada penolakan yang jujur.
 
 | Versi | Isi |
 |---|---|
-| **2.8** | Bawaan cetak jadi 300 dpi dan ada tombol mengembalikan seluruh setelan ke bawaan; jeda terendah sebelum jawaban "siap" printer dipercaya, karena tanpa itu penantian di 2.7 keluar seketika |
+| **2.9** | Dua preset -- Cetak biasa dan Kualitas foto -- menggantikan empat baris chip yang memang bergerak bersama; sisanya pindah ke Setelan lanjutan |
+| 2.8 | Bawaan cetak jadi 300 dpi dan ada tombol mengembalikan seluruh setelan ke bawaan; jeda terendah sebelum jawaban "siap" printer dipercaya, karena tanpa itu penantian di 2.7 keluar seketika |
 | 2.7 | Balasan status bentuk teks `@BDC ST` diuraikan -- L3110 memakai itu, bukan blok biner `ST2`, jadi sisa tinta selalu kosong sebelumnya; sambungan ditahan sampai printer melapor siap setelah perintah perawatan |
 | 2.6 | Waktu satu pekerjaan cetak dirinci jadi menggambar, mengolah, dan mengirim -- supaya "lambat" bisa ditindaklanjuti alih-alih ditebak |
 | 2.5 | Bentuk perintah perawatan bisa diganti dari layar, karena bentuk klasik ternyata tidak direspons L3110; balasan status dicatat dalam heksa supaya format blok tintanya bisa diuraikan, bukan ditebak |
