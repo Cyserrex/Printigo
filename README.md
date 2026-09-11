@@ -60,6 +60,7 @@ untuk mengujinya, jadi batas antara "terbukti" dan "belum" dijaga ketat.
 | Byte perintah perawatan dipatok dan tidak bergeser diam-diam | 9 uji |
 | Pembersih cache tidak pernah menghapus berkas yang sedang dipakai | 11 uji |
 | Penguraian sisa tinta: kode asing, entri rusak, balasan terpotong | 10 uji |
+| Foto praktis tidak bisa dipadatkan RLE, dokumen teks bisa | diukur, bukan diasumsikan |
 | Tampilan benar-benar tergambar | tangkapan layar dari komposisi Compose di JVM |
 | APK terkompilasi, tertandatangani, zipalign, manifes benar | `apksigner`, `zipalign`, `aapt2` |
 
@@ -67,12 +68,11 @@ untuk mengujinya, jadi batas antara "terbukti" dan "belum" dijaga ketat.
 
 ### Belum terbukti
 
-**Mutu cetak pada berbagai setelan.** Cetakan pertama dari HP berhasil keluar,
-tetapi pada 600 dpi + kualitas Tinggi + jenis kertas Matte hasilnya berbayang
-dan bergaris mendatar. Sebabnya belum dipastikan -- dugaan terkuat kelebihan
-tinta untuk kertas biasa, disusul penyetelan kepala pada cetak dua arah. Yang
-sudah pasti: satu lembar A4 pada 600 dpi mengirim sekitar 100 MB, karena foto
-praktis tidak bisa dipadatkan.
+**Penyebab berbayang sudah ditemukan dan bukan cacat aplikasi**: memilih jenis
+kertas **Matte** sementara yang dimuat kertas HVS biasa. Printer menyemprot
+tinta jauh lebih banyak daripada yang bisa diserap kertasnya. Dengan jenis
+kertas **Kertas biasa**, hasilnya bersih. Ini dipastikan di perangkat, bukan
+disimpulkan dari kode.
 
 **Pemetaan kode kesalahan printer.** Struktur balasan `@BDC ST2` diuraikan dan
 diuji, tetapi arti tiap kode diambil dari driver ESC/P-R terbuka dan belum
@@ -508,7 +508,8 @@ yang meleset lebih buruk daripada penolakan yang jujur.
 
 | Versi | Isi |
 |---|---|
-| **2.5** | Bentuk perintah perawatan bisa diganti dari layar, karena bentuk klasik ternyata tidak direspons L3110; balasan status dicatat dalam heksa supaya format blok tintanya bisa diuraikan, bukan ditebak |
+| **2.6** | Waktu satu pekerjaan cetak dirinci jadi menggambar, mengolah, dan mengirim -- supaya "lambat" bisa ditindaklanjuti alih-alih ditebak |
+| 2.5 | Bentuk perintah perawatan bisa diganti dari layar, karena bentuk klasik ternyata tidak direspons L3110; balasan status dicatat dalam heksa supaya format blok tintanya bisa diuraikan, bukan ditebak |
 | 2.4 | Arah cetak bisa dipilih (dua arah atau satu arah); perkiraan besar data ditampilkan sebelum mencetak karena foto praktis tidak bisa dipadatkan dan itulah yang menentukan lamanya |
 | 2.3 | Sisa tinta dibaca dan ditampilkan di kartu Perawatan, dengan permintaan status yang eksplisit ke printer; bilah bawah tidak lagi menampilkan kemajuan cetak palsu saat aplikasi hanya sedang berbicara dengan printer |
 | 2.2 | Cek nozzle dan pembersihan head dari dalam aplikasi; menerima banyak foto sekaligus lewat Bagikan dan bisa dibuka dari pengelola berkas; salinan lama di cache dibersihkan sendiri; satu salinan memori penuh dihapus dari jalur transfer USB |

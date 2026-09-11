@@ -7,6 +7,7 @@ import android.hardware.usb.UsbEndpoint
 import android.hardware.usb.UsbInterface
 import android.hardware.usb.UsbManager
 import com.escpr.usbprint.escpr.PrinterSink
+import com.escpr.usbprint.escpr.TimedSink
 import java.io.Closeable
 
 /**
@@ -180,18 +181,23 @@ class UsbPrinter private constructor(
 private class BufferedUsbSink(
     private val printer: UsbPrinter,
     bufferSize: Int = 16 * 1024
-) : PrinterSink {
+) : PrinterSink, TimedSink {
 
     private val buffer = ByteArray(bufferSize)
     private var used = 0
 
-    var bytesSent: Long = 0
+    override var bytesSent: Long = 0
+        private set
+
+    override var nanosWriting: Long = 0
         private set
 
     override fun write(data: ByteArray, offset: Int, length: Int) {
         if (length >= buffer.size) {
             flush()
+            val mulai = System.nanoTime()
             printer.writeBulk(data, offset, length)
+            nanosWriting += System.nanoTime() - mulai
             bytesSent += length
             return
         }
@@ -202,7 +208,9 @@ private class BufferedUsbSink(
 
     override fun flush() {
         if (used == 0) return
+        val mulai = System.nanoTime()
         printer.writeBulk(buffer, 0, used)
+        nanosWriting += System.nanoTime() - mulai
         bytesSent += used
         used = 0
     }

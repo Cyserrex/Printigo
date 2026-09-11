@@ -7,6 +7,7 @@ import com.escpr.usbprint.escpr.ColorMode
 import com.escpr.usbprint.escpr.EscpRJob
 import com.escpr.usbprint.escpr.PrintSettings
 import com.escpr.usbprint.escpr.PrinterSink
+import com.escpr.usbprint.escpr.TimedSink
 import com.escpr.usbprint.layout.ContentPlacement
 import com.escpr.usbprint.layout.computePageLayout
 import com.escpr.usbprint.layout.contentRectInPrintablePx
@@ -31,6 +32,39 @@ data class PrintProgress(
 }
 
 /**
+ * Ke mana waktu satu pekerjaan cetak habis.
+ *
+ * Dibagi tiga karena hanya salah satunya yang bisa diperbaiki dengan kode.
+ * "Lambat" tanpa rincian ini tidak bisa ditindaklanjuti: menyiapkan gambar di
+ * HP, memadatkannya, dan menunggu kabel tampak sama saja dari luar.
+ */
+data class PrintReport(
+    val totalNanos: Long,
+    /** Menggambar halaman jadi piksel. Murni pekerjaan HP. */
+    val renderNanos: Long,
+    /** Tertahan di dalam penulisan USB -- gabungan kecepatan kabel dan printer. */
+    val usbNanos: Long,
+    val bytesSent: Long,
+) {
+    private fun detik(n: Long) = n / 1e9
+
+    /**
+     * Ringkasan sebaris untuk catatan.
+     *
+     * Sisanya -- total dikurangi gambar dan USB -- adalah pemadatan RLE dan
+     * penyusunan baris. Disebut apa adanya sebagai "olah", bukan disembunyikan,
+     * supaya kalau suatu saat bagian itu yang membengkak ia terlihat.
+     */
+    fun ringkas(): String {
+        val olah = (totalNanos - renderNanos - usbNanos).coerceAtLeast(0)
+        val mb = bytesSent / 1e6
+        val laju = if (usbNanos > 0) mb / detik(usbNanos) else 0.0
+        return "%.0f detik: gambar %.0fs, olah %.0fs, kirim %.0fs (%.1f MB, %.2f MB/detik)"
+            .format(detik(totalNanos), detik(renderNanos), detik(olah), detik(usbNanos), mb, laju)
+    }
+}
+
+/**
  * Menjahit ketiga bagian: halaman digambar per pita, pita diubah jadi baris RGB,
  * baris dikirim sebagai perintah dsnd ESC/P-R ke [sink].
  */
@@ -49,7 +83,9 @@ object PrintTask {
         /** Indeks halaman yang dicetak; null berarti seluruh halaman. */
         pages: List<Int>? = null,
         onProgress: (PrintProgress) -> Unit = {}
-    ) {
+    ): PrintReport {
+        val mulaiTotal = System.nanoTime()
+        var renderNanos = 0L
         val job = EscpRJob(sink, settings)
         val geometry = job.start()
         val width = geometry.printableWidth
@@ -103,7 +139,9 @@ object PrintTask {
                         val rows = minOf(bandLines, height - y)
 
                         band.eraseColor(Color.WHITE)
+                        val mulaiGambar = System.nanoTime()
                         source.renderBand(band, y)
+                        renderNanos += System.nanoTime() - mulaiGambar
                         band.getPixels(pixels, 0, width, 0, 0, width, rows)
 
                         for (row in 0 until rows) {
@@ -121,6 +159,14 @@ object PrintTask {
                 }
             }
             job.finish()
+
+            val timed = sink as? TimedSink
+            return PrintReport(
+                totalNanos = System.nanoTime() - mulaiTotal,
+                renderNanos = renderNanos,
+                usbNanos = timed?.nanosWriting ?: 0L,
+                bytesSent = timed?.bytesSent ?: 0L,
+            )
         } catch (cancellation: CancellationException) {
             // Membatalkan coroutine saja meninggalkan printer di tengah perintah
             // dsnd: ia akan terus menunggu data yang tidak pernah datang, dan

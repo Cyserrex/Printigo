@@ -13,6 +13,19 @@ interface PrinterSink : Closeable {
 
 fun PrinterSink.write(data: ByteArray) = write(data, 0, data.size)
 
+/**
+ * Sink yang mencatat berapa lama ia tertahan menunggu perangkat kerasnya.
+ *
+ * Tanpa ini, "mencetak lambat" tidak bisa dibedakan penyebabnya: menyiapkan
+ * data di HP dan mengirimkannya lewat kabel tampak sama saja dari luar, padahal
+ * yang bisa diperbaiki hanya salah satunya.
+ */
+interface TimedSink {
+    /** Nanodetik yang dihabiskan di dalam penulisan ke perangkat. */
+    val nanosWriting: Long
+    val bytesSent: Long
+}
+
 data class PrintSettings(
     val paper: PaperSize = PaperSize.A4,
     val dpi: Dpi = Dpi.DPI360,

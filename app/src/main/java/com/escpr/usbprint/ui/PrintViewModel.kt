@@ -995,13 +995,18 @@ class PrintViewModel @JvmOverloads constructor(
                     pageSource(current).use { source ->
                         val (width, height) = current.printableSize
                         log("Mencetak pada $width x $height piksel...")
-                        PrintTask.run(
+                        val laporan = PrintTask.run(
                             sink, source, current.settings,
                             if (current.sheetMode) ContentPlacement.Fit else current.placement,
                             current.pagesToPrint,
                         ) { progress ->
                             _state.update { it.copy(progress = progress.fraction) }
                         }
+                        // Dicatat supaya "lambat" bisa ditindaklanjuti. Yang
+                        // bisa diperbaiki dengan kode hanya bagian gambar dan
+                        // olah; kalau yang besar justru kirim, batasnya ada di
+                        // kabel dan printer, bukan di aplikasi.
+                        log("Waktu -- " + laporan.ringkas())
                     }
                     sink.close()
 
