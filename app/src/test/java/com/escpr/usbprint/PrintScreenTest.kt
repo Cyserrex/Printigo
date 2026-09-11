@@ -378,6 +378,16 @@ class PrintScreenTest {
     }
 
     @Test
+    fun `bilah bawah hanya menyisakan satu tindakan utama`() {
+        // Simpan .prn dulu menempati separuh bilah bawah, bersaing perhatian
+        // dengan satu-satunya tombol yang benar-benar dicari orang. Ia alat
+        // penelusuran, dan sekarang tinggal di kartu Catatan.
+        launch()
+        compose.onAllNodesWithText("Simpan .prn").assertCountEquals(0)
+        compose.onNodeWithText("Cetak").assertIsDisplayed()
+    }
+
+    @Test
     fun `setelan lanjutan tertutup sampai dibuka`() {
         launch()
 

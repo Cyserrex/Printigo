@@ -248,7 +248,7 @@ internal fun PrintScreen(viewModel: PrintViewModel) {
             PaperSection(state, viewModel)
             OutputSection(state, viewModel)
             MaintenanceSection(state, viewModel)
-            LogSection(state)
+            LogSection(state) { savePrn.launch(viewModel.suggestedFileName()) }
             Spacer(Modifier.height(8.dp))
         }
     }
@@ -1105,8 +1105,11 @@ private fun StepIcon(state: StepState) {
 // ------------------------------------------------------------- catatan
 
 @Composable
-private fun LogSection(state: UiState) {
-    if (state.log.isEmpty()) return
+private fun LogSection(state: UiState, onExport: () -> Unit) {
+    // Dulu kartunya hilang sepenuhnya saat catatan kosong. Sekarang ia juga
+    // menampung ekspor .prn, jadi ia tetap ada selama masih ada yang bisa
+    // diekspor -- kalau tidak, tombolnya lenyap justru ketika dibutuhkan.
+    if (state.log.isEmpty() && !state.hasContent) return
     var expanded by remember { mutableStateOf(false) }
 
     SectionCard("Catatan") {
@@ -1126,16 +1129,38 @@ private fun LogSection(state: UiState) {
                 }
             }
         }
+        // lastOrNull, bukan last: sejak kartu ini ikut menampung ekspor .prn,
+        // ia bisa muncul sebelum ada satu pun catatan tertulis.
         if (!expanded) {
-            Text(
-                state.log.last(),
-                style = MaterialTheme.typography.bodySmall,
-                fontFamily = FontFamily.Monospace,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            state.log.lastOrNull()?.let { terakhir ->
+                Text(
+                    terakhir,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = FontFamily.Monospace,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
-        TextButton(onClick = { expanded = !expanded }) {
-            Text(if (expanded) "Sembunyikan" else "Lihat semua (${state.log.size})")
+        if (state.log.isNotEmpty()) {
+            TextButton(onClick = { expanded = !expanded }) {
+                Text(if (expanded) "Sembunyikan" else "Lihat semua (${state.log.size})")
+            }
+        }
+
+        if (state.hasContent) {
+            HorizontalDivider()
+            Text(
+                "Simpan data cetak sebagai berkas .prn untuk menelusuri masalah. " +
+                    "Isinya byte yang persis sama dengan yang dikirim ke printer, " +
+                    "jadi bisa dicetak dari komputer lewat tools/send_raw.ps1. " +
+                    "Kalau hasilnya benar dari komputer tapi salah dari HP, " +
+                    "masalahnya di jalur USB -- bukan di datanya.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedButton(onClick = onExport, enabled = !state.busy) {
+                Text("Simpan data cetak (.prn)")
+            }
         }
     }
 }
@@ -1199,12 +1224,12 @@ private fun PrintBar(
                     // Tombolnya tidak membatalkan perintah yang sudah terkirim
                     // -- itu sudah di tangan printer -- hanya berhenti menunggu.
                     OutlinedButton(onClick = viewModel::cancel) { Text("Berhenti menunggu") }
-                } else {
-                    OutlinedButton(
-                        onClick = onExport,
-                        enabled = state.document != null
-                    ) { Text("Simpan .prn") }
                 }
+                // Simpan .prn pindah ke kartu Catatan. Ia alat penelusuran,
+                // bukan tindakan sehari-hari, dan sebelumnya menempati separuh
+                // bilah bawah -- ruang paling berharga di layar -- bersaing
+                // perhatian dengan satu-satunya tombol yang benar-benar dicari
+                // orang saat membuka aplikasi ini.
                 Button(
                     onClick = viewModel::print,
                     enabled = state.canPrint,

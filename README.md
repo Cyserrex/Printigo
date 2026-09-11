@@ -223,7 +223,7 @@ Berguna untuk memisahkan masalah data dari masalah kabel.
 - **Daftar periksa sambungan** yang menuntun sampai siap cetak
 - **Pesan kegagalan berbahasa manusia** dengan satu tombol tindakan
 - Pemeriksaan dukungan ESC/P-R lewat IEEE-1284 Device ID
-- Ekspor `.prn` untuk diagnosis
+- Ekspor `.prn` untuk diagnosis, di kartu Catatan bersama alat penelusuran lain
 
 ---
 
@@ -596,7 +596,8 @@ yang meleset lebih buruk daripada penolakan yang jujur.
 
 | Versi | Isi |
 |---|---|
-| **2.19** | Permintaan status disalin dari rekaman driver (`OT` lalu `ST 01 00 01`) -- bentuk lama hanya dijawab teks pendek tanpa tinta, dan itu sebab sebenarnya kenapa blok tinta tidak pernah sampai |
+| **2.20** | Simpan .prn pindah dari bilah bawah ke kartu Catatan -- ia alat penelusuran, bukan tindakan sehari-hari, dan menempati separuh ruang paling berharga di layar; sekalian tombolnya tidak lagi mati saat mode lembar foto |
+| 2.19 | Permintaan status disalin dari rekaman driver (`OT` lalu `ST 01 00 01`) -- bentuk lama hanya dijawab teks pendek tanpa tinta, dan itu sebab sebenarnya kenapa blok tinta tidak pernah sampai |
 | 2.18 | Blok tinta diuraikan dengan benar setelah balasan L3110 direkam: kode warna ada di byte kedua, dan nilai 105 berarti "tidak terukur" -- bukan data rusak yang layak dibuang seperti dugaan sebelumnya |
 | 2.17 | Urutan cek nozzle disalin dari rekaman USB driver Epson resmi dan sama persis 132 byte -- sebab kertas tertahan akhirnya diketahui: `JE` harus datang **sesudah** form feed, dalam blok REMOTE1 tersendiri, bukan sebelumnya |
 | 2.16 | Panel sisa tinta jadi panel status printer, karena printer tangki memang tidak punya sensor tinta -- dikonfirmasi Status Monitor Epson sendiri yang juga hanya menyuruh melihat tangkinya; permintaan status kembali ke parameter yang benar-benar dijawab L3110 |
