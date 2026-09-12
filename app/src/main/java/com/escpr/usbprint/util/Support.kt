@@ -1,6 +1,7 @@
 package com.escpr.usbprint.util
 
 import android.content.Context
+import com.escpr.usbprint.R
 import android.net.Uri
 import android.provider.OpenableColumns
 import com.escpr.usbprint.escpr.PrinterSink
@@ -40,7 +41,7 @@ fun copyToCache(context: Context, uri: Uri, name: String): File {
     val target = File(context.cacheDir, "$CACHE_PREFIX${name.hashCode()}_${sanitize(name)}")
     context.contentResolver.openInputStream(uri)
         ?.use { input -> target.outputStream().use { input.copyTo(it, 64 * 1024) } }
-        ?: throw java.io.IOException("Tidak bisa membuka berkas yang dipilih")
+        ?: throw java.io.IOException(context.getString(R.string.err_cannot_open_file))
     return target
 }
 
@@ -51,7 +52,7 @@ fun displayName(context: Context, uri: Uri): String {
             cursor.getString(column)?.let { return it }
         }
     }
-    return uri.lastPathSegment ?: "dokumen"
+    return uri.lastPathSegment ?: context.getString(R.string.doc_fallback_name)
 }
 
 fun mimeType(context: Context, uri: Uri): String =

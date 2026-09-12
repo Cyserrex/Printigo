@@ -103,6 +103,15 @@ def periksa(teks):
     for nama in ("A4", "LETTER", "PHOTO_4R"):
         catat('"%s"' % nama in teks, "nama enum " + nama)
 
+    # Pilihan bahasa disimpan dengan cara yang sama, tetapi enumnya ada di
+    # paket lain -- dan aturan R8-nya sempat tidak menyebut paket itu. Kalau
+    # namanya hilang, bahasa pilihan pengguna kembali ke "ikut sistem" setiap
+    # kali aplikasi dibuka, hanya pada APK rilis.
+    catat(blok_kelas("Lcom/escpr/usbprint/util/AppLanguage;") is not None,
+          "kelas AppLanguage tidak berganti nama")
+    for nama in ("INDONESIAN", "ENGLISH", "SYSTEM"):
+        catat('"%s"' % nama in teks, "nama enum bahasa " + nama)
+
     return gagal
 
 

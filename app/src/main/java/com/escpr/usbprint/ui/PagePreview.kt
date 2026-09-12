@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import com.escpr.usbprint.R
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -71,7 +73,7 @@ fun PagePreview(
     onGesture: (panXmm: Float, panYmm: Float, zoom: Float) -> Unit,
     onReset: () -> Unit,
     modifier: Modifier = Modifier,
-    emptyText: String = "Belum ada dokumen",
+    emptyText: String = stringResource(R.string.preview_empty),
 ) {
     val monoFilter = remember(monochrome) {
         if (monochrome) ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) })

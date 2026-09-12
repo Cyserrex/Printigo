@@ -1,5 +1,10 @@
 package com.escpr.usbprint.usb
 
+import androidx.annotation.StringRes
+import com.escpr.usbprint.R
+import com.escpr.usbprint.util.UiText
+import com.escpr.usbprint.util.uiText
+
 /**
  * Keadaan printer hasil pembacaan balasan status.
  *
@@ -14,6 +19,18 @@ enum class PrinterState {
     CLEANING,
     ERROR,
     UNKNOWN,
+}
+
+/** Nama keadaan printer dalam bahasa sehari-hari. */
+@StringRes
+fun printerStateLabel(state: PrinterState): Int = when (state) {
+    PrinterState.IDLE -> R.string.printer_state_idle
+    PrinterState.PRINTING -> R.string.printer_state_printing
+    PrinterState.BUSY -> R.string.printer_state_busy
+    PrinterState.PAUSED -> R.string.printer_state_paused
+    PrinterState.CLEANING -> R.string.printer_state_cleaning
+    PrinterState.ERROR -> R.string.printer_state_error
+    PrinterState.UNKNOWN -> R.string.printer_state_unknown
 }
 
 /** Sebab printer berhenti, sejauh yang bisa dipastikan dari balasannya. */
@@ -60,19 +77,26 @@ data class InkLevel(
      * Null di sini penting: menyebut cyan sebagai magenta lebih buruk daripada
      * menyebutnya "warna 2", karena orang akan mengisi tangki yang salah.
      */
-    val name: String? get() = when (code) {
-        0x00 -> "Hitam"
-        0x01 -> "Cyan"
-        0x02 -> "Magenta"
-        0x03 -> "Kuning"
+    @get:StringRes
+    val name: Int? get() = when (code) {
+        0x00 -> R.string.ink_black
+        0x01 -> R.string.ink_cyan
+        0x02 -> R.string.ink_magenta
+        0x03 -> R.string.ink_yellow
         else -> null
     }
 
     /** Angka untuk ditampilkan, atau keterangan kalau memang tidak terukur. */
-    val reading: String get() = if (measured) "$percent%" else "tidak terukur"
+    val reading: UiText
+        get() = if (measured) {
+            uiText(R.string.ink_percent, percent)
+        } else {
+            uiText(R.string.ink_not_measurable)
+        }
 
     /** Yang ditampilkan ke pengguna; tidak pernah menebak nama. */
-    val label: String get() = name ?: ("Warna " + code)
+    val label: UiText
+        get() = name?.let { uiText(it) } ?: uiText(R.string.ink_unknown_color, code)
 }
 
 /**
@@ -105,18 +129,19 @@ data class PrinterStatus(
         get() = confident && (state == PrinterState.ERROR || fault != PrinterFault.NONE)
 
     /** Kalimat singkat untuk pengguna, atau null kalau tidak ada yang perlu disampaikan. */
-    val message: String?
+    val message: UiText?
         get() = when {
-            fault == PrinterFault.PAPER_OUT -> "Kertas habis. Isi baki belakang printer."
-            fault == PrinterFault.PAPER_JAM -> "Kertas macet. Keluarkan kertasnya dari printer."
-            fault == PrinterFault.COVER_OPEN -> "Tutup printer terbuka."
-            fault == PrinterFault.INK_OUT -> "Tinta habis."
-            fault == PrinterFault.WASTE_INK_FULL -> "Bak tinta buangan penuh."
-            fault == PrinterFault.UNRECOGNIZED ->
-                "Printer melaporkan kesalahan" + (faultCode?.let { " (kode $it)" } ?: "") + "."
-            state == PrinterState.PAUSED -> "Printer sedang dijeda."
-            state == PrinterState.CLEANING -> "Printer sedang membersihkan head."
-            state == PrinterState.BUSY -> "Printer sedang sibuk."
+            fault == PrinterFault.PAPER_OUT -> uiText(R.string.printer_msg_paper_out)
+            fault == PrinterFault.PAPER_JAM -> uiText(R.string.printer_msg_paper_jam)
+            fault == PrinterFault.COVER_OPEN -> uiText(R.string.printer_msg_cover_open)
+            fault == PrinterFault.INK_OUT -> uiText(R.string.printer_msg_ink_out)
+            fault == PrinterFault.WASTE_INK_FULL -> uiText(R.string.printer_msg_waste_full)
+            fault == PrinterFault.UNRECOGNIZED -> faultCode
+                ?.let { uiText(R.string.printer_msg_fault_code, it) }
+                ?: uiText(R.string.printer_msg_fault)
+            state == PrinterState.PAUSED -> uiText(R.string.printer_msg_paused)
+            state == PrinterState.CLEANING -> uiText(R.string.printer_msg_cleaning)
+            state == PrinterState.BUSY -> uiText(R.string.printer_msg_busy)
             else -> null
         }
 }

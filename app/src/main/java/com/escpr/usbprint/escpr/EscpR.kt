@@ -1,5 +1,8 @@
 package com.escpr.usbprint.escpr
 
+import androidx.annotation.StringRes
+import com.escpr.usbprint.R
+
 import java.util.Calendar
 
 /**
@@ -173,27 +176,31 @@ object EscpR {
 
 // ------------------------------------------------------------------ enum
 
-enum class Quality(val code: Int, val label: String, val shortLabel: String) {
-    DRAFT(0, "Draft (cepat)", "Draft"),
-    NORMAL(1, "Normal", "Normal"),
-    HIGH(2, "Tinggi (lambat)", "Tinggi")
+enum class Quality(
+    val code: Int,
+    @StringRes val label: Int,
+    @StringRes val shortLabel: Int,
+) {
+    DRAFT(0, R.string.quality_draft, R.string.quality_draft_short),
+    NORMAL(1, R.string.quality_normal, R.string.quality_normal),
+    HIGH(2, R.string.quality_high, R.string.quality_high_short)
 }
 
-enum class ColorMode(val code: Int, val label: String) {
-    COLOR(0, "Berwarna"),
-    MONO(1, "Hitam putih")
+enum class ColorMode(val code: Int, @StringRes val label: Int) {
+    COLOR(0, R.string.color_colour),
+    MONO(1, R.string.color_mono)
 }
 
-enum class MediaType(val code: Int, val label: String) {
-    PLAIN(0, "Kertas biasa"),
-    MATTE(5, "Matte"),
-    PHOTO(6, "Kertas foto"),
-    GLOSSY_PHOTO(43, "Foto glossy")
+enum class MediaType(val code: Int, @StringRes val label: Int) {
+    PLAIN(0, R.string.media_plain),
+    MATTE(5, R.string.media_matte),
+    PHOTO(6, R.string.media_photo),
+    GLOSSY_PHOTO(43, R.string.media_glossy)
 }
 
-enum class PrintDirection(val code: Int) {
-    BIDIRECTIONAL(0),
-    UNIDIRECTIONAL(1)
+enum class PrintDirection(val code: Int, @StringRes val label: Int) {
+    BIDIRECTIONAL(0, R.string.direction_bidirectional),
+    UNIDIRECTIONAL(1, R.string.direction_unidirectional)
 }
 
 /** Nilai `ir` pada perintah setj. Hanya empat resolusi ini yang dikenal ESC/P-R. */
@@ -205,17 +212,17 @@ enum class Dpi(val value: Int, val code: Int, val label: String) {
 }
 
 enum class PaperSize(
-    val label: String,
-    val shortLabel: String,
+    @StringRes val label: Int,
+    @StringRes val shortLabel: Int,
     val widthMm: Float,
     val heightMm: Float
 ) {
-    A4("A4 (210 x 297 mm)", "A4", 210f, 297f),
-    LETTER("Letter (216 x 279 mm)", "Letter", 215.9f, 279.4f),
-    LEGAL("Legal / F4 (216 x 356 mm)", "Legal", 215.9f, 355.6f),
-    A5("A5 (148 x 210 mm)", "A5", 148f, 210f),
-    A6("A6 (105 x 148 mm)", "A6", 105f, 148f),
-    B5("B5 (176 x 250 mm)", "B5", 176f, 250f),
-    PHOTO_4R("4R (102 x 152 mm)", "4R", 101.6f, 152.4f),
-    POSTCARD("Kartu pos (100 x 148 mm)", "Kartu pos", 100f, 148f)
+    A4(R.string.paper_a4, R.string.paper_a4_short, 210f, 297f),
+    LETTER(R.string.paper_letter, R.string.paper_letter_short, 215.9f, 279.4f),
+    LEGAL(R.string.paper_legal, R.string.paper_legal_short, 215.9f, 355.6f),
+    A5(R.string.paper_a5, R.string.paper_a5_short, 148f, 210f),
+    A6(R.string.paper_a6, R.string.paper_a6_short, 105f, 148f),
+    B5(R.string.paper_b5, R.string.paper_b5_short, 176f, 250f),
+    PHOTO_4R(R.string.paper_4r, R.string.paper_4r_short, 101.6f, 152.4f),
+    POSTCARD(R.string.paper_postcard, R.string.paper_postcard_short, 100f, 148f)
 }

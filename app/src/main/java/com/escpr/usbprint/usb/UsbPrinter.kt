@@ -1,5 +1,9 @@
 ﻿package com.escpr.usbprint.usb
 
+import com.escpr.usbprint.R
+import com.escpr.usbprint.util.UiText
+import com.escpr.usbprint.util.uiText
+
 import android.hardware.usb.UsbConstants
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbDeviceConnection
@@ -104,10 +108,10 @@ class UsbPrinter private constructor(
      * lambatnya mengirim berasal dari sambungan atau dari printer -- tanpa itu
      * keduanya hanya bisa ditebak dari laju MB per detik.
      */
-    fun linkSpeed(): String = when (endpointOut.maxPacketSize) {
-        64 -> "USB Full Speed (12 Mbps, batas sekitar 1 MB/detik)"
-        512 -> "USB High Speed (480 Mbps)"
-        else -> "paket bulk " + endpointOut.maxPacketSize + " byte"
+    fun linkSpeed(): UiText = when (endpointOut.maxPacketSize) {
+        64 -> uiText(R.string.link_full_speed)
+        512 -> uiText(R.string.link_high_speed)
+        else -> uiText(R.string.link_other, endpointOut.maxPacketSize)
     }
 
     /** Membaca balasan status printer, kalau ada. Tidak memblokir lama. */

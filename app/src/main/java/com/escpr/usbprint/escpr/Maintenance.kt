@@ -1,5 +1,8 @@
 package com.escpr.usbprint.escpr
 
+import androidx.annotation.StringRes
+import com.escpr.usbprint.R
+
 /**
  * Perawatan printer: cek nozzle dan pembersihan head.
  *
@@ -189,9 +192,9 @@ object Maintenance {
 
 /** Perawatan yang bisa diminta pengguna. */
 enum class MaintenanceTask(
-    val label: String,
+    @StringRes val label: Int,
     /** Kalimat yang dilihat pengguna sebelum menyetujui. */
-    val confirmation: String,
+    @StringRes val confirmation: Int,
     val usesPaper: Boolean,
     /**
      * Apakah pilihan bentuk perintah berlaku untuk tugas ini.
@@ -203,22 +206,18 @@ enum class MaintenanceTask(
     val usesVariant: Boolean = true,
 ) {
     NOZZLE_CHECK(
-        label = "Cek nozzle",
-        confirmation = "Printer akan mencetak pola cek nozzle. Siapkan satu " +
-            "lembar kertas di baki.",
+        label = R.string.maint_nozzle,
+        confirmation = R.string.maint_nozzle_confirm,
         usesPaper = true,
     ),
     HEAD_CLEANING(
-        label = "Bersihkan head",
-        confirmation = "Pembersihan head memakai tinta cukup banyak dan " +
-            "berlangsung sekitar satu menit. Lakukan hanya kalau hasil cek " +
-            "nozzle memang putus-putus, dan jangan diulang berkali-kali.",
+        label = R.string.maint_clean,
+        confirmation = R.string.maint_clean_confirm,
         usesPaper = false,
     ),
     EJECT(
-        label = "Keluarkan kertas",
-        confirmation = "Printer akan memajukan kertas sampai keluar. Dipakai " +
-            "kalau ada kertas yang tertahan di dalam.",
+        label = R.string.maint_eject,
+        confirmation = R.string.maint_eject_confirm,
         usesPaper = false,
         usesVariant = false,
     );

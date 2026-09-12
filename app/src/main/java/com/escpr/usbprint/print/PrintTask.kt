@@ -55,12 +55,19 @@ data class PrintReport(
      * penyusunan baris. Disebut apa adanya sebagai "olah", bukan disembunyikan,
      * supaya kalau suatu saat bagian itu yang membengkak ia terlihat.
      */
-    fun ringkas(): String {
+    /**
+     * Angka-angkanya, bukan kalimatnya.
+     *
+     * Kalimatnya dirangkai pemanggil dengan R.string.log_time_detail, karena
+     * hanya lapisan itu yang tahu bahasa apa yang sedang berlaku.
+     */
+    fun angka(): Array<Any> {
         val olah = (totalNanos - renderNanos - usbNanos).coerceAtLeast(0)
         val mb = bytesSent / 1e6
         val laju = if (usbNanos > 0) mb / detik(usbNanos) else 0.0
-        return "%.0f detik: gambar %.0fs, olah %.0fs, kirim %.0fs (%.1f MB, %.2f MB/detik)"
-            .format(detik(totalNanos), detik(renderNanos), detik(olah), detik(usbNanos), mb, laju)
+        return arrayOf(
+            detik(totalNanos), detik(renderNanos), detik(olah), detik(usbNanos), mb, laju,
+        )
     }
 }
 

@@ -1,4 +1,323 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Bahasa bawaan aplikasi: Inggris.
+
+  Indonesia ada di values-in/. Penanda wilayahnya "in", bukan "id": itu kode
+  lama ISO-639 yang masih dipakai Java dan Android sampai sekarang, dan folder
+  values-id tidak akan pernah terpilih di perangkat mana pun.
+-->
 <resources>
     <string name="app_name">Printigo</string>
+    <string name="app_title">USB Printer OTG</string>
+    <string name="app_subtitle">"No WiFi, no computer  ·  v%1$s"</string>
+    <string name="action_find_printer">Find printer</string>
+
+    <!-- Sambungan -->
+    <string name="conn_step_otg">Phone supports USB OTG</string>
+    <string name="conn_step_otg_no">This phone cannot act as a USB host, so it cannot print over a cable.</string>
+    <string name="conn_step_detected">Printer detected</string>
+    <string name="conn_step_detected_no">Plug the printer into the phone with an OTG cable, then switch the printer on.</string>
+    <string name="conn_step_permission">USB access permission</string>
+    <string name="conn_step_permission_denied">Permission denied. Tap Grant access, then choose OK in the Android dialog.</string>
+    <string name="conn_step_permission_pending">Android asks for approval before the app may use the printer.</string>
+    <string name="conn_step_ready">Ready to print</string>
+    <string name="conn_support_yes">Printer supports ESC/P-R.</string>
+    <string name="conn_support_not_listed">Printer does not list ESC/P-R. Printing can still be tried.</string>
+    <string name="conn_support_no_reply">Printer did not answer the check. That is not always a problem.</string>
+    <string name="conn_headline_no_otg">This phone cannot print over a cable</string>
+    <string name="conn_headline_no_device">Printer not connected</string>
+    <string name="conn_headline_no_permission">Waiting for USB access</string>
+    <string name="conn_headline_ready">Printer ready</string>
+    <string name="step_action_refresh">Search again</string>
+    <string name="step_action_permission">Grant access</string>
+    <string name="step_action_support">Check support</string>
+    <string name="step_icon_done">done</string>
+    <string name="step_icon_action">action needed</string>
+    <string name="conn_details">Details</string>
+
+    <!-- Umum -->
+    <string name="common_open">Open</string>
+    <string name="common_close">Close</string>
+    <string name="common_run">Run</string>
+    <string name="common_cancel">Cancel</string>
+
+    <!-- Pratinjau -->
+    <string name="preview_empty">No document yet</string>
+    <string name="preview_arrange">Arrange layout</string>
+    <string name="preview_photos_on_sheet">%1$d photos on one sheet</string>
+    <string name="preview_margins">"Margins  left %1$s  top %2$s  right %3$s  bottom %4$s mm"</string>
+    <string name="preview_page_prev">Previous page</string>
+    <string name="preview_page_next">Next page</string>
+    <string name="preview_page_of">Page %1$d / %2$d</string>
+    <string name="preview_pick_prompt">Pick an image or PDF to see the preview</string>
+    <string name="preview_print_area">"Print area %1$d x %2$d pixels  -  %3$d dpi"</string>
+    <string name="preview_change_file">Change file</string>
+    <string name="preview_pick_file">Pick file</string>
+    <string name="preview_add_photos">Add photos</string>
+    <string name="overflow_title">Part of the image will be cut off</string>
+    <string name="overflow_detail">%1$s. The red area will not be printed.</string>
+    <string name="overflow_sides">Outside the print area: %1$s mm</string>
+    <string name="overflow_side_left">left %1$s</string>
+    <string name="overflow_side_top">top %1$s</string>
+    <string name="overflow_side_right">right %1$s</string>
+    <string name="overflow_side_bottom">bottom %1$s</string>
+    <string name="overflow_photos">%1$d photos outside the print area, worst %2$s mm</string>
+
+    <!-- Pilihan halaman -->
+    <string name="pages_all">All %1$d pages</string>
+    <string name="pages_current">This page</string>
+    <string name="pages_range">Range</string>
+    <string name="pages_from">From</string>
+    <string name="pages_to">to</string>
+    <string name="pages_count_to_print">%1$d pages will be printed</string>
+
+    <!-- Setelan cetak -->
+    <string name="settings_title">Print settings</string>
+    <string name="settings_preset_mixed">Mixed settings. Pick one above to go back.</string>
+    <string name="settings_color">Colour</string>
+    <string name="settings_copies">Copies</string>
+    <string name="settings_summary">"%1$s  ·  %2$s  ·  %3$s  ·  margin %4$s mm"</string>
+    <string name="settings_data_size">~%1$s sent to the printer</string>
+    <string name="settings_data_size_sheets">~%1$s sent to the printer for %2$d sheets</string>
+    <string name="settings_advanced">Advanced settings</string>
+    <string name="settings_paper">Paper</string>
+    <string name="settings_margin">Margin</string>
+    <string name="settings_margin_mm">%1$s mm</string>
+    <string name="settings_margin_desc">Print margin</string>
+    <string name="settings_margin_state">%1$s millimetres</string>
+    <string name="settings_margin_hint">Below 3 mm risks being cut off at the paper edge.</string>
+    <string name="settings_quality">Quality</string>
+    <string name="settings_resolution">Resolution</string>
+    <string name="settings_media">Paper type</string>
+    <string name="settings_media_hint">Must match the paper actually loaded. Choosing Matte or photo paper for ordinary paper floods it with ink and makes the print look ghosted.</string>
+    <string name="settings_direction">Print direction</string>
+    <string name="settings_defaults">Default: colour, Normal, 300 dpi, plain paper</string>
+    <string name="settings_restore">Restore</string>
+
+    <!-- Bahasa -->
+    <string name="settings_language">Bahasa · Language</string>
+    <string name="language_system">System</string>
+    <string name="language_indonesian">Indonesia</string>
+    <string name="language_english">English</string>
+
+    <!-- Perawatan -->
+    <string name="maint_title">Printer maintenance</string>
+    <string name="maint_hint">Streaky prints or missing colours usually mean clogged nozzles. Check first, clean only if it turns out to be needed.</string>
+    <string name="maint_variant_title">Command form</string>
+    <string name="maint_variant_default">Standard</string>
+    <string name="maint_variant_legacy">Legacy</string>
+    <string name="maint_variant_hint">Standard follows the form used by the official Epson driver, and that is the one proven to work on the L3110. Legacy is there for models that do not answer the standard form. The bytes sent are recorded in the Notes card.</string>
+    <string name="maint_nozzle">Nozzle check</string>
+    <string name="maint_nozzle_confirm">The printer will print a nozzle check pattern. Put one sheet of paper in the tray.</string>
+    <string name="maint_clean">Clean head</string>
+    <string name="maint_clean_confirm">Head cleaning uses a fair amount of ink and takes about a minute. Do it only if the nozzle check really is broken up, and do not repeat it over and over.</string>
+    <string name="maint_eject">Eject paper</string>
+    <string name="maint_eject_confirm">The printer will feed the paper until it comes out. Use this when a sheet is stuck inside.</string>
+
+    <!-- Tinta dan keadaan printer -->
+    <string name="ink_status_title">Printer status</string>
+    <string name="ink_check">Check</string>
+    <string name="ink_check_again">Check again</string>
+    <string name="ink_printer_reports">Printer reports: %1$s</string>
+    <string name="ink_note_unmeasured">The printer reports its tanks, but with no measurable number — a tank printer has no sensor inside. Look at the tanks themselves; the Epson app on a computer says the same thing.</string>
+    <string name="ink_note_estimate">These numbers are the printer estimate, not a measurement. If the tank has been refilled but the number stays low, the ink level has to be reset with the droplet button on the printer.</string>
+    <string name="ink_note_none">This printer does not report ink levels, and that is normal: a tank printer has no sensor inside its tanks. Look at the tanks themselves — the Epson app on a computer says the same thing.</string>
+    <string name="ink_unchecked">Not checked yet.</string>
+    <string name="ink_not_measurable">not measurable</string>
+    <string name="ink_percent">%1$d%%</string>
+    <string name="ink_black">Black</string>
+    <string name="ink_cyan">Cyan</string>
+    <string name="ink_magenta">Magenta</string>
+    <string name="ink_yellow">Yellow</string>
+    <string name="ink_unknown_color">Colour %1$d</string>
+    <string name="printer_state_idle">ready</string>
+    <string name="printer_state_printing">printing</string>
+    <string name="printer_state_busy">busy</string>
+    <string name="printer_state_paused">paused</string>
+    <string name="printer_state_cleaning">cleaning the head</string>
+    <string name="printer_state_error">has a problem</string>
+    <string name="printer_state_unknown">state not recognised</string>
+    <string name="printer_msg_paper_out">Out of paper. Load the rear tray of the printer.</string>
+    <string name="printer_msg_paper_jam">Paper jam. Take the paper out of the printer.</string>
+    <string name="printer_msg_cover_open">The printer cover is open.</string>
+    <string name="printer_msg_ink_out">Out of ink.</string>
+    <string name="printer_msg_waste_full">The waste ink pad is full.</string>
+    <string name="printer_msg_fault">The printer reports an error.</string>
+    <string name="printer_msg_fault_code">The printer reports an error (code %1$d).</string>
+    <string name="printer_msg_paused">The printer is paused.</string>
+    <string name="printer_msg_cleaning">The printer is cleaning its head.</string>
+    <string name="printer_msg_busy">The printer is busy.</string>
+
+    <!-- Catatan -->
+    <string name="log_title">Notes</string>
+    <string name="log_hide">Hide</string>
+    <string name="log_show_all">Show all (%1$d)</string>
+    <string name="log_prn_hint">Exactly the bytes sent to the printer, for tracing a problem from a computer.</string>
+    <string name="log_save_prn">Save print data (.prn)</string>
+
+    <!-- Bilah bawah -->
+    <string name="bar_sending">Sending %1$d%%</string>
+    <string name="bar_contacting">Contacting the printer…</string>
+    <string name="bar_cancel">Cancel</string>
+    <string name="bar_stop_waiting">Stop waiting</string>
+    <string name="bar_print">Print</string>
+    <string name="bar_print_copies">Print %1$d copies</string>
+
+    <!-- Hasil -->
+    <string name="outcome_success">Done. %1$d sheets sent in %2$d seconds.</string>
+    <string name="outcome_success_hint">The printer may still be finishing the last sheet.</string>
+    <string name="outcome_saved">Saved as a .prn file.</string>
+    <string name="outcome_maint_sent">%1$s has been sent.</string>
+    <string name="outcome_maint_paper_hint">Look at the sheet that comes out.</string>
+    <string name="outcome_maint_ink_hint">The printer will be busy for about a minute. Wait until its light settles.</string>
+    <string name="outcome_cancelled">Print cancelled.</string>
+    <string name="outcome_cancelled_hint">Pages already inside the printer will still come out.</string>
+    <string name="outcome_close">Dismiss</string>
+    <string name="action_retry">Try again</string>
+    <string name="action_refresh">Find printer</string>
+    <string name="action_permission">Grant access</string>
+    <string name="action_pick_file">Pick another file</string>
+
+    <!-- Sebab kegagalan -->
+    <string name="fail_no_usb_host_title">This phone does not support USB OTG</string>
+    <string name="fail_no_usb_host_hint">Printing over a cable needs a phone that can act as a USB host. Try another phone.</string>
+    <string name="fail_no_printer_title">Printer not found</string>
+    <string name="fail_no_printer_hint">Make sure the OTG cable is plugged in and the printer is on, then search again.</string>
+    <string name="fail_not_a_printer_title">The connected device is not a printer</string>
+    <string name="fail_not_a_printer_hint">What was detected has no printer interface. Check that the cable leads to the printer.</string>
+    <string name="fail_no_endpoint_title">This printer cannot receive print data</string>
+    <string name="fail_no_endpoint_hint">The printer was detected but offers no data path of the kind needed.</string>
+    <string name="fail_permission_title">USB access has not been granted</string>
+    <string name="fail_permission_hint">Tap Grant access, then choose OK in the dialog that appears.</string>
+    <string name="fail_busy_title">The printer is in use by another app</string>
+    <string name="fail_busy_hint">Close the other printing app, or unplug the cable and plug it back in.</string>
+    <string name="fail_disconnected_title">The printer disconnected midway</string>
+    <string name="fail_disconnected_hint">The cable was knocked loose or the printer went off. Reconnect it and try again.</string>
+    <string name="fail_transfer_title">The printer stopped accepting data</string>
+    <string name="fail_transfer_hint">Usually out of paper, a paper jam, or an open cover. Check the printer, then try again.</string>
+    <string name="fail_unreadable_title">The file cannot be read</string>
+    <string name="fail_unreadable_hint">The file may be damaged, or its format is not supported.</string>
+    <string name="fail_unsupported_title">This file format is not supported yet</string>
+    <string name="fail_unsupported_hint">Printigo can only print images and PDFs. Open the file in an Office app, export it to PDF, then print the PDF.</string>
+    <string name="fail_not_ready_title">The printer is not ready</string>
+    <string name="fail_not_ready_hint">Sort the printer out first, then try again. No paper was wasted, because nothing has been sent yet.</string>
+    <string name="fail_out_of_memory_title">Not enough memory on the phone</string>
+    <string name="fail_out_of_memory_hint">Lower the resolution, or close other apps and try again.</string>
+    <string name="fail_unknown_title">Printing failed</string>
+    <string name="fail_unknown_hint">The cause could not be pinned down. The details are in Notes.</string>
+
+    <!-- Penambah-pengurang -->
+    <string name="stepper_decrease">Decrease</string>
+    <string name="stepper_increase">Increase</string>
+
+    <!-- Editor tata letak -->
+    <string name="editor_title">Arrange layout</string>
+    <string name="editor_done">Done</string>
+    <string name="editor_selected_photo">Selected photo</string>
+    <string name="editor_size">Size</string>
+    <string name="editor_size_value">%1$s x %2$s mm</string>
+    <string name="editor_size_value_rotated">"%1$s x %2$s mm  (%3$d degrees)"</string>
+    <string name="editor_none">-</string>
+    <string name="editor_enlarge">Enlarge</string>
+    <string name="editor_reset">Reset</string>
+    <string name="editor_gesture_hint">Drag, pinch, or double-tap</string>
+    <string name="editor_sheet_photos">%1$d photos on this sheet</string>
+    <string name="editor_sheet_of">" - sheet %1$d of %2$d"</string>
+    <string name="editor_one_selected">" - one selected"</string>
+    <string name="editor_prev_sheet">&lt; Previous sheet</string>
+    <string name="editor_next_sheet">Next sheet &gt;</string>
+    <string name="editor_per_sheet">Per sheet</string>
+    <string name="editor_all">All</string>
+    <string name="editor_rotate_left">Rotate left</string>
+    <string name="editor_rotate_right">Rotate right</string>
+    <string name="editor_auto_arrange">Auto arrange</string>
+    <string name="editor_columns">%1$d columns</string>
+    <string name="editor_delete_selected">Delete selected</string>
+
+    <!-- Pilihan setelan -->
+    <string name="quality_draft">Draft (fast)</string>
+    <string name="quality_draft_short">Draft</string>
+    <string name="quality_normal">Normal</string>
+    <string name="quality_high">High (slow)</string>
+    <string name="quality_high_short">High</string>
+    <string name="color_colour">Colour</string>
+    <string name="color_mono">Black and white</string>
+    <string name="media_plain">Plain paper</string>
+    <string name="media_matte">Matte</string>
+    <string name="media_photo">Photo paper</string>
+    <string name="media_glossy">Glossy photo</string>
+    <string name="direction_bidirectional">Two-way (fast)</string>
+    <string name="direction_unidirectional">One-way (tidier)</string>
+    <string name="paper_a4">A4 (210 x 297 mm)</string>
+    <string name="paper_letter">Letter (216 x 279 mm)</string>
+    <string name="paper_legal">Legal / F4 (216 x 356 mm)</string>
+    <string name="paper_a5">A5 (148 x 210 mm)</string>
+    <string name="paper_a6">A6 (105 x 148 mm)</string>
+    <string name="paper_b5">B5 (176 x 250 mm)</string>
+    <string name="paper_4r">4R (102 x 152 mm)</string>
+    <string name="paper_postcard">Postcard (100 x 148 mm)</string>
+    <string name="paper_a4_short">A4</string>
+    <string name="paper_letter_short">Letter</string>
+    <string name="paper_legal_short">Legal</string>
+    <string name="paper_a5_short">A5</string>
+    <string name="paper_a6_short">A6</string>
+    <string name="paper_b5_short">B5</string>
+    <string name="paper_4r_short">4R</string>
+    <string name="paper_postcard_short">Postcard</string>
+    <string name="preset_everyday">Everyday</string>
+    <string name="preset_everyday_hint">Plain paper. Fast and easy on ink.</string>
+    <string name="preset_photo">Photo quality</string>
+    <string name="preset_photo_hint">For real photo paper. Much slower and heavy on ink.</string>
+
+    <!-- Catatan berjalan -->
+    <string name="log_permission_granted">USB permission granted.</string>
+    <string name="log_permission_denied">USB permission denied.</string>
+    <string name="log_usb_attached">USB device attached.</string>
+    <string name="log_usb_detached">USB device detached.</string>
+    <string name="log_no_usb_host">This phone does not support USB Host (OTG).</string>
+    <string name="log_no_printer">No USB printer detected.</string>
+    <string name="log_device_id_no_reply">Printer did not answer Device ID (not always a problem).</string>
+    <string name="log_device_id_supported">Device ID: %1$s -- supports ESC/P-R.</string>
+    <string name="log_device_id_not_listed">Device ID: %1$s -- ESC/P-R not listed.</string>
+    <string name="log_device_id_failed">Could not read Device ID: %1$s</string>
+    <string name="log_format_unsupported">Format not supported yet: %1$s</string>
+    <string name="err_format_unsupported">Unsupported format: %1$s</string>
+    <string name="log_selected">Selected: %1$s (%2$d pages)</string>
+    <string name="log_open_failed">Could not open the file: %1$s</string>
+    <string name="log_preview_failed">Preview could not be built: %1$s</string>
+    <string name="log_settings_reset">Print settings restored to their defaults.</string>
+    <string name="log_image_open_failed">Could not open the image: %1$s</string>
+    <string name="log_photos_added">Added %1$d photos, %2$d in total.</string>
+    <string name="log_status">Status: %1$s</string>
+    <string name="log_reply_bytes">Reply of %1$d bytes:</string>
+    <string name="log_printer_state">Printer state: %1$s</string>
+    <string name="log_ink_unreported">This printer does not report ink levels.</string>
+    <string name="log_ink_failed">Could not read ink levels: %1$s</string>
+    <string name="log_maint_sent">%1$s sent.</string>
+    <string name="log_maint_failed">%1$s failed: %2$s</string>
+    <string name="log_maint_waited">Waited %1$d seconds, printer reports: %2$s</string>
+    <string name="log_maint_no_answer">no answer</string>
+    <string name="log_maint_unrecognised">" (reply not recognised)"</string>
+    <string name="log_cache_cleaned">Cleared %1$d old copies from the cache.</string>
+    <string name="log_printer_status">Printer status: %1$s</string>
+    <string name="log_cancelled_before_send">Cancelled before sending: %1$s</string>
+    <string name="log_printer_not_ready">printer not ready</string>
+    <string name="log_printing_at">Printing at %1$d x %2$d pixels…</string>
+    <string name="log_time">Time -- %1$s</string>
+    <string name="log_time_detail">%1$.0f s: image %2$.0fs, process %3$.0fs, send %4$.0fs (%5$.1f MB, %6$.2f MB/s)</string>
+    <string name="log_link">Link: %1$s</string>
+    <string name="log_printer">Printer: %1$s</string>
+    <string name="log_final_status">Final status: %1$s</string>
+    <string name="log_done_in">Finished in %1$.1f seconds.</string>
+    <string name="log_print_failed">Printing failed [%1$s]: %2$s</string>
+    <string name="log_cancel_requested">Cancellation requested. The printer may still finish the page in progress.</string>
+    <string name="log_saved_prn">Saved as .prn, %1$s.</string>
+    <string name="log_save_failed">Could not save: %1$s</string>
+    <string name="link_full_speed">USB Full Speed (12 Mbps, about 1 MB/s at best)</string>
+    <string name="link_high_speed">USB High Speed (480 Mbps)</string>
+    <string name="link_other">bulk packet %1$d bytes</string>
+    <string name="err_cannot_open_file">Cannot open the selected file</string>
+    <string name="err_cannot_write">Cannot write to that location</string>
+    <string name="err_no_document">No document</string>
+    <string name="doc_fallback_name">document</string>
 </resources>

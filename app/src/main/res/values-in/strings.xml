@@ -1,0 +1,321 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Bahasa Indonesia.
+
+  Foldernya values-in, bukan values-id. Android memakai kode ISO-639 lama untuk
+  bahasa Indonesia, ibrani, dan yiddi; values-id tidak pernah terpilih.
+-->
+<resources>
+    <string name="app_title">USB Printer OTG</string>
+    <string name="app_subtitle">"Tanpa WiFi, tanpa komputer  ·  v%1$s"</string>
+    <string name="action_find_printer">Cari printer</string>
+
+    <!-- Sambungan -->
+    <string name="conn_step_otg">HP mendukung USB OTG</string>
+    <string name="conn_step_otg_no">HP ini tidak bisa menjadi host USB, jadi tidak bisa mencetak lewat kabel.</string>
+    <string name="conn_step_detected">Printer terdeteksi</string>
+    <string name="conn_step_detected_no">Colok printer ke HP pakai kabel OTG, lalu nyalakan printernya.</string>
+    <string name="conn_step_permission">Izin akses USB</string>
+    <string name="conn_step_permission_denied">Izin ditolak. Tekan Beri izin lalu pilih Oke pada dialog Android.</string>
+    <string name="conn_step_permission_pending">Android meminta persetujuan sebelum aplikasi boleh memakai printer.</string>
+    <string name="conn_step_ready">Siap mencetak</string>
+    <string name="conn_support_yes">Printer mendukung ESC/P-R.</string>
+    <string name="conn_support_not_listed">Printer tidak menyebut ESC/P-R. Cetak tetap bisa dicoba.</string>
+    <string name="conn_support_no_reply">Printer tidak membalas pemeriksaan. Ini tidak selalu masalah.</string>
+    <string name="conn_headline_no_otg">HP ini tidak mendukung cetak lewat kabel</string>
+    <string name="conn_headline_no_device">Printer belum tersambung</string>
+    <string name="conn_headline_no_permission">Menunggu izin akses USB</string>
+    <string name="conn_headline_ready">Printer siap</string>
+    <string name="step_action_refresh">Cari ulang</string>
+    <string name="step_action_permission">Beri izin</string>
+    <string name="step_action_support">Cek dukungan</string>
+    <string name="step_icon_done">selesai</string>
+    <string name="step_icon_action">perlu tindakan</string>
+    <string name="conn_details">Rincian</string>
+
+    <!-- Umum -->
+    <string name="common_open">Buka</string>
+    <string name="common_close">Tutup</string>
+    <string name="common_run">Jalankan</string>
+    <string name="common_cancel">Batal</string>
+
+    <!-- Pratinjau -->
+    <string name="preview_empty">Belum ada dokumen</string>
+    <string name="preview_arrange">Atur tata letak</string>
+    <string name="preview_photos_on_sheet">%1$d foto dalam satu lembar</string>
+    <string name="preview_margins">"Margin  kiri %1$s  atas %2$s  kanan %3$s  bawah %4$s mm"</string>
+    <string name="preview_page_prev">Halaman sebelumnya</string>
+    <string name="preview_page_next">Halaman berikutnya</string>
+    <string name="preview_page_of">Halaman %1$d / %2$d</string>
+    <string name="preview_pick_prompt">Pilih gambar atau PDF untuk melihat pratinjaunya</string>
+    <string name="preview_print_area">"Area cetak %1$d x %2$d piksel  -  %3$d dpi"</string>
+    <string name="preview_change_file">Ganti berkas</string>
+    <string name="preview_pick_file">Pilih berkas</string>
+    <string name="preview_add_photos">Tambah foto</string>
+    <string name="overflow_title">Sebagian gambar akan terpotong</string>
+    <string name="overflow_detail">%1$s. Bagian merah tidak akan tercetak.</string>
+    <string name="overflow_sides">Keluar dari area cetak: %1$s mm</string>
+    <string name="overflow_side_left">kiri %1$s</string>
+    <string name="overflow_side_top">atas %1$s</string>
+    <string name="overflow_side_right">kanan %1$s</string>
+    <string name="overflow_side_bottom">bawah %1$s</string>
+    <string name="overflow_photos">%1$d foto keluar area cetak, terjauh %2$s mm</string>
+
+    <!-- Pilihan halaman -->
+    <string name="pages_all">Semua %1$d halaman</string>
+    <string name="pages_current">Halaman ini</string>
+    <string name="pages_range">Rentang</string>
+    <string name="pages_from">Dari</string>
+    <string name="pages_to">sampai</string>
+    <string name="pages_count_to_print">%1$d halaman akan dicetak</string>
+
+    <!-- Setelan cetak -->
+    <string name="settings_title">Setelan cetak</string>
+    <string name="settings_preset_mixed">Setelan campuran. Pilih salah satu di atas untuk kembali.</string>
+    <string name="settings_color">Warna</string>
+    <string name="settings_copies">Salinan</string>
+    <string name="settings_summary">"%1$s  ·  %2$s  ·  %3$s  ·  margin %4$s mm"</string>
+    <string name="settings_data_size">~%1$s dikirim ke printer</string>
+    <string name="settings_data_size_sheets">~%1$s dikirim ke printer untuk %2$d lembar</string>
+    <string name="settings_advanced">Setelan lanjutan</string>
+    <string name="settings_paper">Kertas</string>
+    <string name="settings_margin">Margin</string>
+    <string name="settings_margin_mm">%1$s mm</string>
+    <string name="settings_margin_desc">Batas cetak</string>
+    <string name="settings_margin_state">%1$s milimeter</string>
+    <string name="settings_margin_hint">Di bawah 3 mm berisiko terpotong di tepi kertas.</string>
+    <string name="settings_quality">Kualitas</string>
+    <string name="settings_resolution">Resolusi</string>
+    <string name="settings_media">Jenis kertas</string>
+    <string name="settings_media_hint">Harus cocok dengan kertas yang benar-benar dimuat. Memilih Matte atau kertas foto untuk HVS biasa membuat tinta berlebih dan hasilnya berbayang.</string>
+    <string name="settings_direction">Arah cetak</string>
+    <string name="settings_defaults">Bawaan: berwarna, Normal, 300 dpi, kertas biasa</string>
+    <string name="settings_restore">Kembalikan</string>
+
+    <!-- Bahasa -->
+    <string name="settings_language">Bahasa · Language</string>
+    <string name="language_system">Ikut sistem</string>
+    <string name="language_indonesian">Indonesia</string>
+    <string name="language_english">English</string>
+
+    <!-- Perawatan -->
+    <string name="maint_title">Perawatan printer</string>
+    <string name="maint_hint">Hasil cetak bergaris atau warna hilang biasanya berarti nozzle mampet. Cek dulu, baru bersihkan kalau memang perlu.</string>
+    <string name="maint_variant_title">Bentuk perintah</string>
+    <string name="maint_variant_default">Baku</string>
+    <string name="maint_variant_legacy">Lama</string>
+    <string name="maint_variant_hint">Baku mengikuti bentuk yang dipakai driver Epson resmi, dan itulah yang terbukti bekerja pada L3110. Bentuk Lama disediakan untuk model yang tidak merespons yang baku. Byte yang dikirim dicatat di kartu Catatan.</string>
+    <string name="maint_nozzle">Cek nozzle</string>
+    <string name="maint_nozzle_confirm">Printer akan mencetak pola cek nozzle. Siapkan satu lembar kertas di baki.</string>
+    <string name="maint_clean">Bersihkan head</string>
+    <string name="maint_clean_confirm">Pembersihan head memakai tinta cukup banyak dan berlangsung sekitar satu menit. Lakukan hanya kalau hasil cek nozzle memang putus-putus, dan jangan diulang berkali-kali.</string>
+    <string name="maint_eject">Keluarkan kertas</string>
+    <string name="maint_eject_confirm">Printer akan memajukan kertas sampai keluar. Dipakai kalau ada kertas yang tertahan di dalam.</string>
+
+    <!-- Tinta dan keadaan printer -->
+    <string name="ink_status_title">Status printer</string>
+    <string name="ink_check">Periksa</string>
+    <string name="ink_check_again">Periksa lagi</string>
+    <string name="ink_printer_reports">Printer melapor: %1$s</string>
+    <string name="ink_note_unmeasured">Printer melaporkan tangkinya, tapi tanpa angka yang bisa diukur — printer tangki tidak punya sensor di dalamnya. Periksa tangkinya langsung; aplikasi Epson di komputer pun menyarankan hal yang sama.</string>
+    <string name="ink_note_estimate">Angka ini perkiraan printer, bukan hasil pengukuran. Kalau tangki sudah diisi tapi angkanya masih rendah, level tintanya perlu di-reset lewat tombol tetesan di printer.</string>
+    <string name="ink_note_none">Printer ini tidak melaporkan sisa tinta, dan itu wajar: printer tangki tidak punya sensor di dalam tangkinya. Periksa tangkinya langsung — aplikasi Epson di komputer pun menyarankan hal yang sama.</string>
+    <string name="ink_unchecked">Belum diperiksa.</string>
+    <string name="ink_not_measurable">tidak terukur</string>
+    <string name="ink_percent">%1$d%%</string>
+    <string name="ink_black">Hitam</string>
+    <string name="ink_cyan">Cyan</string>
+    <string name="ink_magenta">Magenta</string>
+    <string name="ink_yellow">Kuning</string>
+    <string name="ink_unknown_color">Warna %1$d</string>
+    <string name="printer_state_idle">siap</string>
+    <string name="printer_state_printing">sedang mencetak</string>
+    <string name="printer_state_busy">sibuk</string>
+    <string name="printer_state_paused">dijeda</string>
+    <string name="printer_state_cleaning">membersihkan head</string>
+    <string name="printer_state_error">ada masalah</string>
+    <string name="printer_state_unknown">keadaan tidak dikenali</string>
+    <string name="printer_msg_paper_out">Kertas habis. Isi baki belakang printer.</string>
+    <string name="printer_msg_paper_jam">Kertas macet. Keluarkan kertasnya dari printer.</string>
+    <string name="printer_msg_cover_open">Tutup printer terbuka.</string>
+    <string name="printer_msg_ink_out">Tinta habis.</string>
+    <string name="printer_msg_waste_full">Bak tinta buangan penuh.</string>
+    <string name="printer_msg_fault">Printer melaporkan kesalahan.</string>
+    <string name="printer_msg_fault_code">Printer melaporkan kesalahan (kode %1$d).</string>
+    <string name="printer_msg_paused">Printer sedang dijeda.</string>
+    <string name="printer_msg_cleaning">Printer sedang membersihkan head.</string>
+    <string name="printer_msg_busy">Printer sedang sibuk.</string>
+
+    <!-- Catatan -->
+    <string name="log_title">Catatan</string>
+    <string name="log_hide">Sembunyikan</string>
+    <string name="log_show_all">Lihat semua (%1$d)</string>
+    <string name="log_prn_hint">Byte yang sama persis dengan yang dikirim ke printer, untuk menelusuri masalah dari komputer.</string>
+    <string name="log_save_prn">Simpan data cetak (.prn)</string>
+
+    <!-- Bilah bawah -->
+    <string name="bar_sending">Mengirim %1$d%%</string>
+    <string name="bar_contacting">Menghubungi printer…</string>
+    <string name="bar_cancel">Batalkan</string>
+    <string name="bar_stop_waiting">Berhenti menunggu</string>
+    <string name="bar_print">Cetak</string>
+    <string name="bar_print_copies">Cetak %1$d salinan</string>
+
+    <!-- Hasil -->
+    <string name="outcome_success">Selesai. %1$d lembar terkirim dalam %2$d detik.</string>
+    <string name="outcome_success_hint">Printer mungkin masih menyelesaikan lembar terakhir.</string>
+    <string name="outcome_saved">Tersimpan sebagai berkas .prn.</string>
+    <string name="outcome_maint_sent">%1$s sudah dikirim.</string>
+    <string name="outcome_maint_paper_hint">Lihat hasilnya di kertas yang keluar.</string>
+    <string name="outcome_maint_ink_hint">Printer akan sibuk sekitar satu menit. Tunggu sampai lampunya tenang.</string>
+    <string name="outcome_cancelled">Cetak dibatalkan.</string>
+    <string name="outcome_cancelled_hint">Halaman yang sudah masuk ke printer tetap akan keluar.</string>
+    <string name="outcome_close">Tutup</string>
+    <string name="action_retry">Coba lagi</string>
+    <string name="action_refresh">Cari printer</string>
+    <string name="action_permission">Beri izin</string>
+    <string name="action_pick_file">Pilih berkas lain</string>
+
+    <!-- Sebab kegagalan -->
+    <string name="fail_no_usb_host_title">HP ini tidak mendukung USB OTG</string>
+    <string name="fail_no_usb_host_hint">Mencetak lewat kabel butuh HP yang bisa menjadi host USB. Coba HP lain.</string>
+    <string name="fail_no_printer_title">Printer tidak ditemukan</string>
+    <string name="fail_no_printer_hint">Pastikan kabel OTG tertancap dan printer menyala, lalu cari lagi.</string>
+    <string name="fail_not_a_printer_title">Perangkat yang tersambung bukan printer</string>
+    <string name="fail_not_a_printer_hint">Yang terdeteksi tidak punya antarmuka printer. Periksa kabelnya menuju printer.</string>
+    <string name="fail_no_endpoint_title">Printer ini tidak bisa menerima data cetak</string>
+    <string name="fail_no_endpoint_hint">Printer terdeteksi tapi tidak menyediakan jalur data yang dibutuhkan.</string>
+    <string name="fail_permission_title">Izin akses USB belum diberikan</string>
+    <string name="fail_permission_hint">Tekan Beri izin, lalu pilih Oke pada dialog yang muncul.</string>
+    <string name="fail_busy_title">Printer sedang dipakai aplikasi lain</string>
+    <string name="fail_busy_hint">Tutup aplikasi cetak lain, atau cabut dan colok ulang kabelnya.</string>
+    <string name="fail_disconnected_title">Printer terputus di tengah jalan</string>
+    <string name="fail_disconnected_hint">Kabel tersenggol atau printer mati. Sambungkan lagi lalu ulangi.</string>
+    <string name="fail_transfer_title">Printer berhenti menerima data</string>
+    <string name="fail_transfer_hint">Biasanya karena kertas habis, kertas macet, atau tutup terbuka. Periksa printer, lalu coba lagi.</string>
+    <string name="fail_unreadable_title">Berkas tidak bisa dibaca</string>
+    <string name="fail_unreadable_hint">Berkasnya mungkin rusak atau formatnya tidak didukung.</string>
+    <string name="fail_unsupported_title">Format berkas ini belum didukung</string>
+    <string name="fail_unsupported_hint">Printigo hanya bisa mencetak gambar dan PDF. Buka berkasnya di aplikasi Office, ekspor ke PDF, lalu cetak PDF-nya.</string>
+    <string name="fail_not_ready_title">Printer belum siap</string>
+    <string name="fail_not_ready_hint">Beresi printernya dulu, lalu coba lagi. Tidak ada kertas yang terbuang karena pengiriman belum dimulai.</string>
+    <string name="fail_out_of_memory_title">Memori HP tidak cukup</string>
+    <string name="fail_out_of_memory_hint">Turunkan resolusi, atau tutup aplikasi lain lalu coba lagi.</string>
+    <string name="fail_unknown_title">Cetak gagal</string>
+    <string name="fail_unknown_hint">Sebabnya belum bisa dipastikan. Rinciannya ada di Catatan.</string>
+
+    <!-- Penambah-pengurang -->
+    <string name="stepper_decrease">Kurangi</string>
+    <string name="stepper_increase">Tambah</string>
+
+    <!-- Editor tata letak -->
+    <string name="editor_title">Atur tata letak</string>
+    <string name="editor_done">Selesai</string>
+    <string name="editor_selected_photo">Foto terpilih</string>
+    <string name="editor_size">Ukuran</string>
+    <string name="editor_size_value">%1$s x %2$s mm</string>
+    <string name="editor_size_value_rotated">"%1$s x %2$s mm  (%3$d derajat)"</string>
+    <string name="editor_none">-</string>
+    <string name="editor_enlarge">Perbesar</string>
+    <string name="editor_reset">Atur ulang</string>
+    <string name="editor_gesture_hint">Geser, cubit, atau ketuk dua kali</string>
+    <string name="editor_sheet_photos">%1$d foto di lembar ini</string>
+    <string name="editor_sheet_of">" - lembar %1$d dari %2$d"</string>
+    <string name="editor_one_selected">" - satu terpilih"</string>
+    <string name="editor_prev_sheet">&lt; Lembar sebelumnya</string>
+    <string name="editor_next_sheet">Lembar berikutnya &gt;</string>
+    <string name="editor_per_sheet">Per lembar</string>
+    <string name="editor_all">Semua</string>
+    <string name="editor_rotate_left">Putar kiri</string>
+    <string name="editor_rotate_right">Putar kanan</string>
+    <string name="editor_auto_arrange">Susun otomatis</string>
+    <string name="editor_columns">%1$d kolom</string>
+    <string name="editor_delete_selected">Hapus terpilih</string>
+
+    <!-- Pilihan setelan -->
+    <string name="quality_draft">Draft (cepat)</string>
+    <string name="quality_draft_short">Draft</string>
+    <string name="quality_normal">Normal</string>
+    <string name="quality_high">Tinggi (lambat)</string>
+    <string name="quality_high_short">Tinggi</string>
+    <string name="color_colour">Berwarna</string>
+    <string name="color_mono">Hitam putih</string>
+    <string name="media_plain">Kertas biasa</string>
+    <string name="media_matte">Matte</string>
+    <string name="media_photo">Kertas foto</string>
+    <string name="media_glossy">Foto glossy</string>
+    <string name="direction_bidirectional">Dua arah (cepat)</string>
+    <string name="direction_unidirectional">Satu arah (lebih rapi)</string>
+    <string name="paper_a4">A4 (210 x 297 mm)</string>
+    <string name="paper_letter">Letter (216 x 279 mm)</string>
+    <string name="paper_legal">Legal / F4 (216 x 356 mm)</string>
+    <string name="paper_a5">A5 (148 x 210 mm)</string>
+    <string name="paper_a6">A6 (105 x 148 mm)</string>
+    <string name="paper_b5">B5 (176 x 250 mm)</string>
+    <string name="paper_4r">4R (102 x 152 mm)</string>
+    <string name="paper_postcard">Kartu pos (100 x 148 mm)</string>
+    <string name="paper_a4_short">A4</string>
+    <string name="paper_letter_short">Letter</string>
+    <string name="paper_legal_short">Legal</string>
+    <string name="paper_a5_short">A5</string>
+    <string name="paper_a6_short">A6</string>
+    <string name="paper_b5_short">B5</string>
+    <string name="paper_4r_short">4R</string>
+    <string name="paper_postcard_short">Kartu pos</string>
+    <string name="preset_everyday">Cetak biasa</string>
+    <string name="preset_everyday_hint">Kertas HVS. Cepat dan hemat tinta.</string>
+    <string name="preset_photo">Kualitas foto</string>
+    <string name="preset_photo_hint">Untuk kertas foto sungguhan. Jauh lebih lama dan boros tinta.</string>
+
+    <!-- Catatan berjalan -->
+    <string name="log_permission_granted">Izin USB diberikan.</string>
+    <string name="log_permission_denied">Izin USB ditolak.</string>
+    <string name="log_usb_attached">Perangkat USB terpasang.</string>
+    <string name="log_usb_detached">Perangkat USB dicabut.</string>
+    <string name="log_no_usb_host">HP ini tidak mendukung USB Host (OTG).</string>
+    <string name="log_no_printer">Tidak ada printer USB terdeteksi.</string>
+    <string name="log_device_id_no_reply">Printer tidak membalas Device ID (tidak selalu masalah).</string>
+    <string name="log_device_id_supported">Device ID: %1$s -- mendukung ESC/P-R.</string>
+    <string name="log_device_id_not_listed">Device ID: %1$s -- ESC/P-R tidak tercantum.</string>
+    <string name="log_device_id_failed">Gagal membaca Device ID: %1$s</string>
+    <string name="log_format_unsupported">Format belum didukung: %1$s</string>
+    <string name="err_format_unsupported">Format tidak didukung: %1$s</string>
+    <string name="log_selected">Dipilih: %1$s (%2$d halaman)</string>
+    <string name="log_open_failed">Gagal membuka berkas: %1$s</string>
+    <string name="log_preview_failed">Pratinjau gagal dibuat: %1$s</string>
+    <string name="log_settings_reset">Setelan cetak dikembalikan ke bawaan.</string>
+    <string name="log_image_open_failed">Gagal membuka gambar: %1$s</string>
+    <string name="log_photos_added">Ditambahkan %1$d foto, total %2$d.</string>
+    <string name="log_status">Status: %1$s</string>
+    <string name="log_reply_bytes">Balasan %1$d byte:</string>
+    <string name="log_printer_state">Keadaan printer: %1$s</string>
+    <string name="log_ink_unreported">Sisa tinta tidak dilaporkan printer ini.</string>
+    <string name="log_ink_failed">Gagal membaca sisa tinta: %1$s</string>
+    <string name="log_maint_sent">%1$s selesai dikirim.</string>
+    <string name="log_maint_failed">%1$s gagal: %2$s</string>
+    <string name="log_maint_waited">Ditunggu %1$d detik, printer melapor: %2$s</string>
+    <string name="log_maint_no_answer">tidak menjawab</string>
+    <string name="log_maint_unrecognised">" (balasan tidak dikenali)"</string>
+    <string name="log_cache_cleaned">Membersihkan %1$d salinan lama dari cache.</string>
+    <string name="log_printer_status">Status printer: %1$s</string>
+    <string name="log_cancelled_before_send">Dibatalkan sebelum mengirim: %1$s</string>
+    <string name="log_printer_not_ready">printer belum siap</string>
+    <string name="log_printing_at">Mencetak pada %1$d x %2$d piksel…</string>
+    <string name="log_time">Waktu -- %1$s</string>
+    <string name="log_time_detail">%1$.0f detik: gambar %2$.0fs, olah %3$.0fs, kirim %4$.0fs (%5$.1f MB, %6$.2f MB/detik)</string>
+    <string name="log_link">Sambungan: %1$s</string>
+    <string name="log_printer">Printer: %1$s</string>
+    <string name="log_final_status">Status akhir: %1$s</string>
+    <string name="log_done_in">Selesai dalam %1$.1f detik.</string>
+    <string name="log_print_failed">Cetak gagal [%1$s]: %2$s</string>
+    <string name="log_cancel_requested">Pembatalan diminta. Printer mungkin masih mengeluarkan halaman yang sedang jalan.</string>
+    <string name="log_saved_prn">Tersimpan sebagai .prn, %1$s.</string>
+    <string name="log_save_failed">Gagal menyimpan: %1$s</string>
+    <string name="link_full_speed">USB Full Speed (12 Mbps, batas sekitar 1 MB/detik)</string>
+    <string name="link_high_speed">USB High Speed (480 Mbps)</string>
+    <string name="link_other">paket bulk %1$d byte</string>
+    <string name="err_cannot_open_file">Tidak bisa membuka berkas yang dipilih</string>
+    <string name="err_cannot_write">Tidak bisa menulis ke lokasi itu</string>
+    <string name="err_no_document">Tidak ada dokumen</string>
+    <string name="doc_fallback_name">dokumen</string>
+</resources>

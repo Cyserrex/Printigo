@@ -25,8 +25,19 @@
 # tanpa satu pun pesan galat. Karena itu namanya dipertahankan, bukan sekadar
 # anggotanya. keepnames masih mengizinkan enum yang benar-benar tak terpakai
 # dibuang seluruhnya.
+#
+# util ikut disebut sejak pilihan bahasa disimpan dengan cara yang sama.
+# Tanpa itu, bahasa yang dipilih pengguna kembali ke "ikut sistem" setiap kali
+# aplikasi dibuka -- hanya pada APK rilis, jadi tidak akan pernah terlihat
+# selama pengembangan.
 -keepnames class com.escpr.usbprint.escpr.** extends java.lang.Enum
 -keepclassmembers class com.escpr.usbprint.escpr.** extends java.lang.Enum {
+    <fields>;
+    public static **[] values();
+    public static ** valueOf(java.lang.String);
+}
+-keepnames class com.escpr.usbprint.util.** extends java.lang.Enum
+-keepclassmembers class com.escpr.usbprint.util.** extends java.lang.Enum {
     <fields>;
     public static **[] values();
     public static ** valueOf(java.lang.String);

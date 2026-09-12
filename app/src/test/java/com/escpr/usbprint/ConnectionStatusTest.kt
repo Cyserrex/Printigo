@@ -9,7 +9,11 @@ import com.escpr.usbprint.ui.computeConnectionStatus
 import com.escpr.usbprint.usb.PrinterErrorKind
 import com.escpr.usbprint.usb.PrinterException
 import com.escpr.usbprint.usb.classifyFailure
+import com.escpr.usbprint.R
+import com.escpr.usbprint.util.UiText
+import com.escpr.usbprint.util.uiText
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -38,7 +42,9 @@ class ConnectionStatusTest {
         val s = status()
         assertTrue(s.ready)
         assertTrue(s.steps.all { it.state == StepState.OK })
-        assertEquals("EPSON L3110 Series", s.headline)
+        // Nama printer datang dari perangkatnya sendiri dan tidak boleh
+        // diterjemahkan; Raw membuktikan ia lewat apa adanya.
+        assertEquals(UiText.Raw("EPSON L3110 Series"), s.headline)
     }
 
     @Test
@@ -49,7 +55,7 @@ class ConnectionStatusTest {
         // Tidak ada tombol yang ditawarkan: tidak ada yang bisa dilakukan pengguna.
         assertNull(s.steps[0].action)
         assertTrue(s.steps.drop(1).all { it.state == StepState.WAITING })
-        assertTrue(s.headline.contains("tidak mendukung"))
+        assertEquals(uiText(R.string.conn_headline_no_otg), s.headline)
     }
 
     @Test
@@ -74,8 +80,10 @@ class ConnectionStatusTest {
         assertEquals(StepAction.REQUEST_PERMISSION, ditolak.action)
         assertNotNull(belum.detail)
         assertNotNull(ditolak.detail)
-        assertTrue("penolakan harus disebut eksplisit", ditolak.detail!!.contains("ditolak"))
-        assertFalse(belum.detail!!.contains("ditolak"))
+        // Kalimatnya harus berbeda, bukan sekadar ada. Isi kedua kalimat itu
+        // diperiksa dalam kedua bahasa oleh TranslationTest.
+        assertEquals(uiText(R.string.conn_step_permission_denied), ditolak.detail)
+        assertNotEquals(ditolak.detail, belum.detail)
     }
 
     @Test
@@ -85,7 +93,7 @@ class ConnectionStatusTest {
 
         val sudah = status(support = EscpRSupport.SUPPORTED)
         assertNull(sudah.steps[3].action)
-        assertTrue(sudah.steps[3].detail!!.contains("ESC/P-R"))
+        assertEquals(uiText(R.string.conn_support_yes), sudah.steps[3].detail)
     }
 
     @Test
@@ -153,15 +161,11 @@ class FailureAdviceTest {
     fun `setiap sebab punya kalimat dan tindakan yang masuk akal`() {
         for (kind in PrinterErrorKind.entries) {
             val advice = adviceFor(kind)
-            assertTrue("judul kosong untuk $kind", advice.title.isNotBlank())
-            assertTrue("saran kosong untuk $kind", advice.hint.isNotBlank())
-            // Tidak boleh ada istilah teknis di judul yang dibaca orang awam.
-            for (istilah in listOf("Exception", "null", "USB_", "bulk", "endpoint")) {
-                assertFalse(
-                    "judul $kind mengandung istilah teknis '$istilah'",
-                    advice.title.contains(istilah)
-                )
-            }
+            // Kalimatnya sendiri -- tidak kosong, tanpa istilah teknis --
+            // diperiksa dalam kedua bahasa oleh TranslationTest. Di sini yang
+            // dijaga: tiap sebab punya rujukan kalimatnya sendiri, tidak nol.
+            assertNotEquals("judul kosong untuk $kind", 0, advice.title)
+            assertNotEquals("saran kosong untuk $kind", 0, advice.hint)
         }
     }
 

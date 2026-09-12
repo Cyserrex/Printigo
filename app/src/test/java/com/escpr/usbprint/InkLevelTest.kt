@@ -2,6 +2,8 @@ package com.escpr.usbprint
 
 import com.escpr.usbprint.escpr.Maintenance
 import com.escpr.usbprint.usb.parsePrinterStatus
+import com.escpr.usbprint.R
+import com.escpr.usbprint.util.uiText
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -54,8 +56,8 @@ class InkLevelTest {
         )
         assertEquals(listOf(80, 60, 40, 20), status.inks.map { it.percent })
         assertEquals(
-            listOf("Hitam", "Cyan", "Magenta", "Kuning"),
-            status.inks.map { it.label },
+            listOf(R.string.ink_black, R.string.ink_cyan, R.string.ink_magenta, R.string.ink_yellow),
+            status.inks.map { it.name },
         )
         assertTrue(status.confident)
     }
@@ -65,7 +67,7 @@ class InkLevelTest {
         // Menyebut cyan sebagai magenta membuat orang mengisi tangki yang salah.
         val status = parsePrinterStatus(reply(0x0F to inkBlock(0x2A to 50)))
         assertNull(status.inks.single().name)
-        assertEquals("Warna 42", status.inks.single().label)
+        assertEquals(uiText(R.string.ink_unknown_color, 42), status.inks.single().label)
         assertEquals(50, status.inks.single().percent)
     }
 
@@ -87,8 +89,8 @@ class InkLevelTest {
         )
         assertEquals(listOf(90, 105, 30), status.inks.map { it.percent })
         assertEquals(listOf(true, false, true), status.inks.map { it.measured })
-        assertEquals("tidak terukur", status.inks[1].reading)
-        assertEquals("90%", status.inks[0].reading)
+        assertEquals(uiText(R.string.ink_not_measurable), status.inks[1].reading)
+        assertEquals(uiText(R.string.ink_percent, 90), status.inks[0].reading)
     }
 
     @Test

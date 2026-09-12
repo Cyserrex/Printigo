@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Daftar bahasa yang benar-benar ada terjemahannya.
+
+  Dipakai Android 13 ke atas untuk menampilkan Printigo di Setelan > Bahasa
+  aplikasi. Pemilih di dalam aplikasi tetap ada karena minSdk-nya 24, dan di
+  bawah Android 13 daftar ini diabaikan sepenuhnya.
+-->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="en" />
+    <locale android:name="in" />
+</locale-config>

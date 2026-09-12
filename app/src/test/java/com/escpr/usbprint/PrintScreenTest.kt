@@ -49,11 +49,18 @@ import org.robolectric.annotation.Config
  * ikut terlihat, sehingga assertIsDisplayed tetap bermakna.
  */
 @RunWith(AndroidJUnit4::class)
-@Config(sdk = [34], qualifiers = "w420dp-h2600dp")
+// Sengaja dikunci ke bahasa Indonesia supaya kalimat yang ditegaskan di
+// bawah tetap kalimat yang sungguhan dibaca orang, bukan kunci resource.
+// Layar yang sama dalam bahasa Inggris diuji oleh EnglishScreenTest.
+@Config(sdk = [34], qualifiers = "in-w420dp-h2600dp")
 class PrintScreenTest {
 
     @get:Rule
     val compose = createComposeRule()
+
+    /** Kalimat sungguhan di balik sebuah resource, dalam bahasa layar ini. */
+    private fun teks(id: Int): String =
+        ApplicationProvider.getApplicationContext<Application>().getString(id)
 
     private fun launch(usbHost: Boolean = true): PrintViewModel {
         val app = ApplicationProvider.getApplicationContext<Application>()
@@ -90,7 +97,7 @@ class PrintScreenTest {
         compose.onNodeWithText("Printer terdeteksi").assertIsDisplayed()
         compose.onNodeWithText("Izin akses USB").assertIsDisplayed()
         compose.onNodeWithText("Colok printer ke HP", substring = true).assertIsDisplayed()
-        compose.onNodeWithText(StepAction.REFRESH.label).assertIsDisplayed()
+        compose.onNodeWithText(teks(StepAction.REFRESH.label)).assertIsDisplayed()
     }
 
     @Test
@@ -117,8 +124,8 @@ class PrintScreenTest {
         compose.waitForIdle()
 
         val advice = adviceFor(PrinterErrorKind.DOCUMENT_UNREADABLE)
-        compose.onNodeWithText(advice.title).assertIsDisplayed()
-        compose.onNodeWithText(advice.action!!.label).assertIsDisplayed()
+        compose.onNodeWithText(teks(advice.title)).assertIsDisplayed()
+        compose.onNodeWithText(teks(advice.action!!.label)).assertIsDisplayed()
 
         compose.onNodeWithText("Tutup").performClick()
         compose.waitForIdle()
@@ -305,7 +312,7 @@ class PrintScreenTest {
         assertEquals(0, viewModel.state.value.photos.size)
 
         val advice = adviceFor(PrinterErrorKind.UNSUPPORTED_FORMAT)
-        compose.onNodeWithText(advice.title).assertIsDisplayed()
+        compose.onNodeWithText(teks(advice.title)).assertIsDisplayed()
     }
 
     @Test

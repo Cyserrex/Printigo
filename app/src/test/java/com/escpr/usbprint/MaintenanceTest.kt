@@ -4,6 +4,7 @@ import com.escpr.usbprint.escpr.Maintenance
 import com.escpr.usbprint.escpr.MaintenanceTask
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -125,7 +126,13 @@ class MaintenanceTest {
     fun `pembersihan head memperingatkan soal tinta sebelum dijalankan`() {
         // Kalimat persetujuannya harus menyebut biayanya. Tanpa itu, orang akan
         // menekannya berkali-kali sampai tinta habis.
-        assertTrue(MaintenanceTask.HEAD_CLEANING.confirmation.contains("tinta"))
+        // Isi kalimatnya -- peringatan soal tinta -- diperiksa dalam kedua
+        // bahasa oleh TranslationTest; yang dijaga di sini hanya bahwa
+        // pembersihan head memang punya kalimat persetujuannya sendiri.
+        assertNotEquals(
+            MaintenanceTask.NOZZLE_CHECK.confirmation,
+            MaintenanceTask.HEAD_CLEANING.confirmation,
+        )
     }
 
     @Test

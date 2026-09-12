@@ -1,5 +1,7 @@
 package com.escpr.usbprint.ui
 
+import androidx.annotation.StringRes
+import com.escpr.usbprint.R
 import com.escpr.usbprint.escpr.MaintenanceTask
 import com.escpr.usbprint.usb.PrinterErrorKind
 
@@ -22,11 +24,11 @@ sealed interface PrintOutcome {
 }
 
 /** Tindakan pemulihan yang ditawarkan bersama pesan kegagalan. */
-enum class OutcomeAction(val label: String) {
-    RETRY("Coba lagi"),
-    REFRESH("Cari printer"),
-    REQUEST_PERMISSION("Beri izin"),
-    PICK_FILE("Pilih berkas lain"),
+enum class OutcomeAction(@StringRes val label: Int) {
+    RETRY(R.string.action_retry),
+    REFRESH(R.string.action_refresh),
+    REQUEST_PERMISSION(R.string.action_permission),
+    PICK_FILE(R.string.action_pick_file),
 }
 
 /**
@@ -37,90 +39,87 @@ enum class OutcomeAction(val label: String) {
  * dua pilihan membuat orang ragu, nol pilihan membuat buntu.
  */
 data class FailureAdvice(
-    val title: String,
-    val hint: String,
+    @StringRes val title: Int,
+    @StringRes val hint: Int,
     val action: OutcomeAction?,
 )
 
 fun adviceFor(kind: PrinterErrorKind): FailureAdvice = when (kind) {
     PrinterErrorKind.NO_USB_HOST -> FailureAdvice(
-        "HP ini tidak mendukung USB OTG",
-        "Mencetak lewat kabel butuh HP yang bisa menjadi host USB. Coba HP lain.",
+        R.string.fail_no_usb_host_title,
+        R.string.fail_no_usb_host_hint,
         null,
     )
 
     PrinterErrorKind.NO_PRINTER -> FailureAdvice(
-        "Printer tidak ditemukan",
-        "Pastikan kabel OTG tertancap dan printer menyala, lalu cari lagi.",
+        R.string.fail_no_printer_title,
+        R.string.fail_no_printer_hint,
         OutcomeAction.REFRESH,
     )
 
     PrinterErrorKind.NOT_A_PRINTER -> FailureAdvice(
-        "Perangkat yang tersambung bukan printer",
-        "Yang terdeteksi tidak punya antarmuka printer. Periksa kabelnya menuju printer.",
+        R.string.fail_not_a_printer_title,
+        R.string.fail_not_a_printer_hint,
         OutcomeAction.REFRESH,
     )
 
     PrinterErrorKind.NO_ENDPOINT -> FailureAdvice(
-        "Printer ini tidak bisa menerima data cetak",
-        "Printer terdeteksi tapi tidak menyediakan jalur data yang dibutuhkan.",
+        R.string.fail_no_endpoint_title,
+        R.string.fail_no_endpoint_hint,
         null,
     )
 
     PrinterErrorKind.PERMISSION_DENIED -> FailureAdvice(
-        "Izin akses USB belum diberikan",
-        "Tekan Beri izin, lalu pilih Oke pada dialog yang muncul.",
+        R.string.fail_permission_title,
+        R.string.fail_permission_hint,
         OutcomeAction.REQUEST_PERMISSION,
     )
 
     PrinterErrorKind.BUSY -> FailureAdvice(
-        "Printer sedang dipakai aplikasi lain",
-        "Tutup aplikasi cetak lain, atau cabut dan colok ulang kabelnya.",
+        R.string.fail_busy_title,
+        R.string.fail_busy_hint,
         OutcomeAction.RETRY,
     )
 
     PrinterErrorKind.DISCONNECTED -> FailureAdvice(
-        "Printer terputus di tengah jalan",
-        "Kabel tersenggol atau printer mati. Sambungkan lagi lalu ulangi.",
+        R.string.fail_disconnected_title,
+        R.string.fail_disconnected_hint,
         OutcomeAction.REFRESH,
     )
 
     PrinterErrorKind.TRANSFER_FAILED -> FailureAdvice(
-        "Printer berhenti menerima data",
-        "Biasanya karena kertas habis, kertas macet, atau tutup terbuka. " +
-            "Periksa printer, lalu coba lagi.",
+        R.string.fail_transfer_title,
+        R.string.fail_transfer_hint,
         OutcomeAction.RETRY,
     )
 
     PrinterErrorKind.DOCUMENT_UNREADABLE -> FailureAdvice(
-        "Berkas tidak bisa dibaca",
-        "Berkasnya mungkin rusak atau formatnya tidak didukung.",
+        R.string.fail_unreadable_title,
+        R.string.fail_unreadable_hint,
         OutcomeAction.PICK_FILE,
     )
 
     PrinterErrorKind.UNSUPPORTED_FORMAT -> FailureAdvice(
-        "Format berkas ini belum didukung",
-        "Printigo hanya bisa mencetak gambar dan PDF. Buka berkasnya di aplikasi " +
-            "Office, ekspor ke PDF, lalu cetak PDF-nya.",
+        R.string.fail_unsupported_title,
+        R.string.fail_unsupported_hint,
         OutcomeAction.PICK_FILE,
     )
 
     PrinterErrorKind.PRINTER_NOT_READY -> FailureAdvice(
-        "Printer belum siap",
-        "Beresi printernya dulu, lalu coba lagi. Tidak ada kertas yang terbuang " +
-            "karena pengiriman belum dimulai.",
+        R.string.fail_not_ready_title,
+        R.string.fail_not_ready_hint,
         OutcomeAction.RETRY,
     )
 
     PrinterErrorKind.OUT_OF_MEMORY -> FailureAdvice(
-        "Memori HP tidak cukup",
-        "Turunkan resolusi, atau tutup aplikasi lain lalu coba lagi.",
+        R.string.fail_out_of_memory_title,
+        R.string.fail_out_of_memory_hint,
         OutcomeAction.RETRY,
     )
 
     PrinterErrorKind.UNKNOWN -> FailureAdvice(
-        "Cetak gagal",
-        "Sebabnya belum bisa dipastikan. Rinciannya ada di Catatan.",
+        R.string.fail_unknown_title,
+        R.string.fail_unknown_hint,
         OutcomeAction.RETRY,
     )
 }

@@ -1,5 +1,8 @@
 package com.escpr.usbprint.escpr
 
+import androidx.annotation.StringRes
+import com.escpr.usbprint.R
+
 /**
  * Dua cara mencetak yang mencakup hampir semua kebutuhan.
  *
@@ -22,24 +25,24 @@ package com.escpr.usbprint.escpr
  * yang sudah terbukti bukan penyebabnya.
  */
 enum class PrintPreset(
-    val label: String,
-    val hint: String,
+    @StringRes val label: Int,
+    @StringRes val hint: Int,
     val quality: Quality,
     val dpi: Dpi,
     val mediaType: MediaType,
     val direction: PrintDirection,
 ) {
     EVERYDAY(
-        label = "Cetak biasa",
-        hint = "Kertas HVS. Cepat dan hemat tinta.",
+        label = R.string.preset_everyday,
+        hint = R.string.preset_everyday_hint,
         quality = Quality.NORMAL,
         dpi = Dpi.DPI300,
         mediaType = MediaType.PLAIN,
         direction = PrintDirection.BIDIRECTIONAL,
     ),
     PHOTO(
-        label = "Kualitas foto",
-        hint = "Untuk kertas foto sungguhan. Jauh lebih lama dan boros tinta.",
+        label = R.string.preset_photo,
+        hint = R.string.preset_photo_hint,
         quality = Quality.HIGH,
         dpi = Dpi.DPI600,
         mediaType = MediaType.PHOTO,

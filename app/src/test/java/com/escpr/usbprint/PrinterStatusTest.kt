@@ -3,6 +3,8 @@ package com.escpr.usbprint
 import com.escpr.usbprint.usb.PrinterFault
 import com.escpr.usbprint.usb.PrinterState
 import com.escpr.usbprint.usb.parsePrinterStatus
+import com.escpr.usbprint.R
+import com.escpr.usbprint.util.uiText
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -51,7 +53,7 @@ class PrinterStatusTest {
         assertEquals(PrinterState.ERROR, status.state)
         assertEquals(PrinterFault.PAPER_OUT, status.fault)
         assertTrue(status.blocksPrinting)
-        assertTrue(status.message!!.contains("Kertas habis"))
+        assertEquals(uiText(R.string.printer_msg_paper_out), status.message)
     }
 
     @Test
@@ -70,7 +72,7 @@ class PrinterStatusTest {
         )
         assertEquals(PrinterFault.UNRECOGNIZED, status.fault)
         assertEquals(0x7E, status.faultCode)
-        assertTrue(status.message!!.contains("126"))
+        assertEquals(uiText(R.string.printer_msg_fault_code, 126), status.message)
     }
 
     @Test

@@ -1,5 +1,7 @@
 package com.escpr.usbprint.ui
 
+import android.content.Context
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -36,8 +38,14 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import com.escpr.usbprint.R
+import com.escpr.usbprint.util.UiText
+import com.escpr.usbprint.util.text
+import com.escpr.usbprint.util.uiText
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -93,9 +101,9 @@ internal fun LayoutEditorContent(
             TopAppBar(
                 title = {
                     Column {
-                        Text("Atur tata letak", fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.editor_title), fontWeight = FontWeight.SemiBold)
                         Text(
-                            settings.paper.label,
+                            stringResource(settings.paper.label),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -103,11 +111,13 @@ internal fun LayoutEditorContent(
                 },
                 navigationIcon = {
                     IconButton(onClick = viewModel::closeLayoutEditor) {
-                        Icon(Icons.Default.Clear, contentDescription = "Tutup")
+                        Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.common_close))
                     }
                 },
                 actions = {
-                    TextButton(onClick = viewModel::closeLayoutEditor) { Text("Selesai") }
+                    TextButton(onClick = viewModel::closeLayoutEditor) {
+                        Text(stringResource(R.string.editor_done))
+                    }
                 },
             )
 
@@ -162,16 +172,20 @@ private fun EditorControls(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            overflowMessage(state)?.let { message -> OverflowNotice(message) }
+            overflowMessage(LocalContext.current, state)
+                ?.let { message -> OverflowNotice(message) }
 
             if (state.sheetMode) {
                 SheetControls(state, viewModel)
             } else {
                 Text(
-                    "Margin  kiri " + fmtMm(layout.marginLeftMm) +
-                        "  atas " + fmtMm(layout.marginTopMm) +
-                        "  kanan " + fmtMm(layout.marginRightMm) +
-                        "  bawah " + fmtMm(layout.marginBottomMm) + " mm",
+                    stringResource(
+                        R.string.preview_margins,
+                        fmtMm(layout.marginLeftMm),
+                        fmtMm(layout.marginTopMm),
+                        fmtMm(layout.marginRightMm),
+                        fmtMm(layout.marginBottomMm),
+                    ),
                     style = MaterialTheme.typography.labelLarge,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth(),
@@ -182,16 +196,27 @@ private fun EditorControls(
             // milimeter bisa langsung dicocokkan dengan penggaris.
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    if (state.sheetMode) "Foto terpilih" else "Ukuran",
+                    stringResource(
+                        if (state.sheetMode) R.string.editor_selected_photo
+                        else R.string.editor_size
+                    ),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Spacer(Modifier.width(12.dp))
                 val sized = if (state.sheetMode) state.selectedPhoto?.item?.rect else layout.content
                 val turn = if (state.sheetMode) state.selectedPhoto?.item?.rotationDegrees ?: 0 else 0
                 Text(
-                    if (sized == null) "-"
-                    else fmtMm(sized.width) + " x " + fmtMm(sized.height) + " mm" +
-                        (if (turn != 0) "  ($turn derajat)" else ""),
+                    when {
+                        sized == null -> stringResource(R.string.editor_none)
+                        turn != 0 -> stringResource(
+                            R.string.editor_size_value_rotated,
+                            fmtMm(sized.width), fmtMm(sized.height), turn,
+                        )
+                        else -> stringResource(
+                            R.string.editor_size_value,
+                            fmtMm(sized.width), fmtMm(sized.height),
+                        )
+                    },
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
                 )
@@ -202,14 +227,17 @@ private fun EditorControls(
                 Spacer(Modifier.width(8.dp))
                 FilledTonalIconButton(
                     onClick = { viewModel.nudgePlacement(0f, 0f, ZOOM_STEP) }
-                ) { Icon(Icons.Default.Add, contentDescription = "Perbesar") }
+                ) { Icon(Icons.Default.Add, contentDescription = stringResource(R.string.editor_enlarge)) }
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Batas cetak", style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    stringResource(R.string.settings_margin_desc),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
                 Spacer(Modifier.weight(1f))
                 Text(
-                    fmtMm(state.settings.marginMm) + " mm",
+                    stringResource(R.string.settings_margin_mm, fmtMm(state.settings.marginMm)),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
                 )
@@ -236,12 +264,12 @@ private fun EditorControls(
                             modifier = Modifier.size(18.dp),
                         )
                         Spacer(Modifier.width(6.dp))
-                        Text("Atur ulang")
+                        Text(stringResource(R.string.editor_reset))
                     }
                     Spacer(Modifier.weight(1f))
                 }
                 Text(
-                    "Geser, cubit, atau ketuk dua kali",
+                    stringResource(R.string.editor_gesture_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = if (state.sheetMode) Modifier.fillMaxWidth() else Modifier,
@@ -254,7 +282,7 @@ private fun EditorControls(
 
 /** Peringatan ringkas di dalam editor; versi lengkapnya ada di halaman utama. */
 @Composable
-private fun OverflowNotice(message: String) {
+private fun OverflowNotice(message: UiText) {
     Card(
         Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -270,7 +298,7 @@ private fun OverflowNotice(message: String) {
             )
             Spacer(Modifier.width(8.dp))
             Text(
-                message,
+                message.text(),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onErrorContainer,
             )
@@ -290,9 +318,17 @@ private fun SheetControls(state: UiState, viewModel: PrintViewModel) {
     val sheets = state.sheetPages.size
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
-            state.currentSheetPhotos.size.toString() + " foto di lembar ini" +
-                (if (sheets > 1) " - lembar " + (state.currentSheet + 1) + " dari " + sheets else "") +
-                (if (state.selectedPhoto != null) " - satu terpilih" else ""),
+            stringResource(R.string.editor_sheet_photos, state.currentSheetPhotos.size) +
+                (if (sheets > 1) {
+                    stringResource(R.string.editor_sheet_of, state.currentSheet + 1, sheets)
+                } else {
+                    ""
+                }) +
+                (if (state.selectedPhoto != null) {
+                    stringResource(R.string.editor_one_selected)
+                } else {
+                    ""
+                }),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -303,19 +339,19 @@ private fun SheetControls(state: UiState, viewModel: PrintViewModel) {
                 TextButton(
                     onClick = { viewModel.showSheet(state.currentSheet - 1) },
                     enabled = state.currentSheet > 0,
-                ) { Text("< Lembar sebelumnya") }
+                ) { Text(stringResource(R.string.editor_prev_sheet)) }
                 Spacer(Modifier.weight(1f))
                 TextButton(
                     onClick = { viewModel.showSheet(state.currentSheet + 1) },
                     enabled = state.currentSheet < sheets - 1,
-                ) { Text("Lembar berikutnya >") }
+                ) { Text(stringResource(R.string.editor_next_sheet)) }
             }
         }
 
         // Berapa foto per lembar. "Semua" mempertahankan perilaku lama: satu
         // lembar, sepadat apa pun. Nilai lain membagi foto ke beberapa lembar.
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Per lembar", style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(R.string.editor_per_sheet), style = MaterialTheme.typography.bodyMedium)
             Spacer(Modifier.width(8.dp))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 listOf(0, 1, 2, 4, 6, 9).forEach { perSheet ->
@@ -323,7 +359,12 @@ private fun SheetControls(state: UiState, viewModel: PrintViewModel) {
                     AssistChip(
                         onClick = { viewModel.setPhotosPerSheet(perSheet) },
                         enabled = !selected,
-                        label = { Text(if (perSheet == 0) "Semua" else perSheet.toString()) },
+                        label = {
+                            Text(
+                                if (perSheet == 0) stringResource(R.string.editor_all)
+                                else perSheet.toString()
+                            )
+                        },
                     )
                 }
             }
@@ -333,27 +374,27 @@ private fun SheetControls(state: UiState, viewModel: PrintViewModel) {
             AssistChip(
                 onClick = { viewModel.rotateSelectedPhoto(-1) },
                 enabled = state.selectedPhoto != null,
-                label = { Text("Putar kiri") },
+                label = { Text(stringResource(R.string.editor_rotate_left)) },
             )
             AssistChip(
                 onClick = { viewModel.rotateSelectedPhoto(1) },
                 enabled = state.selectedPhoto != null,
-                label = { Text("Putar kanan") },
+                label = { Text(stringResource(R.string.editor_rotate_right)) },
             )
             AssistChip(
                 onClick = { viewModel.arrangeGrid(0) },
-                label = { Text("Susun otomatis") },
+                label = { Text(stringResource(R.string.editor_auto_arrange)) },
             )
             listOf(1, 2, 3, 4).forEach { columns ->
                 AssistChip(
                     onClick = { viewModel.arrangeGrid(columns) },
-                    label = { Text(columns.toString() + " kolom") },
+                    label = { Text(stringResource(R.string.editor_columns, columns)) },
                 )
             }
             AssistChip(
                 onClick = viewModel::removeSelectedPhoto,
                 enabled = state.selectedPhoto != null,
-                label = { Text("Hapus terpilih") },
+                label = { Text(stringResource(R.string.editor_delete_selected)) },
             )
         }
     }
@@ -382,26 +423,28 @@ private const val ZOOM_STEP = 1.05f
  * kena dan yang terjauh, karena mendaftar empat sisi untuk enam foto sekaligus
  * justru tidak terbaca.
  */
-internal fun overflowMessage(state: UiState): String? {
+internal fun overflowMessage(context: Context, state: UiState): UiText? {
     if (state.sheetMode) {
         val layout = state.sheetLayout
         val clipped = layout.clipped
         if (clipped.isEmpty()) return null
         val worst = clipped.maxOf { layout.overflowOf(it).worstMm }
-        return clipped.size.toString() + " foto keluar area cetak, terjauh " +
-            fmtMm(worst) + " mm"
+        return uiText(R.string.overflow_photos, clipped.size, fmtMm(worst))
     }
 
     val layout = state.pageLayout
     if (!layout.hasOverflow) return null
     val tolerance = PageLayout.TOLERANCE_MM
     val sides = buildList {
-        if (layout.overflowLeftMm > tolerance) add("kiri " + fmtMm(layout.overflowLeftMm))
-        if (layout.overflowTopMm > tolerance) add("atas " + fmtMm(layout.overflowTopMm))
-        if (layout.overflowRightMm > tolerance) add("kanan " + fmtMm(layout.overflowRightMm))
-        if (layout.overflowBottomMm > tolerance) add("bawah " + fmtMm(layout.overflowBottomMm))
+        fun sisi(@StringRes id: Int, mm: Float) {
+            if (mm > tolerance) add(context.getString(id, fmtMm(mm)))
+        }
+        sisi(R.string.overflow_side_left, layout.overflowLeftMm)
+        sisi(R.string.overflow_side_top, layout.overflowTopMm)
+        sisi(R.string.overflow_side_right, layout.overflowRightMm)
+        sisi(R.string.overflow_side_bottom, layout.overflowBottomMm)
     }
-    return "Keluar dari area cetak: " + sides.joinToString("  ") + " mm"
+    return uiText(R.string.overflow_sides, sides.joinToString("  "))
 }
 
 /** 3.0 -> "3", 2.54 -> "2,5" */

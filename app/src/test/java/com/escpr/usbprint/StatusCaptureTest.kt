@@ -2,6 +2,8 @@ package com.escpr.usbprint
 
 import com.escpr.usbprint.usb.PrinterState
 import com.escpr.usbprint.usb.parsePrinterStatus
+import com.escpr.usbprint.R
+import com.escpr.usbprint.util.uiText
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -47,8 +49,8 @@ class StatusCaptureTest {
         val s = parsePrinterStatus(rekaman)
         assertEquals(4, s.inks.size)
         assertEquals(
-            listOf("Hitam", "Kuning", "Magenta", "Cyan"),
-            s.inks.map { it.label },
+            listOf(R.string.ink_black, R.string.ink_yellow, R.string.ink_magenta, R.string.ink_cyan),
+            s.inks.map { it.name },
         )
     }
 
@@ -58,8 +60,8 @@ class StatusCaptureTest {
         assertTrue(s.inks.isNotEmpty())
         s.inks.forEach { ink ->
             assertEquals(105, ink.percent)
-            assertFalse(ink.label + " dikira terukur", ink.measured)
-            assertEquals("tidak terukur", ink.reading)
+            assertFalse("tangki kode ${ink.code} dikira terukur", ink.measured)
+            assertEquals(uiText(R.string.ink_not_measurable), ink.reading)
         }
     }
 

@@ -8,6 +8,7 @@ import com.escpr.usbprint.escpr.PrintPreset
 import com.escpr.usbprint.escpr.PrintSettings
 import com.escpr.usbprint.escpr.presetOf
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -103,8 +104,8 @@ class PrintPresetTest {
     @Test
     fun `tiap preset punya penjelasan yang tidak kosong`() {
         PrintPreset.entries.forEach { preset ->
-            assertTrue(preset.name, preset.label.isNotBlank())
-            assertTrue(preset.name, preset.hint.isNotBlank())
+            assertNotEquals(preset.name, 0, preset.label)
+            assertNotEquals(preset.name, 0, preset.hint)
         }
     }
 

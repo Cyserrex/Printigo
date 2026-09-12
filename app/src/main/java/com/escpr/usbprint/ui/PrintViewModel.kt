@@ -49,9 +49,14 @@ import com.escpr.usbprint.usb.PrinterErrorKind
 import com.escpr.usbprint.usb.PrinterState
 import com.escpr.usbprint.usb.PrinterStatus
 import com.escpr.usbprint.usb.parsePrinterStatus
+import com.escpr.usbprint.usb.printerStateLabel
 import com.escpr.usbprint.usb.UsbPrinter
 import com.escpr.usbprint.usb.classifyFailure
+import androidx.annotation.StringRes
+import com.escpr.usbprint.R
+import com.escpr.usbprint.util.AppLanguage
 import com.escpr.usbprint.util.SettingsStore
+import com.escpr.usbprint.util.localizedContext
 import com.escpr.usbprint.util.StreamSink
 import com.escpr.usbprint.util.copyToCache
 import com.escpr.usbprint.util.sweepCache
@@ -182,6 +187,8 @@ data class UiState(
      * "sudah diperiksa, printer tidak melaporkan apa-apa" tidak tampak sama.
      */
     val inkChecked: Boolean = false,
+    /** Bahasa yang dipilih pengguna; SYSTEM berarti ikut bahasa HP. */
+    val language: AppLanguage = AppLanguage.SYSTEM,
 ) {
     /** Indeks halaman yang akan dicetak, sudah diselesaikan dari pilihan. */
     val pagesToPrint: List<Int>
@@ -262,7 +269,11 @@ data class UiState(
             hasUsbHost = hasUsbHost,
             deviceCount = devices.size,
             deviceLabel = selectedDevice?.let { device ->
-                device.productName ?: "Perangkat %04X:%04X".format(device.vendorId, device.productId)
+                // Tanpa awalan kata apa pun. VID:PID sudah berdiri di bawah
+                // judul "Printer terdeteksi", dan UiState tidak punya Context
+                // untuk menerjemahkan kata pengantar yang tidak menambah apa-apa.
+                device.productName
+                    ?: "%04X:%04X".format(device.vendorId, device.productId)
             },
             hasPermission = hasPermission,
             permissionDenied = permissionDenied,
@@ -298,6 +309,18 @@ class PrintViewModel @JvmOverloads constructor(
     private val usbManager = app.getSystemService(Context.USB_SERVICE) as UsbManager
     private val settingsStore = SettingsStore(app)
 
+    /**
+     * Context yang resource-nya sudah berbahasa pilihan pengguna.
+     *
+     * Layar mendapat bahasanya dari attachBaseContext; catatan tidak, karena
+     * ditulis dari ViewModel yang memegang Application. Tanpa ini, aplikasi
+     * yang disetel berbahasa Inggris di HP berbahasa Indonesia akan menulis
+     * catatan berbahasa Indonesia di bawah layar berbahasa Inggris.
+     */
+    @Volatile
+    private var strings: Context =
+        localizedContext(app, settingsStore.loadLanguage())
+
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state.asStateFlow()
 
@@ -312,12 +335,12 @@ class PrintViewModel @JvmOverloads constructor(
                 ACTION_USB_PERMISSION -> {
                     val granted = intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)
                     if (granted) {
-                        log("Izin USB diberikan.")
+                        log(R.string.log_permission_granted)
                         _state.update { it.copy(permissionDenied = false) }
                         refreshDevices()
                         readDeviceIdentity()
                     } else {
-                        log("Izin USB ditolak.")
+                        log(R.string.log_permission_denied)
                         // Ditandai supaya daftar periksa tidak sekadar bilang
                         // "menunggu izin", dan supaya tidak ada permintaan ulang
                         // otomatis yang berubah jadi lingkaran dialog.
@@ -327,11 +350,11 @@ class PrintViewModel @JvmOverloads constructor(
                     }
                 }
                 UsbManager.ACTION_USB_DEVICE_ATTACHED -> {
-                    log("Perangkat USB terpasang.")
+                    log(R.string.log_usb_attached)
                     refreshDevices()
                 }
                 UsbManager.ACTION_USB_DEVICE_DETACHED -> {
-                    log("Perangkat USB dicabut.")
+                    log(R.string.log_usb_detached)
                     refreshDevices()
                 }
             }
@@ -351,8 +374,14 @@ class PrintViewModel @JvmOverloads constructor(
         val usbHost = app.packageManager.hasSystemFeature(PackageManager.FEATURE_USB_HOST)
         // Pengaturan terakhir dipulihkan supaya pengguna yang selalu mencetak
         // hitam-putih draft tidak perlu mengatur ulang lima chip tiap kali.
-        _state.update { it.copy(hasUsbHost = usbHost, settings = settingsStore.load()) }
-        if (!usbHost) log("HP ini tidak mendukung USB Host (OTG).")
+        _state.update {
+            it.copy(
+                hasUsbHost = usbHost,
+                settings = settingsStore.load(),
+                language = settingsStore.loadLanguage(),
+            )
+        }
+        if (!usbHost) log(R.string.log_no_usb_host)
 
         sweepCacheQuietly()
         refreshDevices()
@@ -379,7 +408,7 @@ class PrintViewModel @JvmOverloads constructor(
                 deviceId = if (selected == null) null else it.deviceId
             )
         }
-        if (devices.isEmpty()) log("Tidak ada printer USB terdeteksi.")
+        if (devices.isEmpty()) log(R.string.log_no_printer)
     }
 
     fun selectDevice(device: UsbDevice) {
@@ -436,15 +465,15 @@ class PrintViewModel @JvmOverloads constructor(
                 _state.update { it.copy(deviceId = id, escpRSupport = support) }
                 when (support) {
                     EscpRSupport.NO_REPLY ->
-                        log("Printer tidak membalas Device ID (tidak selalu masalah).")
+                        log(R.string.log_device_id_no_reply)
                     EscpRSupport.SUPPORTED ->
-                        log("Device ID: $id -- mendukung ESC/P-R.")
+                        log(R.string.log_device_id_supported, id.orEmpty())
                     else ->
-                        log("Device ID: $id -- ESC/P-R tidak tercantum.")
+                        log(R.string.log_device_id_not_listed, id.orEmpty())
                 }
             }.onFailure { error ->
                 _state.update { it.copy(escpRSupport = EscpRSupport.NO_REPLY) }
-                log("Gagal membaca Device ID: ${error.message}")
+                log(R.string.log_device_id_failed, error.message.orEmpty())
             }
         }
     }
@@ -471,11 +500,11 @@ class PrintViewModel @JvmOverloads constructor(
                     it.copy(
                         outcome = PrintOutcome.Failed(
                             PrinterErrorKind.UNSUPPORTED_FORMAT,
-                            "Format tidak didukung: " + mime.ifBlank { name },
+                            strings.getString(R.string.err_format_unsupported, mime.ifBlank { name }),
                         )
                     )
                 }
-                log("Format belum didukung: " + name)
+                log(R.string.log_format_unsupported, name)
             }
 
             // Gambar, atau tipe yang tidak dilaporkan sama sekali. Yang terakhir
@@ -515,7 +544,7 @@ class PrintViewModel @JvmOverloads constructor(
                         pageSelection = PageSelection(),
                     )
                 }
-                log("Dipilih: ${document.name} (${document.pageCount} halaman)")
+                log(R.string.log_selected, document.name, document.pageCount)
                 loadPreview(0)
             }.onFailure { error ->
                 _state.update {
@@ -526,7 +555,7 @@ class PrintViewModel @JvmOverloads constructor(
                         )
                     )
                 }
-                log("Gagal membuka berkas: ${error.message}")
+                log(R.string.log_open_failed, error.message.orEmpty())
             }
         }
     }
@@ -559,7 +588,7 @@ class PrintViewModel @JvmOverloads constructor(
                 }
             }.onFailure { error ->
                 _state.update { it.copy(previewLoading = false) }
-                log("Pratinjau gagal dibuat: ${error.message}")
+                log(R.string.log_preview_failed, error.message.orEmpty())
             }
         }
     }
@@ -580,9 +609,24 @@ class PrintViewModel @JvmOverloads constructor(
         _state.update { state ->
             val bawaan = PrintSettings()
             settingsStore.save(bawaan)
-            log("Setelan cetak dikembalikan ke bawaan.")
+            log(R.string.log_settings_reset)
             state.copy(settings = bawaan)
         }
+    }
+
+    /**
+     * Mengganti bahasa aplikasi.
+     *
+     * Layar dibangun ulang oleh Activity begitu nilai ini berubah; yang
+     * dikerjakan di sini hanya menyimpannya dan memindahkan sumber kalimat
+     * catatan ke bahasa yang baru. Catatan yang sudah tertulis sengaja
+     * dibiarkan apa adanya: ia riwayat berstempel waktu, bukan tampilan.
+     */
+    fun setLanguage(language: AppLanguage) {
+        if (language == _state.value.language) return
+        settingsStore.saveLanguage(language)
+        strings = localizedContext(getApplication(), language)
+        _state.update { it.copy(language = language) }
     }
 
     fun updateSettings(transform: (PrintSettings) -> PrintSettings) {
@@ -691,7 +735,7 @@ class PrintViewModel @JvmOverloads constructor(
                         )
                     )
                 }
-                log("Gagal membuka gambar: " + message)
+                log(R.string.log_image_open_failed, message)
             }
 
             if (added.isEmpty()) return@launch
@@ -719,7 +763,7 @@ class PrintViewModel @JvmOverloads constructor(
                     layoutEditorOpen = false,
                 )
             }
-            log("Ditambahkan " + added.size + " foto, total " + _state.value.photos.size + ".")
+            log(R.string.log_photos_added, added.size, _state.value.photos.size)
         }
     }
 
@@ -883,14 +927,14 @@ class PrintViewModel @JvmOverloads constructor(
                     printer.writeBulk(request, 0, request.size)
 
                     val status = parsePrinterStatus(readStatusReply(printer))
-                    if (status.raw.isNotBlank()) log("Status: " + status.raw)
+                    if (status.raw.isNotBlank()) log(R.string.log_status, status.raw)
                     // Dicatat berbaris-baris pendek, bukan satu baris panjang.
                     // Balasannya ratusan byte, dan satu baris panjang di kartu
                     // catatan tidak bisa dibaca dari tangkapan layar -- padahal
                     // kepala balasan itulah yang menentukan bentuknya.
                     if (status.hex.isNotBlank()) {
                         val byteList = status.hex.split(" ")
-                        log("Balasan " + byteList.size + " byte:")
+                        log(R.string.log_reply_bytes, byteList.size)
                         byteList.chunked(24).forEachIndexed { index, bagian ->
                             log("  [" + (index * 24) + "] " + bagian.joinToString(" "))
                         }
@@ -903,16 +947,20 @@ class PrintViewModel @JvmOverloads constructor(
                         )
                     }
 
-                    if (status.confident) log("Keadaan printer: " + status.state.name.lowercase())
+                    if (status.confident) log(R.string.log_printer_state, printerStateWord(status.state))
                     if (status.inks.isEmpty()) {
-                        log("Sisa tinta tidak dilaporkan printer ini.")
+                        log(R.string.log_ink_unreported)
                     } else {
-                        log(status.inks.joinToString(", ") { it.label + " " + it.reading })
+                        log(
+                            status.inks.joinToString(", ") { ink ->
+                                ink.label.resolve(strings) + " " + ink.reading.resolve(strings)
+                            }
+                        )
                     }
                 }
             } catch (error: Throwable) {
                 _state.update { it.copy(inkChecked = true) }
-                log("Gagal membaca sisa tinta: " + (error.message ?: error.toString()))
+                log(R.string.log_ink_failed, error.message ?: error.toString())
             } finally {
                 _state.update { it.copy(busy = false) }
             }
@@ -967,7 +1015,7 @@ class PrintViewModel @JvmOverloads constructor(
                     val sink = printer.sink()
                     val bytes = task.bytes(current.maintenanceVariant)
                     log(
-                        task.label +
+                        strings.getString(task.label) +
                             (if (task.usesVariant) " (" + current.maintenanceVariant.name + ")" else "") +
                             ": " + bytes.joinToString(" ") { "%02X".format(it) }
                     )
@@ -988,14 +1036,20 @@ class PrintViewModel @JvmOverloads constructor(
                     val akhir = waitUntilIdle(printer)
                     val detik = (System.currentTimeMillis() - mulaiTunggu) / 1000
                     log(
-                        "Ditunggu " + detik + " detik, printer melapor: " +
-                            (akhir?.state?.name?.lowercase() ?: "tidak menjawab") +
-                            (if (akhir != null && !akhir.confident) " (balasan tidak dikenali)" else "")
+                        R.string.log_maint_waited,
+                        detik,
+                        (akhir?.state?.let { printerStateWord(it) }
+                            ?: strings.getString(R.string.log_maint_no_answer)) +
+                            (if (akhir != null && !akhir.confident) {
+                                strings.getString(R.string.log_maint_unrecognised)
+                            } else {
+                                ""
+                            }),
                     )
 
                 }
                 _state.update { it.copy(outcome = PrintOutcome.MaintenanceSent(task)) }
-                log(task.label + " selesai dikirim.")
+                log(R.string.log_maint_sent, strings.getString(task.label))
             } catch (error: Throwable) {
                 val stillAttached = usbManager.deviceList.values
                     .any { it.deviceName == device.deviceName }
@@ -1005,7 +1059,11 @@ class PrintViewModel @JvmOverloads constructor(
                         outcome = PrintOutcome.Failed(kind, error.message ?: error.toString())
                     )
                 }
-                log(task.label + " gagal: " + (error.message ?: error.toString()))
+                log(
+                    R.string.log_maint_failed,
+                    strings.getString(task.label),
+                    error.message ?: error.toString(),
+                )
             } finally {
                 _state.update { it.copy(busy = false, progress = 0f) }
             }
@@ -1085,7 +1143,7 @@ class PrintViewModel @JvmOverloads constructor(
             val removed = runCatching {
                 sweepCache(getApplication<Application>().cacheDir, keep)
             }.getOrDefault(0)
-            if (removed > 0) log("Membersihkan " + removed + " salinan lama dari cache.")
+            if (removed > 0) log(R.string.log_cache_cleaned, removed)
         }
     }
 
@@ -1114,24 +1172,29 @@ class PrintViewModel @JvmOverloads constructor(
                     // habis baru ketahuan setelah separuh halaman terlanjur
                     // terkirim dan transfer gagal di tengah jalan.
                     val before = parsePrinterStatus(printer.readStatus(700))
-                    if (before.raw.isNotBlank()) log("Status printer: " + before.raw)
+                    if (before.raw.isNotBlank()) log(R.string.log_printer_status, before.raw)
                     if (before.blocksPrinting) {
                         _state.update {
                             it.copy(
                                 outcome = PrintOutcome.Failed(
                                     PrinterErrorKind.PRINTER_NOT_READY,
-                                    before.message ?: "Printer belum siap",
+                                    before.message?.resolve(strings)
+                                        ?: strings.getString(R.string.log_printer_not_ready),
                                 )
                             )
                         }
-                        log("Dibatalkan sebelum mengirim: " + (before.message ?: "printer belum siap"))
+                        log(
+                            R.string.log_cancelled_before_send,
+                            before.message?.resolve(strings)
+                                ?: strings.getString(R.string.log_printer_not_ready),
+                        )
                         return@use
                     }
 
                     val sink = printer.sink()
                     pageSource(current).use { source ->
                         val (width, height) = current.printableSize
-                        log("Mencetak pada $width x $height piksel...")
+                        log(R.string.log_printing_at, width, height)
                         val laporan = PrintTask.run(
                             sink, source, current.settings,
                             if (current.sheetMode) ContentPlacement.Fit else current.placement,
@@ -1143,17 +1206,20 @@ class PrintViewModel @JvmOverloads constructor(
                         // bisa diperbaiki dengan kode hanya bagian gambar dan
                         // olah; kalau yang besar justru kirim, batasnya ada di
                         // kabel dan printer, bukan di aplikasi.
-                        log("Waktu -- " + laporan.ringkas())
-                        log("Sambungan: " + printer.linkSpeed())
+                        log(
+                            R.string.log_time,
+                            strings.getString(R.string.log_time_detail, *laporan.angka()),
+                        )
+                        log(R.string.log_link, printer.linkSpeed().resolve(strings))
                     }
                     sink.close()
 
                     val after = parsePrinterStatus(printer.readStatus(500))
-                    after.message?.let { log("Printer: " + it) }
-                    if (after.raw.isNotBlank()) log("Status akhir: " + after.raw)
+                    after.message?.let { log(R.string.log_printer, it.resolve(strings)) }
+                    if (after.raw.isNotBlank()) log(R.string.log_final_status, after.raw)
                 }
                 val seconds = (System.currentTimeMillis() - started) / 1000.0
-                log("Selesai dalam %.1f detik.".format(seconds))
+                log(R.string.log_done_in, seconds)
                 _state.update {
                     it.copy(progress = 1f, outcome = PrintOutcome.Success(sheets, seconds))
                 }
@@ -1173,7 +1239,7 @@ class PrintViewModel @JvmOverloads constructor(
                         )
                     )
                 }
-                log("Cetak gagal [$kind]: ${error.message}")
+                log(R.string.log_print_failed, kind.name, error.message.orEmpty())
             } finally {
                 _state.update { it.copy(busy = false) }
             }
@@ -1187,7 +1253,7 @@ class PrintViewModel @JvmOverloads constructor(
 
     fun cancel() {
         printJob?.cancel()
-        log("Pembatalan diminta. Printer mungkin masih mengeluarkan halaman yang sedang jalan.")
+        log(R.string.log_cancel_requested)
     }
 
     /**
@@ -1209,7 +1275,7 @@ class PrintViewModel @JvmOverloads constructor(
             try {
                 val app = getApplication<Application>()
                 val stream = app.contentResolver.openOutputStream(uri)
-                    ?: throw java.io.IOException("Tidak bisa menulis ke lokasi itu")
+                    ?: throw java.io.IOException(strings.getString(R.string.err_cannot_write))
 
                 var written = 0L
                 StreamSink(stream).use { sink ->
@@ -1223,7 +1289,7 @@ class PrintViewModel @JvmOverloads constructor(
                     }
                     written = sink.bytesWritten
                 }
-                log("Tersimpan sebagai .prn, ${formatBytes(written)}.")
+                log(R.string.log_saved_prn, formatBytes(written))
                 _state.update {
                     it.copy(progress = 1f, outcome = PrintOutcome.Saved(written))
                 }
@@ -1235,7 +1301,7 @@ class PrintViewModel @JvmOverloads constructor(
                         )
                     )
                 }
-                log("Gagal menyimpan: ${error.message}")
+                log(R.string.log_save_failed, error.message.orEmpty())
             } finally {
                 _state.update { it.copy(busy = false) }
             }
@@ -1257,10 +1323,19 @@ class PrintViewModel @JvmOverloads constructor(
                     printableMm = state.sheetLayout.printable,
                 )
             } else {
-                val document = state.document ?: throw java.io.IOException("Tidak ada dokumen")
+                val document = state.document ?: throw java.io.IOException(strings.getString(R.string.err_no_document))
                 if (document.isPdf) PdfPageSource(document.file) else ImagePageSource(document.file)
             }
         }
+
+    /** Menulis satu baris catatan dalam bahasa yang sedang dipakai aplikasi. */
+    /** Nama keadaan printer untuk catatan, mengikuti bahasa aplikasi. */
+    private fun printerStateWord(state: PrinterState): String =
+        strings.getString(printerStateLabel(state))
+
+    private fun log(@StringRes id: Int, vararg args: Any) {
+        log(strings.getString(id, *args))
+    }
 
     private fun log(message: String) {
         val stamp = SimpleDateFormat("HH:mm:ss", Locale.US).format(Date())

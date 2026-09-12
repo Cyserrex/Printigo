@@ -5,7 +5,9 @@ import com.escpr.usbprint.ui.adviceFor
 import com.escpr.usbprint.usb.PrinterErrorKind
 import com.escpr.usbprint.util.DocumentKind
 import com.escpr.usbprint.util.classifyDocument
+import com.escpr.usbprint.R
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -91,9 +93,9 @@ class DocumentKindTest {
         assertEquals(OutcomeAction.PICK_FILE, advice.action)
         assertTrue(
             "saran harus menyebut PDF sebagai jalan keluarnya",
-            advice.hint.contains("PDF")
+            advice.hint == R.string.fail_unsupported_hint
         )
         // Tidak boleh menuduh berkasnya rusak, karena memang tidak.
-        assertTrue(!advice.hint.contains("rusak"))
+        assertNotEquals(advice.hint, adviceFor(PrinterErrorKind.DOCUMENT_UNREADABLE).hint)
     }
 }

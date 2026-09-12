@@ -39,7 +39,11 @@ import java.io.File
  */
 @RunWith(AndroidJUnit4::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [34], qualifiers = "w411dp-h2200dp")
+// Dikunci ke bahasa Indonesia supaya tangkapan layarnya bisa dibandingkan
+// dengan yang sebelumnya. Versi bahasa Inggrisnya ditangkap terpisah di
+// bawah, karena panjang kalimat yang berbeda adalah justru yang perlu
+// dilihat setelah aplikasi punya dua bahasa.
+@Config(sdk = [34], qualifiers = "in-w411dp-h2200dp")
 class ScreenshotTest {
 
     @get:Rule
@@ -92,7 +96,7 @@ class ScreenshotTest {
         }
 
     @Test
-    @Config(qualifiers = "w411dp-h891dp")
+    @Config(qualifiers = "in-w411dp-h891dp")
     fun `tangkap layar lembar berisi banyak foto`() {
         val app = ApplicationProvider.getApplicationContext<Application>()
         val viewModel = PrintViewModel(app, Dispatchers.Unconfined, Dispatchers.Unconfined)
@@ -217,7 +221,7 @@ class ScreenshotTest {
     // sungguhan. Viewport uji yang sengaja dibuat tinggi untuk halaman utama
     // akan membuat kertasnya tampak kecil di tengah ruang kosong.
     @Test
-    @Config(qualifiers = "w411dp-h891dp")
+    @Config(qualifiers = "in-w411dp-h891dp")
     fun `tangkap layar editor tata letak`() {
         val app = ApplicationProvider.getApplicationContext<Application>()
         val viewModel = PrintViewModel(app, Dispatchers.Unconfined, Dispatchers.Unconfined)

@@ -8,10 +8,15 @@ Dibangun dan dibuktikan pada **Epson L3110**. Printer Epson lain yang berbahasa
 ESC/P-R memakai jalur yang sama persis, tetapi belum diuji — lihat
 [Status](#status-apa-yang-terbukti-apa-yang-belum).
 
+Tersedia dalam **bahasa Indonesia dan Inggris**. Bawaannya mengikuti bahasa HP;
+kalau tidak cocok, ada pemilihnya di *Setelan cetak → Setelan lanjutan →
+Bahasa · Language*.
+
 <p align="center">
   <img src="docs/screenshots/10-lembar-enam-foto.png" width="30%" alt="Enam foto dalam satu lembar">
   <img src="docs/screenshots/8-editor-tata-letak.png" width="30%" alt="Editor tata letak layar penuh">
   <img src="docs/screenshots/12-lembar-terpotong.png" width="30%" alt="Peringatan terpotong">
+  <img src="docs/screenshots/20-english-lanjutan.png" width="30%" alt="Layar setelan dalam bahasa Inggris">
 </p>
 
 ---
@@ -70,9 +75,11 @@ untuk mengujinya, jadi batas antara "terbukti" dan "belum" dijaga ketat.
 | Penguraian sisa tinta: kode asing, entri rusak, balasan terpotong | 10 uji |
 | Foto praktis tidak bisa dipadatkan RLE, dokumen teks bisa | diukur, bukan diasumsikan |
 | Tampilan benar-benar tergambar | tangkapan layar dari komposisi Compose di JVM |
+| Kedua bahasa sepadan: tidak ada kunci kosong, penanda format cocok, spasi yang disengaja tidak terpangkas | 9 uji terjemahan |
+| Layar utama tersusun, terbaca, dan bisa disentuh dalam bahasa Inggris | 4 uji + tangkapan layar tersendiri |
 | APK terkompilasi, tertandatangani, zipalign, manifes benar | `apksigner`, `zipalign`, `aapt2` |
 
-**194 unit test**, semuanya lolos: `gradlew test`.
+**209 unit test**, semuanya lolos: `gradlew test`.
 
 ### Belum terbukti
 

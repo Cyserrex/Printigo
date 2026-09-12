@@ -37,6 +37,21 @@ class SettingsStore(context: Context) {
         )
     }
 
+    /**
+     * Bahasa dibaca terpisah dari setelan cetak.
+     *
+     * Sengaja: bahasa dipakai sebelum ada satu pun setelan cetak yang relevan --
+     * di attachBaseContext, sebelum Activity berdiri -- dan memuat seluruh
+     * PrintSettings hanya untuk mengambil satu nilai membuat urutan
+     * penyalaannya bergantung pada hal yang tidak ada hubungannya.
+     */
+    fun loadLanguage(): AppLanguage =
+        read(KEY_LANGUAGE, AppLanguage.entries, AppLanguage.SYSTEM)
+
+    fun saveLanguage(language: AppLanguage) {
+        prefs.edit().putString(KEY_LANGUAGE, language.name).apply()
+    }
+
     fun save(settings: PrintSettings) {
         prefs.edit()
             .putString(KEY_PAPER, settings.paper.name)
@@ -63,5 +78,6 @@ class SettingsStore(context: Context) {
         const val KEY_MEDIA = "media"
         const val KEY_MARGIN = "margin"
         const val KEY_DIRECTION = "direction"
+        const val KEY_LANGUAGE = "language"
     }
 }

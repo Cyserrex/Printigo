@@ -1,6 +1,7 @@
 ﻿package com.escpr.usbprint.ui
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -65,13 +66,17 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.annotation.StringRes
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -82,6 +87,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.escpr.usbprint.BuildConfig
+import com.escpr.usbprint.R
 import com.escpr.usbprint.escpr.ColorMode
 import com.escpr.usbprint.escpr.Dpi
 import com.escpr.usbprint.escpr.Maintenance
@@ -96,7 +102,12 @@ import com.escpr.usbprint.escpr.Quality
 import com.escpr.usbprint.layout.PageLayout
 import com.escpr.usbprint.usb.InkLevel
 import com.escpr.usbprint.usb.PrinterState
+import com.escpr.usbprint.usb.printerStateLabel
+import com.escpr.usbprint.util.AppLanguage
+import com.escpr.usbprint.util.SettingsStore
 import com.escpr.usbprint.util.formatBytes
+import com.escpr.usbprint.util.localizedContext
+import com.escpr.usbprint.util.text
 import com.escpr.usbprint.print.PageSelectionMode
 import com.escpr.usbprint.ui.theme.AppTheme
 import kotlin.math.roundToInt
@@ -104,6 +115,19 @@ import kotlin.math.roundToInt
 class MainActivity : ComponentActivity() {
 
     private val viewModel: PrintViewModel by viewModels()
+
+    /**
+     * Memasang bahasa pilihan pengguna sebelum satu pun tampilan dibuat.
+     *
+     * Harus di sini, bukan di onCreate: resource sudah dibaca saat Activity
+     * berdiri, jadi mengganti locale setelah itu hanya berpengaruh pada teks
+     * yang kebetulan dibaca belakangan -- sebagian layar berganti bahasa,
+     * sebagian tidak.
+     */
+    override fun attachBaseContext(newBase: Context) {
+        val bahasa = SettingsStore(newBase).loadLanguage()
+        super.attachBaseContext(localizedContext(newBase, bahasa))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -168,6 +192,16 @@ class MainActivity : ComponentActivity() {
 internal fun PrintScreen(viewModel: PrintViewModel) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
+    // Bahasa dipasang di attachBaseContext, jadi menggantinya berarti membangun
+    // ulang Activity. Nilai awalnya diingat supaya pembangunan ulang hanya
+    // terjadi ketika pengguna benar-benar memilih bahasa lain, bukan pada
+    // setiap penyusunan ulang layar.
+    val context = LocalContext.current
+    val bahasaAwal = remember { state.language }
+    LaunchedEffect(state.language) {
+        if (state.language != bahasaAwal) (context as? Activity)?.recreate()
+    }
+
     val pickDocument = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri -> uri?.let(viewModel::openDocument) }
@@ -196,7 +230,7 @@ internal fun PrintScreen(viewModel: PrintViewModel) {
             CenterAlignedTopAppBar(
                 title = {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("USB Printer OTG", fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.app_title), fontWeight = FontWeight.SemiBold)
                         // Subjudul menambahkan yang tidak disebut di tempat
                         // lain. Nama printer sudah tampil di kartu sambungan,
                         // dan "ESC/P-R" -- nama bahasa raster Epson -- hanya
@@ -204,7 +238,7 @@ internal fun PrintScreen(viewModel: PrintViewModel) {
                         // pengguna justru alasan aplikasi ini ada, ditambah
                         // nomor versi untuk melaporkan masalah.
                         Text(
-                            "Tanpa WiFi, tanpa komputer  ·  v${BuildConfig.VERSION_NAME}",
+                            stringResource(R.string.app_subtitle, BuildConfig.VERSION_NAME),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
@@ -213,7 +247,10 @@ internal fun PrintScreen(viewModel: PrintViewModel) {
                 },
                 actions = {
                     IconButton(onClick = viewModel::refreshDevices) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Cari printer")
+                        Icon(
+                            Icons.Default.Refresh,
+                            contentDescription = stringResource(R.string.action_find_printer),
+                        )
                     }
                 }
             )
@@ -284,10 +321,10 @@ private fun MaintenanceSection(state: UiState, viewModel: PrintViewModel) {
                     .clickable { expanded = !expanded },
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Perawatan printer", fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.maint_title), fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.weight(1f))
                 Text(
-                    if (expanded) "Tutup" else "Buka",
+                    stringResource(if (expanded) R.string.common_close else R.string.common_open),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )
@@ -297,8 +334,7 @@ private fun MaintenanceSection(state: UiState, viewModel: PrintViewModel) {
                 InkPanel(state, viewModel)
                 HorizontalDivider()
                 Text(
-                    "Hasil cetak bergaris atau warna hilang biasanya berarti " +
-                        "nozzle mampet. Cek dulu, baru bersihkan kalau memang perlu.",
+                    stringResource(R.string.maint_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -307,23 +343,28 @@ private fun MaintenanceSection(state: UiState, viewModel: PrintViewModel) {
                         OutlinedButton(
                             onClick = { viewModel.askMaintenance(task) },
                             enabled = !state.busy,
-                        ) { Text(task.label) }
+                        ) { Text(stringResource(task.label)) }
                     }
                 }
                 HorizontalDivider()
-                Text("Bentuk perintah", style = MaterialTheme.typography.labelLarge)
+                Text(
+                    stringResource(R.string.maint_variant_title),
+                    style = MaterialTheme.typography.labelLarge,
+                )
                 ChipRow(
                     Maintenance.Variant.entries,
                     state.maintenanceVariant,
-                    { v -> if (v == Maintenance.Variant.EXTENDED) "Baku" else "Lama" },
+                    { v ->
+                        stringResource(
+                            if (v == Maintenance.Variant.EXTENDED) R.string.maint_variant_default
+                            else R.string.maint_variant_legacy
+                        )
+                    },
                     !state.busy,
                 ) { v -> viewModel.setMaintenanceVariant(v) }
 
                 Text(
-                    "Baku mengikuti bentuk yang dipakai driver Epson resmi, dan " +
-                        "itulah yang terbukti bekerja pada L3110. Bentuk Lama " +
-                        "disediakan untuk model yang tidak merespons yang baku. " +
-                        "Byte yang dikirim dicatat di kartu Catatan.",
+                    stringResource(R.string.maint_variant_hint),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -345,16 +386,23 @@ private fun MaintenanceSection(state: UiState, viewModel: PrintViewModel) {
 private fun InkPanel(state: UiState, viewModel: PrintViewModel) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Status printer", style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(R.string.ink_status_title), style = MaterialTheme.typography.bodyMedium)
             Spacer(Modifier.weight(1f))
             TextButton(onClick = viewModel::refreshInk, enabled = !state.busy) {
-                Text(if (state.inkChecked) "Periksa lagi" else "Periksa")
+                Text(
+                    stringResource(
+                        if (state.inkChecked) R.string.ink_check_again else R.string.ink_check
+                    )
+                )
             }
         }
 
         if (state.printerState != null) {
             Text(
-                "Printer melapor: " + keadaanPrinter(state.printerState),
+                stringResource(
+                    R.string.ink_printer_reports,
+                    stringResource(printerStateLabel(state.printerState)),
+                ),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
             )
@@ -364,16 +412,10 @@ private fun InkPanel(state: UiState, viewModel: PrintViewModel) {
             state.inks.isNotEmpty() -> {
                 state.inks.forEach { ink -> InkBar(ink) }
                 Text(
-                    if (state.inks.none { it.measured })
-                        "Printer melaporkan tangkinya, tapi tanpa angka yang " +
-                            "bisa diukur -- printer tangki tidak punya sensor " +
-                            "di dalamnya. Periksa tangkinya langsung; aplikasi " +
-                            "Epson di komputer pun menyarankan hal yang sama."
-                    else
-                        "Angka ini perkiraan printer, bukan hasil pengukuran. " +
-                            "Kalau tangki sudah diisi tapi angkanya masih " +
-                            "rendah, level tintanya perlu di-reset lewat tombol " +
-                            "tetesan di printer.",
+                    stringResource(
+                        if (state.inks.none { it.measured }) R.string.ink_note_unmeasured
+                        else R.string.ink_note_estimate
+                    ),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -385,32 +427,18 @@ private fun InkPanel(state: UiState, viewModel: PrintViewModel) {
             // begitu lebih menolong daripada menyarankan orang membaca catatan
             // mentah untuk sesuatu yang memang tidak pernah ada.
             state.inkChecked -> Text(
-                "Printer ini tidak melaporkan sisa tinta, dan itu wajar: printer " +
-                    "tangki tidak punya sensor di dalam tangkinya. Periksa " +
-                    "tangkinya langsung -- aplikasi Epson di komputer pun " +
-                    "menyarankan hal yang sama.",
+                stringResource(R.string.ink_note_none),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             else -> Text(
-                "Belum diperiksa.",
+                stringResource(R.string.ink_unchecked),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
-}
-
-/** Nama keadaan printer dalam bahasa sehari-hari. */
-private fun keadaanPrinter(state: PrinterState): String = when (state) {
-    PrinterState.IDLE -> "siap"
-    PrinterState.PRINTING -> "sedang mencetak"
-    PrinterState.BUSY -> "sibuk"
-    PrinterState.PAUSED -> "dijeda"
-    PrinterState.CLEANING -> "membersihkan head"
-    PrinterState.ERROR -> "ada masalah"
-    PrinterState.UNKNOWN -> "keadaan tidak dikenali"
 }
 
 /**
@@ -424,7 +452,7 @@ private fun keadaanPrinter(state: PrinterState): String = when (state) {
 private fun InkBar(ink: InkLevel) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
-            ink.label,
+            ink.label.text(),
             style = MaterialTheme.typography.labelMedium,
             modifier = Modifier.width(76.dp),
         )
@@ -437,14 +465,14 @@ private fun InkBar(ink: InkLevel) {
             )
             Spacer(Modifier.width(8.dp))
             Text(
-                ink.reading,
+                ink.reading.text(),
                 style = MaterialTheme.typography.labelMedium,
                 modifier = Modifier.width(40.dp),
                 textAlign = TextAlign.End,
             )
         } else {
             Text(
-                ink.reading,
+                ink.reading.text(),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.weight(1f),
@@ -465,13 +493,17 @@ private fun MaintenanceConfirmDialog(state: UiState, viewModel: PrintViewModel) 
 
     AlertDialog(
         onDismissRequest = viewModel::dismissMaintenance,
-        title = { Text(task.label) },
-        text = { Text(task.confirmation) },
+        title = { Text(stringResource(task.label)) },
+        text = { Text(stringResource(task.confirmation)) },
         confirmButton = {
-            TextButton(onClick = { viewModel.runMaintenance(task) }) { Text("Jalankan") }
+            TextButton(onClick = { viewModel.runMaintenance(task) }) {
+                Text(stringResource(R.string.common_run))
+            }
         },
         dismissButton = {
-            TextButton(onClick = viewModel::dismissMaintenance) { Text("Batal") }
+            TextButton(onClick = viewModel::dismissMaintenance) {
+                Text(stringResource(R.string.common_cancel))
+            }
         },
     )
 }
@@ -543,21 +575,24 @@ private fun PreviewSection(
 
             if (state.hasContent) {
                 Button(onClick = viewModel::openLayoutEditor, enabled = !state.busy) {
-                    Text("Atur tata letak")
+                    Text(stringResource(R.string.preview_arrange))
                 }
 
                 if (state.sheetMode) {
                     Text(
-                        state.photos.size.toString() + " foto dalam satu lembar",
+                        stringResource(R.string.preview_photos_on_sheet, state.photos.size),
                         style = MaterialTheme.typography.labelMedium,
                         textAlign = TextAlign.Center
                     )
                 } else {
                     Text(
-                        "Margin  kiri " + fmtMm(layout.marginLeftMm) +
-                            "  atas " + fmtMm(layout.marginTopMm) +
-                            "  kanan " + fmtMm(layout.marginRightMm) +
-                            "  bawah " + fmtMm(layout.marginBottomMm) + " mm",
+                        stringResource(
+                            R.string.preview_margins,
+                            fmtMm(layout.marginLeftMm),
+                            fmtMm(layout.marginTopMm),
+                            fmtMm(layout.marginRightMm),
+                            fmtMm(layout.marginBottomMm),
+                        ),
                         style = MaterialTheme.typography.labelMedium,
                         textAlign = TextAlign.Center
                     )
@@ -576,25 +611,34 @@ private fun PreviewSection(
                     IconButton(
                         onClick = { viewModel.showPage(state.previewPage - 1) },
                         enabled = state.previewPage > 0
-                    ) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Halaman sebelumnya") }
+                    ) { Icon(
+                            Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                            stringResource(R.string.preview_page_prev),
+                        ) }
                     Text(
-                        "Halaman " + (state.previewPage + 1) + " / " + document.pageCount,
+                        stringResource(
+                            R.string.preview_page_of,
+                            state.previewPage + 1,
+                            document.pageCount,
+                        ),
                         style = MaterialTheme.typography.labelLarge
                     )
                     IconButton(
                         onClick = { viewModel.showPage(state.previewPage + 1) },
                         enabled = state.previewPage < document.pageCount - 1
-                    ) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Halaman berikutnya") }
+                    ) { Icon(
+                            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            stringResource(R.string.preview_page_next),
+                        ) }
                 }
             }
 
             val (width, height) = state.printableSize
             Text(
                 text = if (document == null) {
-                    "Pilih gambar atau PDF untuk melihat pratinjaunya"
+                    stringResource(R.string.preview_pick_prompt)
                 } else {
-                    "Area cetak " + width + " x " + height + " piksel  -  " +
-                        settings.dpi.value + " dpi"
+                    stringResource(R.string.preview_print_area, width, height, settings.dpi.value)
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -602,11 +646,16 @@ private fun PreviewSection(
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilledTonalButton(onClick = onPick, enabled = !state.busy) {
-                    Text(if (state.hasContent) "Ganti berkas" else "Pilih berkas")
+                    Text(
+                        stringResource(
+                            if (state.hasContent) R.string.preview_change_file
+                            else R.string.preview_pick_file
+                        )
+                    )
                 }
                 if (state.sheetMode) {
                     OutlinedButton(onClick = onAddPhotos, enabled = !state.busy) {
-                        Text("Tambah foto")
+                        Text(stringResource(R.string.preview_add_photos))
                     }
                 }
             }
@@ -647,8 +696,11 @@ private fun DataSizeNote(state: UiState) {
     // Satu baris, bukan paragraf. Angkanya yang berguna; alasannya ada di
     // README dan tidak perlu diulang di layar setiap kali.
     Text(
-        "~" + formatBytes(total) + " dikirim ke printer" +
-            (if (lembar > 1) " untuk $lembar lembar" else ""),
+        if (lembar > 1) {
+            stringResource(R.string.settings_data_size_sheets, formatBytes(total), lembar)
+        } else {
+            stringResource(R.string.settings_data_size, formatBytes(total))
+        },
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -676,7 +728,7 @@ private fun PageSelectionRow(state: UiState, viewModel: PrintViewModel, pageCoun
                 selected = selection.mode == PageSelectionMode.ALL,
                 onClick = { viewModel.updatePageSelection { it.copy(mode = PageSelectionMode.ALL) } },
                 enabled = enabled,
-                label = { Text("Semua " + pageCount + " halaman") },
+                label = { Text(stringResource(R.string.pages_all, pageCount)) },
             )
             FilterChip(
                 selected = selection.mode == PageSelectionMode.CURRENT,
@@ -684,7 +736,7 @@ private fun PageSelectionRow(state: UiState, viewModel: PrintViewModel, pageCoun
                     viewModel.updatePageSelection { it.copy(mode = PageSelectionMode.CURRENT) }
                 },
                 enabled = enabled,
-                label = { Text("Halaman ini") },
+                label = { Text(stringResource(R.string.pages_current)) },
             )
             FilterChip(
                 selected = selection.mode == PageSelectionMode.RANGE,
@@ -698,19 +750,19 @@ private fun PageSelectionRow(state: UiState, viewModel: PrintViewModel, pageCoun
                     }
                 },
                 enabled = enabled,
-                label = { Text("Rentang") },
+                label = { Text(stringResource(R.string.pages_range)) },
             )
         }
 
         if (selection.mode == PageSelectionMode.RANGE) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Dari", style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.pages_from), style = MaterialTheme.typography.bodySmall)
                 Spacer(Modifier.width(6.dp))
                 Stepper(selection.fromPage, 1..pageCount, enabled) { value ->
                     viewModel.updatePageSelection { it.copy(fromPage = value) }
                 }
                 Spacer(Modifier.width(12.dp))
-                Text("sampai", style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.pages_to), style = MaterialTheme.typography.bodySmall)
                 Spacer(Modifier.width(6.dp))
                 Stepper(selection.toPage, 1..pageCount, enabled) { value ->
                     viewModel.updatePageSelection { it.copy(toPage = value) }
@@ -720,7 +772,7 @@ private fun PageSelectionRow(state: UiState, viewModel: PrintViewModel, pageCoun
 
         val count = state.pagesToPrint.size
         Text(
-            count.toString() + " halaman akan dicetak",
+            stringResource(R.string.pages_count_to_print, count),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -735,7 +787,7 @@ private fun PageSelectionRow(state: UiState, viewModel: PrintViewModel, pageCoun
  */
 @Composable
 private fun OverflowWarning(state: UiState) {
-    val message = overflowMessage(state) ?: return
+    val message = overflowMessage(LocalContext.current, state) ?: return
 
     Card(
         Modifier.fillMaxWidth(),
@@ -753,13 +805,13 @@ private fun OverflowWarning(state: UiState) {
             Spacer(Modifier.width(10.dp))
             Column {
                 Text(
-                    "Sebagian gambar akan terpotong",
+                    stringResource(R.string.overflow_title),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onErrorContainer
                 )
                 Text(
-                    message + ". Bagian merah tidak akan tercetak.",
+                    stringResource(R.string.overflow_detail, message.text()),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onErrorContainer
                 )
@@ -789,27 +841,27 @@ private fun PrintSettingsSection(state: UiState, viewModel: PrintViewModel) {
     val preset = presetOf(settings)
     var lanjutanTerbuka by remember { mutableStateOf(false) }
 
-    SectionCard("Setelan cetak") {
+    SectionCard(stringResource(R.string.settings_title)) {
         ChipRow<PrintPreset?>(
             PrintPreset.entries,
             preset,
-            { it?.label.orEmpty() },
+            { pilihan -> pilihan?.let { stringResource(it.label) }.orEmpty() },
             enabled,
         ) { value -> value?.let { pilih -> viewModel.updateSettings { pilih.applyTo(it) } } }
 
         Text(
-            preset?.hint ?: "Setelan campuran. Pilih salah satu di atas untuk kembali.",
+            stringResource(preset?.hint ?: R.string.settings_preset_mixed),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
-        Label("Warna")
-        ChipRow(ColorMode.entries, settings.colorMode, { it.label }, enabled) { value ->
+        Label(stringResource(R.string.settings_color))
+        ChipRow(ColorMode.entries, settings.colorMode, { stringResource(it.label) }, enabled) { value ->
             viewModel.updateSettings { it.copy(colorMode = value) }
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Salinan", style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(R.string.settings_copies), style = MaterialTheme.typography.bodyMedium)
             Spacer(Modifier.weight(1f))
             Stepper(settings.copies, 1..20, enabled) { value ->
                 viewModel.updateSettings { it.copy(copies = value) }
@@ -822,9 +874,13 @@ private fun PrintSettingsSection(state: UiState, viewModel: PrintViewModel) {
         // yang tersembunyi -- orang harus tetap bisa melihat apa yang berlaku
         // tanpa membuka apa pun.
         Text(
-            settings.paper.shortLabel + "  ·  " + settings.dpi.label + "  ·  " +
-                settings.mediaType.label.lowercase() + "  ·  margin " +
-                fmtMm(settings.marginMm) + " mm",
+            stringResource(
+                R.string.settings_summary,
+                stringResource(settings.paper.shortLabel),
+                settings.dpi.label,
+                stringResource(settings.mediaType.label).lowercase(),
+                fmtMm(settings.marginMm),
+            ),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -836,26 +892,36 @@ private fun PrintSettingsSection(state: UiState, viewModel: PrintViewModel) {
                 .clickable { lanjutanTerbuka = !lanjutanTerbuka },
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("Setelan lanjutan", style = MaterialTheme.typography.labelLarge)
+            Text(
+                stringResource(R.string.settings_advanced),
+                style = MaterialTheme.typography.labelLarge,
+            )
             Spacer(Modifier.weight(1f))
             Text(
-                if (lanjutanTerbuka) "Tutup" else "Buka",
+                stringResource(
+                    if (lanjutanTerbuka) R.string.common_close else R.string.common_open
+                ),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
             )
         }
 
         if (lanjutanTerbuka) {
-            Label("Kertas")
-            ChipRow(PaperSize.entries, settings.paper, { it.shortLabel }, enabled) { value ->
+            Label(stringResource(R.string.settings_paper))
+            ChipRow(
+                PaperSize.entries,
+                settings.paper,
+                { stringResource(it.shortLabel) },
+                enabled,
+            ) { value ->
                 viewModel.updateSettings { it.copy(paper = value) }
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Margin", style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.settings_margin), style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.weight(1f))
                 Text(
-                    fmtMm(settings.marginMm) + " mm",
+                    stringResource(R.string.settings_margin_mm, fmtMm(settings.marginMm)),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
                 )
@@ -868,59 +934,84 @@ private fun PrintSettingsSection(state: UiState, viewModel: PrintViewModel) {
                 valueRange = 0f..20f,
                 steps = 39,
                 enabled = enabled,
-                modifier = Modifier.semantics {
-                    contentDescription = "Batas cetak"
-                    stateDescription = fmtMm(settings.marginMm) + " milimeter"
+                modifier = run {
+                    val nama = stringResource(R.string.settings_margin_desc)
+                    val nilai = stringResource(
+                        R.string.settings_margin_state,
+                        fmtMm(settings.marginMm),
+                    )
+                    Modifier.semantics {
+                        contentDescription = nama
+                        stateDescription = nilai
+                    }
                 },
             )
             Text(
-                "Di bawah 3 mm berisiko terpotong di tepi kertas.",
+                stringResource(R.string.settings_margin_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            Label("Kualitas")
-            ChipRow(Quality.entries, settings.quality, { it.shortLabel }, enabled) { value ->
+            Label(stringResource(R.string.settings_quality))
+            ChipRow(
+                Quality.entries,
+                settings.quality,
+                { stringResource(it.shortLabel) },
+                enabled,
+            ) { value ->
                 viewModel.updateSettings { it.copy(quality = value) }
             }
 
-            Label("Resolusi")
+            Label(stringResource(R.string.settings_resolution))
             ChipRow(Dpi.entries, settings.dpi, { it.label }, enabled) { value ->
                 viewModel.updateSettings { it.copy(dpi = value) }
             }
 
-            Label("Jenis kertas")
-            ChipRow(MediaType.entries, settings.mediaType, { it.label }, enabled) { value ->
+            Label(stringResource(R.string.settings_media))
+            ChipRow(
+                MediaType.entries,
+                settings.mediaType,
+                { stringResource(it.label) },
+                enabled,
+            ) { value ->
                 viewModel.updateSettings { it.copy(mediaType = value) }
             }
             Text(
-                "Harus cocok dengan kertas yang benar-benar dimuat. Memilih " +
-                    "Matte atau kertas foto untuk HVS biasa membuat tinta " +
-                    "berlebih dan hasilnya berbayang.",
+                stringResource(R.string.settings_media_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            Label("Arah cetak")
+            Label(stringResource(R.string.settings_direction))
             ChipRow(
                 PrintDirection.entries,
                 settings.direction,
-                { arah ->
-                    if (arah == PrintDirection.BIDIRECTIONAL) "Dua arah (cepat)"
-                    else "Satu arah (lebih rapi)"
-                },
+                { arah -> stringResource(arah.label) },
                 enabled,
             ) { arah -> viewModel.updateSettings { it.copy(direction = arah) } }
 
+            // Pemilih bahasa ditaruh di sini, bukan di bilah atas: ia dipakai
+            // sekali lalu tidak disentuh lagi, sama seperti ukuran kertas.
+            // Labelnya sengaja memuat kedua kata sekaligus supaya tetap bisa
+            // ditemukan oleh orang yang terlanjur membuka aplikasi dalam bahasa
+            // yang tidak ia mengerti.
+            Label(stringResource(R.string.settings_language))
+            ChipRow(
+                AppLanguage.entries,
+                state.language,
+                { bahasa -> stringResource(bahasa.label) },
+                enabled,
+            ) { bahasa -> viewModel.setLanguage(bahasa) }
+
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "Bawaan: berwarna, Normal, 300 dpi, kertas biasa",
+                    stringResource(R.string.settings_defaults),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f),
                 )
                 TextButton(onClick = viewModel::resetSettings, enabled = enabled) {
-                    Text("Kembalikan")
+                    Text(stringResource(R.string.settings_restore))
                 }
             }
         }
@@ -969,7 +1060,7 @@ private fun ConnectionCard(state: UiState, viewModel: PrintViewModel) {
                 StepIcon(if (connection.ready) StepState.OK else StepState.ACTION_NEEDED)
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    connection.headline,
+                    connection.headline.text(),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
                     maxLines = 2,
@@ -978,7 +1069,11 @@ private fun ConnectionCard(state: UiState, viewModel: PrintViewModel) {
                 )
                 if (connection.ready) {
                     TextButton(onClick = { manuallyExpanded = !manuallyExpanded }) {
-                        Text(if (expanded) "Tutup" else "Rincian")
+                        Text(
+                            stringResource(
+                                if (expanded) R.string.common_close else R.string.conn_details
+                            )
+                        )
                     }
                 }
             }
@@ -1002,9 +1097,10 @@ private fun ConnectionCard(state: UiState, viewModel: PrintViewModel) {
                                     onClick = { viewModel.selectDevice(candidate) },
                                     label = {
                                         Text(
-                                            candidate.productName ?: "%04X:%04X".format(
-                                                candidate.vendorId, candidate.productId
-                                            )
+                                            candidate.productName
+                                                ?: "%04X:%04X".format(
+                                                    candidate.vendorId, candidate.productId
+                                                )
                                         )
                                     }
                                 )
@@ -1036,14 +1132,14 @@ private fun StepRow(step: ConnectionStep, onAction: (StepAction) -> Unit) {
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             Text(
-                step.title,
+                step.title.text(),
                 style = MaterialTheme.typography.bodyMedium,
                 color = if (dim) MaterialTheme.colorScheme.onSurfaceVariant
                 else MaterialTheme.colorScheme.onSurface
             )
             step.detail?.let { detail ->
                 Text(
-                    detail,
+                    detail.text(),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1051,7 +1147,7 @@ private fun StepRow(step: ConnectionStep, onAction: (StepAction) -> Unit) {
         }
         step.action?.let { action ->
             Spacer(Modifier.width(8.dp))
-            Button(onClick = { onAction(action) }) { Text(action.label) }
+            Button(onClick = { onAction(action) }) { Text(stringResource(action.label)) }
         }
     }
 }
@@ -1061,13 +1157,13 @@ private fun StepIcon(state: StepState) {
     when (state) {
         StepState.OK -> Icon(
             Icons.Default.CheckCircle,
-            contentDescription = "selesai",
+            contentDescription = stringResource(R.string.step_icon_done),
             tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(20.dp)
         )
         StepState.ACTION_NEEDED, StepState.IMPOSSIBLE -> Icon(
             Icons.Default.Warning,
-            contentDescription = "perlu tindakan",
+            contentDescription = stringResource(R.string.step_icon_action),
             tint = MaterialTheme.colorScheme.error,
             modifier = Modifier.size(20.dp)
         )
@@ -1095,7 +1191,7 @@ private fun LogSection(state: UiState, onExport: () -> Unit) {
     if (state.log.isEmpty() && !state.hasContent) return
     var expanded by remember { mutableStateOf(false) }
 
-    SectionCard("Catatan") {
+    SectionCard(stringResource(R.string.log_title)) {
         AnimatedVisibility(expanded) {
             Column(
                 Modifier
@@ -1126,20 +1222,22 @@ private fun LogSection(state: UiState, onExport: () -> Unit) {
         }
         if (state.log.isNotEmpty()) {
             TextButton(onClick = { expanded = !expanded }) {
-                Text(if (expanded) "Sembunyikan" else "Lihat semua (${state.log.size})")
+                Text(
+                    if (expanded) stringResource(R.string.log_hide)
+                    else stringResource(R.string.log_show_all, state.log.size)
+                )
             }
         }
 
         if (state.hasContent) {
             HorizontalDivider()
             Text(
-                "Byte yang sama persis dengan yang dikirim ke printer, untuk " +
-                    "menelusuri masalah dari komputer.",
+                stringResource(R.string.log_prn_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             OutlinedButton(onClick = onExport, enabled = !state.busy) {
-                Text("Simpan data cetak (.prn)")
+                Text(stringResource(R.string.log_save_prn))
             }
         }
     }
@@ -1178,7 +1276,7 @@ private fun PrintBar(
                 )
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "Mengirim ${(state.progress * 100).roundToInt()}%",
+                    stringResource(R.string.bar_sending, (state.progress * 100).roundToInt()),
                     style = MaterialTheme.typography.labelMedium
                 )
                 Spacer(Modifier.height(8.dp))
@@ -1186,7 +1284,7 @@ private fun PrintBar(
                 LinearProgressIndicator(Modifier.fillMaxWidth())
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "Menghubungi printer...",
+                    stringResource(R.string.bar_contacting),
                     style = MaterialTheme.typography.labelMedium
                 )
                 Spacer(Modifier.height(8.dp))
@@ -1197,13 +1295,17 @@ private fun PrintBar(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (state.busy && state.busyReason == BusyReason.PRINTING) {
-                    OutlinedButton(onClick = viewModel::cancel) { Text("Batalkan") }
+                    OutlinedButton(onClick = viewModel::cancel) {
+                        Text(stringResource(R.string.bar_cancel))
+                    }
                 } else if (state.busy) {
                     // Menunggu printer selesai bisa berlangsung sampai dua
                     // setengah menit pada printer yang tidak pernah menjawab.
                     // Tombolnya tidak membatalkan perintah yang sudah terkirim
                     // -- itu sudah di tangan printer -- hanya berhenti menunggu.
-                    OutlinedButton(onClick = viewModel::cancel) { Text("Berhenti menunggu") }
+                    OutlinedButton(onClick = viewModel::cancel) {
+                        Text(stringResource(R.string.bar_stop_waiting))
+                    }
                 }
                 // Simpan .prn pindah ke kartu Catatan. Ia alat penelusuran,
                 // bukan tindakan sehari-hari, dan sebelumnya menempati separuh
@@ -1217,8 +1319,11 @@ private fun PrintBar(
                     modifier = Modifier.weight(1f).height(50.dp)
                 ) {
                     Text(
-                        if (state.settings.copies > 1) "Cetak ${state.settings.copies} salinan"
-                        else "Cetak",
+                        if (state.settings.copies > 1) {
+                            stringResource(R.string.bar_print_copies, state.settings.copies)
+                        } else {
+                            stringResource(R.string.bar_print)
+                        },
                         style = MaterialTheme.typography.titleSmall
                     )
                 }
@@ -1286,7 +1391,10 @@ private fun StatusLine(ok: Boolean, text: String) {
 private fun <T> ChipRow(
     options: List<T>,
     selected: T,
-    labelOf: (T) -> String,
+    // @Composable supaya pemanggil boleh memakai stringResource di dalamnya.
+    // Tanpa itu setiap pemanggil harus menyiapkan teksnya lebih dulu di luar,
+    // dan daftar pilihan yang panjang jadi dua daftar yang harus sejalan.
+    labelOf: @Composable (T) -> String,
     enabled: Boolean,
     onSelect: (T) -> Unit
 ) {
@@ -1302,6 +1410,13 @@ private fun <T> ChipRow(
     }
 }
 
+/** contentDescription butuh resource, dan resource butuh konteks composable. */
+@Composable
+private fun stepperSemantics(@StringRes id: Int): Modifier {
+    val nama = stringResource(id)
+    return Modifier.semantics { contentDescription = nama }
+}
+
 @Composable
 private fun Stepper(value: Int, range: IntRange, enabled: Boolean, onChange: (Int) -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1309,7 +1424,7 @@ private fun Stepper(value: Int, range: IntRange, enabled: Boolean, onChange: (In
             onClick = { onChange((value - 1).coerceIn(range)) },
             enabled = enabled && value > range.first,
             label = { Text("-") },
-            modifier = Modifier.semantics { contentDescription = "Kurangi" }
+            modifier = stepperSemantics(R.string.stepper_decrease)
         )
         Text(
             "$value",
@@ -1320,7 +1435,7 @@ private fun Stepper(value: Int, range: IntRange, enabled: Boolean, onChange: (In
             onClick = { onChange((value + 1).coerceIn(range)) },
             enabled = enabled && value < range.last,
             label = { Text("+") },
-            modifier = Modifier.semantics { contentDescription = "Tambah" }
+            modifier = stepperSemantics(R.string.stepper_increase)
         )
     }
 }
@@ -1341,24 +1456,24 @@ private fun OutcomeCard(
     val advice = (outcome as? PrintOutcome.Failed)?.let { adviceFor(it.kind) }
 
     val title = when (outcome) {
-        is PrintOutcome.Failed -> advice!!.title
-        is PrintOutcome.Success ->
-            "Selesai. ${outcome.sheets} lembar terkirim dalam " +
-                "${outcome.seconds.roundToInt()} detik."
-        is PrintOutcome.Saved -> "Tersimpan sebagai berkas .prn."
-        is PrintOutcome.MaintenanceSent -> outcome.task.label + " sudah dikirim."
-        PrintOutcome.Cancelled -> "Cetak dibatalkan."
+        is PrintOutcome.Failed -> stringResource(advice!!.title)
+        is PrintOutcome.Success -> stringResource(
+            R.string.outcome_success, outcome.sheets, outcome.seconds.roundToInt()
+        )
+        is PrintOutcome.Saved -> stringResource(R.string.outcome_saved)
+        is PrintOutcome.MaintenanceSent ->
+            stringResource(R.string.outcome_maint_sent, stringResource(outcome.task.label))
+        PrintOutcome.Cancelled -> stringResource(R.string.outcome_cancelled)
         PrintOutcome.None -> ""
     }
     val hint = when (outcome) {
-        is PrintOutcome.Failed -> advice!!.hint
-        PrintOutcome.Cancelled ->
-            "Halaman yang sudah masuk ke printer tetap akan keluar."
-        is PrintOutcome.Success ->
-            "Printer mungkin masih menyelesaikan lembar terakhir."
-        is PrintOutcome.MaintenanceSent ->
-            if (outcome.task.usesPaper) "Lihat hasilnya di kertas yang keluar."
-            else "Printer akan sibuk sekitar satu menit. Tunggu sampai lampunya tenang."
+        is PrintOutcome.Failed -> stringResource(advice!!.hint)
+        PrintOutcome.Cancelled -> stringResource(R.string.outcome_cancelled_hint)
+        is PrintOutcome.Success -> stringResource(R.string.outcome_success_hint)
+        is PrintOutcome.MaintenanceSent -> stringResource(
+            if (outcome.task.usesPaper) R.string.outcome_maint_paper_hint
+            else R.string.outcome_maint_ink_hint
+        )
         else -> null
     }
 
@@ -1406,9 +1521,11 @@ private fun OutcomeCard(
                             OutcomeAction.REQUEST_PERMISSION -> viewModel.requestPermission()
                             OutcomeAction.PICK_FILE -> onPickFile()
                         }
-                    }) { Text(action.label) }
+                    }) { Text(stringResource(action.label)) }
                 }
-                TextButton(onClick = viewModel::dismissOutcome) { Text("Tutup") }
+                TextButton(onClick = viewModel::dismissOutcome) {
+                    Text(stringResource(R.string.outcome_close))
+                }
             }
         }
     }
