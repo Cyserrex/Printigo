@@ -94,6 +94,11 @@
     <string name="settings_defaults">Default: colour, Normal, 300 dpi, plain paper</string>
     <string name="settings_restore">Restore</string>
 
+    <string name="settings_screen_title">Settings</string>
+    <string name="about_title">About</string>
+    <string name="about_no_device_id">Device ID has not been read yet.</string>
+    <string name="settings_print_defaults">Default print settings</string>
+
     <!-- Bahasa -->
     <string name="settings_language">Bahasa · Language</string>
     <string name="language_system">System</string>

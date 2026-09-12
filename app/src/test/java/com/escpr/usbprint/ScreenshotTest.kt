@@ -16,6 +16,7 @@ import com.escpr.usbprint.escpr.PaperSize
 import androidx.compose.runtime.collectAsState
 import com.escpr.usbprint.ui.LayoutEditorContent
 import com.escpr.usbprint.ui.PrintScreen
+import com.escpr.usbprint.ui.SettingsContent
 import com.escpr.usbprint.ui.PrintViewModel
 import com.escpr.usbprint.ui.theme.AppTheme
 import org.junit.Assert.assertTrue
@@ -94,6 +95,19 @@ class ScreenshotTest {
             file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
             Uri.fromFile(file)
         }
+
+    @Test
+    fun `tangkap layar setelan di balik gear`() {
+        val app = ApplicationProvider.getApplicationContext<Application>()
+        val viewModel = PrintViewModel(app, Dispatchers.Unconfined, Dispatchers.Unconfined)
+        compose.setContent {
+            AppTheme {
+                val current = viewModel.state.collectAsState().value
+                SettingsContent(current, viewModel) {}
+            }
+        }
+        capture("22-setelan")
+    }
 
     @Test
     @Config(qualifiers = "in-w411dp-h891dp")

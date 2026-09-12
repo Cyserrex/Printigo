@@ -42,8 +42,8 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -71,6 +71,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -90,8 +91,6 @@ import com.escpr.usbprint.BuildConfig
 import com.escpr.usbprint.R
 import com.escpr.usbprint.escpr.ColorMode
 import com.escpr.usbprint.escpr.Dpi
-import com.escpr.usbprint.escpr.Maintenance
-import com.escpr.usbprint.escpr.MaintenanceTask
 import com.escpr.usbprint.escpr.MediaType
 import com.escpr.usbprint.escpr.EscpRJob
 import com.escpr.usbprint.escpr.PaperSize
@@ -100,9 +99,6 @@ import com.escpr.usbprint.escpr.PrintPreset
 import com.escpr.usbprint.escpr.presetOf
 import com.escpr.usbprint.escpr.Quality
 import com.escpr.usbprint.layout.PageLayout
-import com.escpr.usbprint.usb.InkLevel
-import com.escpr.usbprint.usb.PrinterState
-import com.escpr.usbprint.usb.printerStateLabel
 import com.escpr.usbprint.util.AppLanguage
 import com.escpr.usbprint.util.SettingsStore
 import com.escpr.usbprint.util.formatBytes
@@ -197,6 +193,7 @@ internal fun PrintScreen(viewModel: PrintViewModel) {
     // terjadi ketika pengguna benar-benar memilih bahasa lain, bukan pada
     // setiap penyusunan ulang layar.
     val context = LocalContext.current
+    var settingsOpen by rememberSaveable { mutableStateOf(false) }
     val bahasaAwal = remember { state.language }
     LaunchedEffect(state.language) {
         if (state.language != bahasaAwal) (context as? Activity)?.recreate()
@@ -252,6 +249,12 @@ internal fun PrintScreen(viewModel: PrintViewModel) {
                             contentDescription = stringResource(R.string.action_find_printer),
                         )
                     }
+                    IconButton(onClick = { settingsOpen = true }) {
+                        Icon(
+                            Icons.Default.Settings,
+                            contentDescription = stringResource(R.string.settings_screen_title),
+                        )
+                    }
                 }
             )
         },
@@ -283,229 +286,13 @@ internal fun PrintScreen(viewModel: PrintViewModel) {
                 onAddPhotos = { addPhotos.launch(arrayOf("image/*")) },
             )
             PrintSettingsSection(state, viewModel)
-            MaintenanceSection(state, viewModel)
             LogSection(state) { savePrn.launch(viewModel.suggestedFileName()) }
             Spacer(Modifier.height(8.dp))
         }
     }
 
     LayoutEditorDialog(state, viewModel)
-    MaintenanceConfirmDialog(state, viewModel)
-}
-
-// ----------------------------------------------------------- perawatan
-
-/**
- * Cek nozzle dan pembersihan head.
- *
- * Printer tanpa panel bermenu -- L3110 salah satunya -- tidak menyediakan cara
- * membersihkan head yang mampet tanpa komputer. Dua tombol ini menutup lubang
- * itu.
- *
- * Ditaruh paling bawah dan tidak menonjol dengan sengaja: ini bukan yang
- * dikerjakan orang setiap hari, dan pembersihan head memakai tinta.
- */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun MaintenanceSection(state: UiState, viewModel: PrintViewModel) {
-    // Tanpa printer yang tersambung dan berizin, tombolnya hanya menipu.
-    if (state.selectedDevice == null || !state.hasPermission) return
-
-    var expanded by remember { mutableStateOf(false) }
-
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .clickable { expanded = !expanded },
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(stringResource(R.string.maint_title), fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.weight(1f))
-                Text(
-                    stringResource(if (expanded) R.string.common_close else R.string.common_open),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            }
-
-            if (expanded) {
-                InkPanel(state, viewModel)
-                HorizontalDivider()
-                Text(
-                    stringResource(R.string.maint_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    MaintenanceTask.entries.forEach { task ->
-                        OutlinedButton(
-                            onClick = { viewModel.askMaintenance(task) },
-                            enabled = !state.busy,
-                        ) { Text(stringResource(task.label)) }
-                    }
-                }
-                HorizontalDivider()
-                Text(
-                    stringResource(R.string.maint_variant_title),
-                    style = MaterialTheme.typography.labelLarge,
-                )
-                ChipRow(
-                    Maintenance.Variant.entries,
-                    state.maintenanceVariant,
-                    { v ->
-                        stringResource(
-                            if (v == Maintenance.Variant.EXTENDED) R.string.maint_variant_default
-                            else R.string.maint_variant_legacy
-                        )
-                    },
-                    !state.busy,
-                ) { v -> viewModel.setMaintenanceVariant(v) }
-
-                Text(
-                    stringResource(R.string.maint_variant_hint),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-    }
-}
-
-/**
- * Sisa tinta, dibaca dari printer.
- *
- * Hanya membaca. Angkanya perkiraan printer sendiri: printer tangki tinta tidak
- * punya sensor di dalam tangki dan hanya menghitung berapa tetes yang sudah
- * disemprotkan sejak terakhir kali diberi tahu bahwa tangkinya penuh. Itu disebutkan di
- * layar, bukan disembunyikan -- pengguna yang baru mengisi tangki perlu tahu
- * kenapa angkanya masih rendah.
- */
-@Composable
-private fun InkPanel(state: UiState, viewModel: PrintViewModel) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.ink_status_title), style = MaterialTheme.typography.bodyMedium)
-            Spacer(Modifier.weight(1f))
-            TextButton(onClick = viewModel::refreshInk, enabled = !state.busy) {
-                Text(
-                    stringResource(
-                        if (state.inkChecked) R.string.ink_check_again else R.string.ink_check
-                    )
-                )
-            }
-        }
-
-        if (state.printerState != null) {
-            Text(
-                stringResource(
-                    R.string.ink_printer_reports,
-                    stringResource(printerStateLabel(state.printerState)),
-                ),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-            )
-        }
-
-        when {
-            state.inks.isNotEmpty() -> {
-                state.inks.forEach { ink -> InkBar(ink) }
-                Text(
-                    stringResource(
-                        if (state.inks.none { it.measured }) R.string.ink_note_unmeasured
-                        else R.string.ink_note_estimate
-                    ),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            // Bukan kegagalan membaca. Printer tangki seperti L3110 tidak punya
-            // sensor di dalam tangkinya sama sekali, dan Status Monitor bawaan
-            // Epson pun hanya menyuruh melihat tangkinya langsung. Mengatakannya
-            // begitu lebih menolong daripada menyarankan orang membaca catatan
-            // mentah untuk sesuatu yang memang tidak pernah ada.
-            state.inkChecked -> Text(
-                stringResource(R.string.ink_note_none),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
-            else -> Text(
-                stringResource(R.string.ink_unchecked),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-/**
- * Satu baris tangki tinta.
- *
- * Batang hanya digambar kalau angkanya benar-benar hasil pengukuran. Batang
- * kosong untuk nilai yang tidak terukur akan terbaca sebagai "tinta habis" --
- * salah baca yang jauh lebih merugikan daripada tidak ada batang sama sekali.
- */
-@Composable
-private fun InkBar(ink: InkLevel) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            ink.label.text(),
-            style = MaterialTheme.typography.labelMedium,
-            modifier = Modifier.width(76.dp),
-        )
-        if (ink.measured) {
-            LinearProgressIndicator(
-                progress = { ink.percent / 100f },
-                modifier = Modifier
-                    .weight(1f)
-                    .height(8.dp),
-            )
-            Spacer(Modifier.width(8.dp))
-            Text(
-                ink.reading.text(),
-                style = MaterialTheme.typography.labelMedium,
-                modifier = Modifier.width(40.dp),
-                textAlign = TextAlign.End,
-            )
-        } else {
-            Text(
-                ink.reading.text(),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f),
-            )
-        }
-    }
-}
-
-/**
- * Persetujuan sebelum perawatan berjalan.
- *
- * Keduanya memakai sesuatu yang tidak kembali -- selembar kertas atau sejumlah
- * tinta -- dan tidak bisa dihentikan setelah printer mulai bergerak.
- */
-@Composable
-private fun MaintenanceConfirmDialog(state: UiState, viewModel: PrintViewModel) {
-    val task = state.maintenanceAsked ?: return
-
-    AlertDialog(
-        onDismissRequest = viewModel::dismissMaintenance,
-        title = { Text(stringResource(task.label)) },
-        text = { Text(stringResource(task.confirmation)) },
-        confirmButton = {
-            TextButton(onClick = { viewModel.runMaintenance(task) }) {
-                Text(stringResource(R.string.common_run))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = viewModel::dismissMaintenance) {
-                Text(stringResource(R.string.common_cancel))
-            }
-        },
-    )
+    SettingsDialog(settingsOpen, state, viewModel) { settingsOpen = false }
 }
 
 // ------------------------------------------------------------ pratinjau
@@ -989,31 +776,6 @@ private fun PrintSettingsSection(state: UiState, viewModel: PrintViewModel) {
                 { arah -> stringResource(arah.label) },
                 enabled,
             ) { arah -> viewModel.updateSettings { it.copy(direction = arah) } }
-
-            // Pemilih bahasa ditaruh di sini, bukan di bilah atas: ia dipakai
-            // sekali lalu tidak disentuh lagi, sama seperti ukuran kertas.
-            // Labelnya sengaja memuat kedua kata sekaligus supaya tetap bisa
-            // ditemukan oleh orang yang terlanjur membuka aplikasi dalam bahasa
-            // yang tidak ia mengerti.
-            Label(stringResource(R.string.settings_language))
-            ChipRow(
-                AppLanguage.entries,
-                state.language,
-                { bahasa -> stringResource(bahasa.label) },
-                enabled,
-            ) { bahasa -> viewModel.setLanguage(bahasa) }
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    stringResource(R.string.settings_defaults),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f),
-                )
-                TextButton(onClick = viewModel::resetSettings, enabled = enabled) {
-                    Text(stringResource(R.string.settings_restore))
-                }
-            }
         }
     }
 }
@@ -1108,16 +870,6 @@ private fun ConnectionCard(state: UiState, viewModel: PrintViewModel) {
                         }
                     }
 
-                    state.deviceId?.let { id ->
-                        Text(
-                            id,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontFamily = FontFamily.Monospace,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 3,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
                 }
             }
         }
@@ -1335,7 +1087,7 @@ private fun PrintBar(
 // -------------------------------------------------------- komponen kecil
 
 @Composable
-private fun SectionCard(title: String, content: @Composable ColumnScope.() -> Unit) {
+internal fun SectionCard(title: String, content: @Composable ColumnScope.() -> Unit) {
     Card(Modifier.fillMaxWidth()) {
         Column(
             Modifier.padding(16.dp),
@@ -1353,7 +1105,7 @@ private fun SectionCard(title: String, content: @Composable ColumnScope.() -> Un
 }
 
 @Composable
-private fun Label(text: String) {
+internal fun Label(text: String) {
     Text(
         text,
         style = MaterialTheme.typography.labelMedium,
@@ -1388,7 +1140,7 @@ private fun StatusLine(ok: Boolean, text: String) {
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun <T> ChipRow(
+internal fun <T> ChipRow(
     options: List<T>,
     selected: T,
     // @Composable supaya pemanggil boleh memakai stringResource di dalamnya.
@@ -1412,7 +1164,7 @@ private fun <T> ChipRow(
 
 /** contentDescription butuh resource, dan resource butuh konteks composable. */
 @Composable
-private fun stepperSemantics(@StringRes id: Int): Modifier {
+internal fun stepperSemantics(@StringRes id: Int): Modifier {
     val nama = stringResource(id)
     return Modifier.semantics { contentDescription = nama }
 }

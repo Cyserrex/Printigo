@@ -92,6 +92,11 @@
     <string name="settings_defaults">Bawaan: berwarna, Normal, 300 dpi, kertas biasa</string>
     <string name="settings_restore">Kembalikan</string>
 
+    <string name="settings_screen_title">Setelan</string>
+    <string name="about_title">Tentang</string>
+    <string name="about_no_device_id">Device ID belum pernah dibaca.</string>
+    <string name="settings_print_defaults">Setelan cetak bawaan</string>
+
     <!-- Bahasa -->
     <string name="settings_language">Bahasa · Language</string>
     <string name="language_system">Ikut sistem</string>

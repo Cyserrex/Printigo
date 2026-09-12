@@ -9,8 +9,8 @@ ESC/P-R memakai jalur yang sama persis, tetapi belum diuji — lihat
 [Status](#status-apa-yang-terbukti-apa-yang-belum).
 
 Tersedia dalam **bahasa Indonesia dan Inggris**. Bawaannya mengikuti bahasa HP;
-kalau tidak cocok, ada pemilihnya di *Setelan cetak → Setelan lanjutan →
-Bahasa · Language*.
+kalau tidak cocok, ada pemilihnya di **ikon gear** di pojok kanan atas, baris
+*Bahasa · Language*.
 
 <p align="center">
   <img src="docs/screenshots/10-lembar-enam-foto.png" width="30%" alt="Enam foto dalam satu lembar">
@@ -77,9 +77,10 @@ untuk mengujinya, jadi batas antara "terbukti" dan "belum" dijaga ketat.
 | Tampilan benar-benar tergambar | tangkapan layar dari komposisi Compose di JVM |
 | Kedua bahasa sepadan: tidak ada kunci kosong, penanda format cocok, spasi yang disengaja tidak terpangkas | 9 uji terjemahan |
 | Layar utama tersusun, terbaca, dan bisa disentuh dalam bahasa Inggris | 4 uji + tangkapan layar tersendiri |
+| Pembagian halaman utama dan layar setelan tidak bergeser diam-diam | 6 uji |
 | APK terkompilasi, tertandatangani, zipalign, manifes benar | `apksigner`, `zipalign`, `aapt2` |
 
-**209 unit test**, semuanya lolos: `gradlew test`.
+**215 unit test**, semuanya lolos: `gradlew test`.
 
 ### Belum terbukti
 
@@ -423,7 +424,7 @@ pemeriksaan langsung, bukan tebakan dari isi pesan.
 ```bash
 gradlew assembleRelease    # APK rilis, tertandatangani
 gradlew assembleDebug      # APK debug
-gradlew test               # 95 unit test
+gradlew test               # 215 unit test
 ```
 
 Nama berkas APK memuat nomor versi (`Printigo-v2.0-release.apk`), jadi dua
