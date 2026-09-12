@@ -189,6 +189,15 @@ data class UiState(
     val inkChecked: Boolean = false,
     /** Bahasa yang dipilih pengguna; SYSTEM berarti ikut bahasa HP. */
     val language: AppLanguage = AppLanguage.SYSTEM,
+    /**
+     * Berkas yang ditolak karena formatnya, disimpan supaya bisa diserahkan ke
+     * aplikasi lain.
+     *
+     * Tanpa ini tombol "Buka di aplikasi lain" tidak punya apa-apa untuk
+     * dibuka: aplikasi sudah melepas berkasnya begitu ditolak, dan pengguna
+     * harus mencarinya lagi sendiri di pengelola berkas.
+     */
+    val rejectedUri: Uri? = null,
 ) {
     /** Indeks halaman yang akan dicetak, sudah diselesaikan dari pilihan. */
     val pagesToPrint: List<Int>
@@ -501,7 +510,8 @@ class PrintViewModel @JvmOverloads constructor(
                         outcome = PrintOutcome.Failed(
                             PrinterErrorKind.UNSUPPORTED_FORMAT,
                             strings.getString(R.string.err_format_unsupported, mime.ifBlank { name }),
-                        )
+                        ),
+                        rejectedUri = uri,
                     )
                 }
                 log(R.string.log_format_unsupported, name)
@@ -1248,7 +1258,7 @@ class PrintViewModel @JvmOverloads constructor(
 
     /** Menutup kartu hasil setelah pengguna membacanya. */
     fun dismissOutcome() {
-        _state.update { it.copy(outcome = PrintOutcome.None) }
+        _state.update { it.copy(outcome = PrintOutcome.None, rejectedUri = null) }
     }
 
     fun cancel() {

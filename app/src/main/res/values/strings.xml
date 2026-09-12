@@ -182,6 +182,8 @@
     <string name="action_refresh">Find printer</string>
     <string name="action_permission">Grant access</string>
     <string name="action_pick_file">Pick another file</string>
+    <string name="action_open_elsewhere">Open in another app</string>
+    <string name="chooser_open_with">Open with</string>
 
     <!-- Sebab kegagalan -->
     <string name="fail_no_usb_host_title">This phone does not support USB OTG</string>
@@ -203,7 +205,7 @@
     <string name="fail_unreadable_title">The file cannot be read</string>
     <string name="fail_unreadable_hint">The file may be damaged, or its format is not supported.</string>
     <string name="fail_unsupported_title">This file format is not supported yet</string>
-    <string name="fail_unsupported_hint">Printigo can only print images and PDFs. Open the file in an Office app, export it to PDF, then print the PDF.</string>
+    <string name="fail_unsupported_hint">Printigo can only print images and PDFs. Open it in another app, export it to PDF, then print the PDF.</string>
     <string name="fail_not_ready_title">The printer is not ready</string>
     <string name="fail_not_ready_hint">Sort the printer out first, then try again. No paper was wasted, because nothing has been sent yet.</string>
     <string name="fail_out_of_memory_title">Not enough memory on the phone</string>

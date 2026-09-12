@@ -29,6 +29,16 @@ enum class OutcomeAction(@StringRes val label: Int) {
     REFRESH(R.string.action_refresh),
     REQUEST_PERMISSION(R.string.action_permission),
     PICK_FILE(R.string.action_pick_file),
+
+    /**
+     * Menyerahkan berkasnya ke aplikasi lain.
+     *
+     * Untuk berkas Office, "pilih berkas lain" bukan jawaban -- berkas yang
+     * ingin dicetak orang ya berkas itu. Yang ia butuhkan adalah mengubahnya
+     * jadi PDF, dan di HP itu dikerjakan aplikasi lain. Tombol ini mengantar ke
+     * sana alih-alih menyuruhnya mencari sendiri.
+     */
+    OPEN_ELSEWHERE(R.string.action_open_elsewhere),
 }
 
 /**
@@ -102,7 +112,7 @@ fun adviceFor(kind: PrinterErrorKind): FailureAdvice = when (kind) {
     PrinterErrorKind.UNSUPPORTED_FORMAT -> FailureAdvice(
         R.string.fail_unsupported_title,
         R.string.fail_unsupported_hint,
-        OutcomeAction.PICK_FILE,
+        OutcomeAction.OPEN_ELSEWHERE,
     )
 
     PrinterErrorKind.PRINTER_NOT_READY -> FailureAdvice(

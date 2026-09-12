@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.content.Intent
 import android.net.Uri
 import java.io.File
 import androidx.compose.ui.test.assertCountEquals
@@ -23,6 +24,7 @@ import com.escpr.usbprint.escpr.PrintPreset
 import com.escpr.usbprint.escpr.Quality
 import com.escpr.usbprint.escpr.presetOf
 import com.escpr.usbprint.ui.PrintOutcome
+import com.escpr.usbprint.ui.OutcomeAction
 import com.escpr.usbprint.ui.StepAction
 import com.escpr.usbprint.ui.adviceFor
 import com.escpr.usbprint.usb.PrinterErrorKind
@@ -313,6 +315,41 @@ class PrintScreenTest {
 
         val advice = adviceFor(PrinterErrorKind.UNSUPPORTED_FORMAT)
         compose.onNodeWithText(teks(advice.title)).assertIsDisplayed()
+        // Berkasnya diingat, kalau tidak tombol di bawah tidak punya apa-apa
+        // untuk diserahkan ke aplikasi lain.
+        assertEquals(Uri.fromFile(file), viewModel.state.value.rejectedUri)
+    }
+
+    @Test
+    fun `berkas word bisa diserahkan ke aplikasi lain untuk diubah jadi pdf`() {
+        // Printigo tidak bisa mencetak DOCX dan tidak akan bisa: yang sulit
+        // bukan membaca isinya melainkan menghitung tata letaknya, dan halaman
+        // yang bergeser dari yang terlihat di Word lebih buruk daripada menolak
+        // berkasnya, karena kertasnya sudah terlanjur keluar. Yang bisa
+        // dilakukan aplikasi ini hanya mengantar berkasnya ke tempat yang
+        // sanggup mengubahnya jadi PDF.
+        val viewModel = launch()
+        val app = ApplicationProvider.getApplicationContext<Application>()
+        val file = File(app.cacheDir, "laporan.docx")
+        file.writeText("bukan gambar")
+
+        viewModel.openDocument(Uri.fromFile(file))
+        compose.waitForIdle()
+
+        compose.onNodeWithText(teks(OutcomeAction.OPEN_ELSEWHERE.label)).performClick()
+        compose.waitForIdle()
+
+        val dikirim = shadowOf(app).nextStartedActivity
+        assertEquals(Intent.ACTION_CHOOSER, dikirim.action)
+        val dibungkus = dikirim.getParcelableExtra(Intent.EXTRA_INTENT, Intent::class.java)!!
+        assertEquals(Intent.ACTION_VIEW, dibungkus.action)
+        assertEquals(Uri.fromFile(file), dibungkus.data)
+        // Tanpa izin baca yang diteruskan, aplikasi tujuan menerima URI yang
+        // tidak boleh ia buka.
+        assertTrue(
+            "izin baca tidak diteruskan",
+            dibungkus.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0,
+        )
     }
 
     @Test

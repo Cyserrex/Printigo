@@ -80,7 +80,7 @@ untuk mengujinya, jadi batas antara "terbukti" dan "belum" dijaga ketat.
 | Pembagian halaman utama dan layar setelan tidak bergeser diam-diam | 6 uji |
 | APK terkompilasi, tertandatangani, zipalign, manifes benar | `apksigner`, `zipalign`, `aapt2` |
 
-**215 unit test**, semuanya lolos: `gradlew test`.
+**217 unit test**, semuanya lolos: `gradlew test`.
 
 ### Belum terbukti
 
@@ -424,7 +424,7 @@ pemeriksaan langsung, bukan tebakan dari isi pesan.
 ```bash
 gradlew assembleRelease    # APK rilis, tertandatangani
 gradlew assembleDebug      # APK debug
-gradlew test               # 215 unit test
+gradlew test               # 217 unit test
 ```
 
 Nama berkas APK memuat nomor versi (`Printigo-v2.0-release.apk`), jadi dua

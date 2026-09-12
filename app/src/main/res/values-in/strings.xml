@@ -180,6 +180,8 @@
     <string name="action_refresh">Cari printer</string>
     <string name="action_permission">Beri izin</string>
     <string name="action_pick_file">Pilih berkas lain</string>
+    <string name="action_open_elsewhere">Buka di aplikasi lain</string>
+    <string name="chooser_open_with">Buka dengan</string>
 
     <!-- Sebab kegagalan -->
     <string name="fail_no_usb_host_title">HP ini tidak mendukung USB OTG</string>
@@ -201,7 +203,7 @@
     <string name="fail_unreadable_title">Berkas tidak bisa dibaca</string>
     <string name="fail_unreadable_hint">Berkasnya mungkin rusak atau formatnya tidak didukung.</string>
     <string name="fail_unsupported_title">Format berkas ini belum didukung</string>
-    <string name="fail_unsupported_hint">Printigo hanya bisa mencetak gambar dan PDF. Buka berkasnya di aplikasi Office, ekspor ke PDF, lalu cetak PDF-nya.</string>
+    <string name="fail_unsupported_hint">Printigo hanya bisa mencetak gambar dan PDF. Buka di aplikasi lain, ekspor ke PDF, lalu cetak PDF-nya.</string>
     <string name="fail_not_ready_title">Printer belum siap</string>
     <string name="fail_not_ready_hint">Beresi printernya dulu, lalu coba lagi. Tidak ada kertas yang terbuang karena pengiriman belum dimulai.</string>
     <string name="fail_out_of_memory_title">Memori HP tidak cukup</string>

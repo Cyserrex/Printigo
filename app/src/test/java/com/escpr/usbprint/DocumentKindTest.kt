@@ -90,7 +90,10 @@ class DocumentKindTest {
     fun `saran untuk format tak didukung mengarahkan ke ekspor pdf`() {
         val advice = adviceFor(PrinterErrorKind.UNSUPPORTED_FORMAT)
 
-        assertEquals(OutcomeAction.PICK_FILE, advice.action)
+        // Bukan PICK_FILE. Berkas yang ingin dicetak orang ya berkas itu;
+        // menyuruhnya memilih berkas lain bukan jalan keluar, mengubahnya jadi
+        // PDF di aplikasi lain baru jalan keluar.
+        assertEquals(OutcomeAction.OPEN_ELSEWHERE, advice.action)
         assertTrue(
             "saran harus menyebut PDF sebagai jalan keluarnya",
             advice.hint == R.string.fail_unsupported_hint

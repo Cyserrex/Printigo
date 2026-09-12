@@ -1017,7 +1017,7 @@ private fun PrintBar(
             // Hasil dan kesalahan muncul di sini, menempel pada tombol Cetak --
             // bukan di kartu Catatan yang letaknya jauh di bawah dan harus
             // digulir untuk ditemukan.
-            OutcomeCard(state.outcome, viewModel, onPickFile)
+            OutcomeCard(state, viewModel, onPickFile)
             // Kemajuan hanya berarti untuk pencetakan. Membaca sisa tinta
             // memang menyibukkan aplikasi, tapi menampilkan "Mengirim 0%"
             // untuk itu membuat orang mengira cetakan sudah mulai.
@@ -1193,15 +1193,43 @@ private fun Stepper(value: Int, range: IntRange, enabled: Boolean, onChange: (In
 }
 
 /**
+ * Menyerahkan berkas ke aplikasi lain yang sanggup membukanya.
+ *
+ * Dipakai untuk berkas Office, yang tidak bisa dicetak Printigo tetapi bisa
+ * diubah jadi PDF oleh aplikasi pembaca dokumen di HP yang sama. Izin baca
+ * diteruskan lewat FLAG_GRANT_READ_URI_PERMISSION -- tanpa itu aplikasi tujuan
+ * menerima URI yang tidak boleh ia buka.
+ *
+ * Kalau tidak ada satu pun aplikasi yang bisa menanganinya, Android melempar
+ * ActivityNotFoundException. Itu ditangkap dan dibiarkan diam: kartunya masih
+ * di layar dengan kalimat yang menjelaskan keadaannya, dan aplikasi yang mati
+ * di titik ini jauh lebih buruk daripada tombol yang tidak melakukan apa-apa.
+ */
+private fun openElsewhere(context: Context, uri: Uri) {
+    val intent = Intent(Intent.ACTION_VIEW).apply {
+        setDataAndType(uri, context.contentResolver.getType(uri))
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    runCatching {
+        context.startActivity(
+            Intent.createChooser(intent, context.getString(R.string.chooser_open_with))
+        )
+    }
+}
+
+/**
  * Kartu hasil percobaan terakhir: satu kalimat sebab, satu tombol tindakan.
  */
 @Composable
 private fun OutcomeCard(
-    outcome: PrintOutcome,
+    state: UiState,
     viewModel: PrintViewModel,
     onPickFile: () -> Unit,
 ) {
+    val outcome = state.outcome
     if (outcome is PrintOutcome.None) return
+
+    val context = LocalContext.current
 
     val scheme = MaterialTheme.colorScheme
     val failed = outcome is PrintOutcome.Failed
@@ -1272,6 +1300,9 @@ private fun OutcomeCard(
                             OutcomeAction.REFRESH -> viewModel.refreshDevices()
                             OutcomeAction.REQUEST_PERMISSION -> viewModel.requestPermission()
                             OutcomeAction.PICK_FILE -> onPickFile()
+                            OutcomeAction.OPEN_ELSEWHERE ->
+                                state.rejectedUri?.let { openElsewhere(context, it) }
+                                    ?: onPickFile()
                         }
                     }) { Text(stringResource(action.label)) }
                 }
